@@ -100,7 +100,7 @@ class ModuleExportHelper(private val context: Context) {
             // 打包 ZIP
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val safeModel = model.replace(Regex("[^a-zA-Z0-9_]"), "_")
-            val zipFileName = "Magisk_${safeModel}_${timestamp}.zip"
+            val zipFileName = "${safeModel}_${timestamp}.zip"
             val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
 
             if (!downloadDir.exists()) {
@@ -287,7 +287,6 @@ on_install() {
   unzip -o "${dollar}ZIPFILE" 'system/*' -d ${dollar}MODPATH >&2
 }
 sleep 1
-am start -a android.intent.action.VIEW -d tg://resolve?domain=ALING521 >/dev/null 2>&1
 set_permissions() {
   set_perm_recursive  ${dollar}MODPATH  0  0  0755  0644
 }
