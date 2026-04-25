@@ -7,10 +7,9 @@ android {
     namespace = "com.fioiu8.devinfo"
     compileSdk = 37
 
-    // 添加签名配置
+    // 签名配置
     signingConfigs {
         create("release") {
-            // 使用 GitHub Actions 的环境变量，本地调试用 debug key
             storeFile = System.getenv("KEYSTORE_PATH")?.let { file(it) }
                 ?: file("debug.keystore")
             storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
@@ -33,7 +32,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")  // 使用签名
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -41,7 +40,7 @@ android {
         }
     }
 
-    // 多架构支持
+    // 多架构支持配置（不自定义文件名，使用默认命名）
     splits {
         abi {
             isEnable = true
@@ -72,7 +71,7 @@ dependencies {
     implementation("top.yukonga.miuix.kmp:miuix-ui:0.9.0")
     implementation("top.yukonga.miuix.kmp:miuix-preference:0.9.0")
     implementation("top.yukonga.miuix.kmp:miuix-icons:0.9.0")
-    implementation("top.yukonga.miuix.kmp:miuix-shapes:0.9.0")  // 添加这个依赖
+    implementation("top.yukonga.miuix.kmp:miuix-shapes:0.9.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
