@@ -9,7 +9,8 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "debug.keystore")
+            // 修正路径：使用根目录的 release.keystore
+            storeFile = rootProject.file("release.keystore")
             storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
             keyAlias = System.getenv("KEY_ALIAS") ?: "androiddebugkey"
             keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
@@ -26,7 +27,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // BuildConfig 字段
         buildConfigField("boolean", "IS_OFFICIAL", "false")
         buildConfigField("String", "BUILD_TYPE_NAME", "\"dev\"")
     }
@@ -44,7 +44,6 @@ android {
                 "proguard-rules.pro"
             )
 
-            // 关键：根据环境变量设置 IS_OFFICIAL
             val isOfficial = System.getenv("SIGNATURE_TYPE") == "release"
             buildConfigField("boolean", "IS_OFFICIAL", isOfficial.toString())
             buildConfigField("String", "BUILD_TYPE_NAME", "\"${if (isOfficial) "official" else "dev"}\"")
@@ -62,14 +61,13 @@ android {
 
     buildFeatures {
         compose = true
-        buildConfig = true  // 关键：启用 BuildConfig 生成
+        buildConfig = true
     }
 
     kotlin {
         jvmToolchain(11)
     }
 }
-
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
