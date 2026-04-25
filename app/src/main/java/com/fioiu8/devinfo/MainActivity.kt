@@ -58,9 +58,11 @@ import top.yukonga.miuix.kmp.theme.LocalDismissState
 import top.yukonga.miuix.kmp.icon.extended.*
 import top.yukonga.miuix.kmp.theme.ThemePaletteStyle
 import top.yukonga.miuix.kmp.theme.ThemeColorSpec
+import top.yukonga.miuix.kmp.basic.Card // miuix的card组件
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.mutableIntStateOf // 用于创建 Compose 状态的整型可变状态
 import androidx.core.net.toUri // 将字符串转换为 Uri 对象的扩展函数
+import androidx.compose.ui.zIndex
 
 // 导航栏显示模式枚举，定义了底部导航栏的几种可选样式
 enum class NavigationBarMode(val displayName: String) {
@@ -257,13 +259,23 @@ class MainActivity : ComponentActivity() {
             Scaffold(
                 // 顶部应用栏，标题根据 selectedIndex 动态变化
                 topBar = {
-                    TopAppBar(
-                        title = when (selectedIndex) {
-                            0 -> "设备信息"
-                            1 -> "设置"
-                            else -> "设备信息"
+                    Column {
+                        TopAppBar(
+                            title = when (selectedIndex) {
+                                0 -> "设备信息"
+                                1 -> "设置"
+                                else -> "设备信息"
+                            }
+                        )
+                        // 警告卡片放在 TopAppBar 下方
+                        if (!BuildConfig.IS_OFFICIAL) {
+                            TestVersionWarningCard(
+                                versionName = BuildConfig.VERSION_NAME,
+                                buildType = BuildConfig.BUILD_TYPE_NAME,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
-                    )
+                    }
                 },
                 // 底部导航栏，根据 navBarMode 的值显示不同的样式
                 bottomBar = {
@@ -1405,6 +1417,55 @@ class MainActivity : ComponentActivity() {
             block()
         } catch (_: Exception) {
             default
+        }
+    }
+}
+
+/**
+ * 测试版本警告卡片
+ * 背景半透明红色，文字纯红色
+ */
+@Composable
+fun TestVersionWarningCard(
+    modifier: Modifier = Modifier,
+    versionName: String = "",
+    buildType: String = "dev"
+) {
+    val warningBgColor = Color(0x1AFF0000)
+    val warningTextColor = Color(0xFFE53935)
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        cornerRadius = 12.dp,
+        insideMargin = PaddingValues(0.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(warningBgColor, RoundedCornerShape(12.dp))
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(text = "⚠️", fontSize = 16.sp, color = warningTextColor)
+                Column {
+                    Text(
+                        text = "测试版本",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = warningTextColor
+                    )
+                    Text(
+                        text = "当前为开发测试版，不建议在生产环境使用",
+                        fontSize = 11.sp,
+                        color = warningTextColor.copy(alpha = 0.85f)
+                    )
+                }
+            }
         }
     }
 }
