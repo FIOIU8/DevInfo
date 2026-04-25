@@ -47,14 +47,24 @@ jobs:
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
       
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      # 解码正式签名密钥
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
       
       - name: Build APK
-        run: ./gradlew assembleRelease --stacktrace
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --stacktrace
         env:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          KEYSTORE_PATH: release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -76,53 +86,18 @@ jobs:
           name: DevInfo-${{ needs.build.outputs.version_name }}
           path: apk/
       
-      - name: Generate Changelog
-        id: changelog
-        run: |
-          git clone --depth 1 https://github.com/${{ github.repository }}.git temp-repo
-          cd temp-repo
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          
-          if [ -n "$LAST_TAG" ]; then
-            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s" --reverse)
-          else
-            COMMITS=$(git log --pretty=format:"%s" --reverse)
-          fi
-          
-          FEATURES=""
-          FIXES=""
-          
-          while IFS= read -r line; do
-            if [[ "$line" =~ ^feat: ]]; then
-              FEATURES="${FEATURES}\n• ${line#feat: }"
-            elif [[ "$line" =~ ^fix: ]]; then
-              FIXES="${FIXES}\n• ${line#fix: }"
-            fi
-          done <<< "$COMMITS"
-          
-          CHANGELOG=""
-          [ -n "$FEATURES" ] && CHANGELOG="${CHANGELOG}**新功能：**$FEATURES\n\n"
-          [ -n "$FIXES" ] && CHANGELOG="${CHANGELOG}**修复：**$FIXES\n\n"
-          [ -z "$CHANGELOG" ] && CHANGELOG="暂无详细更新记录\n\n"
-          
-          echo "content<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          cd ..
-          rm -rf temp-repo
-      
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
           name: "v${{ needs.build.outputs.version_name }}"
           body: |
-            ${{ steps.changelog.outputs.content }}
-            
-            ---
+            ## v${{ needs.build.outputs.version_name }}
             
             ### 📦 安装说明
-            下载 APK 到手机直接安装
+            1. 下载 APK 到手机
+            2. 如果提示"禁止安装未知来源应用"，请在设置中允许
+            3. 如已安装旧版本，请先卸载
             
             ### 🔧 技术信息
             - 构建号：`${{ needs.build.outputs.version_code }}`
