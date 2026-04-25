@@ -66,9 +66,6 @@ jobs:
           echo "KEY_ALIAS=androiddebugkey" >> $GITHUB_ENV
           echo "KEY_PASSWORD=android" >> $GITHUB_ENV
       
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-      
       - name: Build APK
         run: |
           chmod +x gradlew
@@ -77,7 +74,6 @@ jobs:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
           KEYSTORE_PATH: ${{ env.KEYSTORE_PATH }}
-          KEYSTORE_PATH: release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -124,5 +120,4 @@ jobs:
             - 构建号：`${{ needs.build.outputs.version_code }}`
           files: apk/*.apk
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
