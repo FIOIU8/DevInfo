@@ -7,7 +7,6 @@ android {
     namespace = "com.fioiu8.devinfo"
     compileSdk = 37
 
-    // 签名配置 - 从环境变量读取
     signingConfigs {
         create("release") {
             storeFile = file(System.getenv("KEYSTORE_PATH") ?: "debug.keystore")
