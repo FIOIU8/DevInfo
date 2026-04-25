@@ -7,10 +7,11 @@ android {
     namespace = "com.fioiu8.devinfo"
     compileSdk = 37
 
+    // 签名配置 - 只配置 release，debug 是默认存在的
     signingConfigs {
+        // release 签名配置（从环境变量读取）
         create("release") {
-            // 修正路径：使用相对路径指向根目录
-            storeFile = file("../release.keystore")
+            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "debug.keystore")
             storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
             keyAlias = System.getenv("KEY_ALIAS") ?: "androiddebugkey"
             keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
@@ -31,7 +32,12 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            // 根据环境变量选择签名配置
+            signingConfig = if (System.getenv("SIGNATURE_TYPE") == "release") {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")  // debug 是默认存在的
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
