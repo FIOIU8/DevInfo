@@ -28,33 +28,37 @@ jobs:
         with:
           fetch-depth: 0
       
-      # 获取 commits
+      # 获取 commits（只保留有格式的提交）
       - name: Get commits since last release
         id: commits
+        continue-on-error: true  # 即使出错也继续
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           
           if [ -n "$LAST_TAG" ]; then
             echo "Last tag: $LAST_TAG"
-            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s" --reverse)
-            echo "commits=$COMMITS" >> $GITHUB_OUTPUT
-            echo "last_tag=$LAST_TAG" >> $GITHUB_OUTPUT
+            # 获取所有提交，但只保留有前缀的
+            ALL_COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s" --reverse || echo "")
           else
             echo "No previous tag found"
-            COMMITS=$(git log --pretty=format:"%s" --reverse)
-            echo "commits=$COMMITS" >> $GITHUB_OUTPUT
-            echo "last_tag=首次发布" >> $GITHUB_OUTPUT
+            ALL_COMMITS=$(git log --pretty=format:"%s" --reverse || echo "")
           fi
           
-          echo "$COMMITS" > commit_messages.txt
-          echo "总共有 $(echo "$COMMITS" | wc -l) 个提交"
+          # 过滤：只保留以 feat:/fix:/docs: 等开头的提交（忽略 "Add README.md" 这种）
+          FILTERED_COMMITS=$(echo "$ALL_COMMITS" | grep -E '^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\([^)]+\))?:' || echo "")
           
-          # 显示所有提交（调试用）
-          echo "=== 提交列表 ==="
+          echo "原始提交数量: $(echo "$ALL_COMMITS" | wc -l)"
+          echo "有效提交数量: $(echo "$FILTERED_COMMITS" | wc -l)"
+          
+          echo "$FILTERED_COMMITS" > commit_messages.txt
+          echo "commits=$FILTERED_COMMITS" >> $GITHUB_OUTPUT
+          
+          # 显示有效提交
+          echo "=== 有效的提交列表 ==="
           cat commit_messages.txt
-          echo "================"
+          echo "======================"
       
-      # 智能分类生成更新日志（增强版，支持无前缀的提交）
+      # 生成更新日志（只处理有前缀的）
       - name: Generate changelog with categories
         id: changelog
         run: |
@@ -67,33 +71,29 @@ jobs:
           performances=()
           tests=()
           chores=()
-          others=()
           
-          # 定义前缀映射
-          declare -A prefix_map=(
-            ["feat"]="feature"
-            ["fix"]="fix"
-            ["docs"]="docs"
-            ["style"]="style"
-            ["refactor"]="refactor"
-            ["perf"]="perf"
-            ["test"]="test"
-            ["chore"]="chore"
-            ["ci"]="chore"
-            ["build"]="chore"
-            ["revert"]="other"
-          )
+          # 检查文件是否存在且非空
+          if [ ! -s commit_messages.txt ]; then
+            echo "没有有效的提交记录，使用默认消息"
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            echo "本次更新暂无详细记录" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "---" >> $GITHUB_OUTPUT
+            echo "✨ 本次更新合并自 \`test\` 分支" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            exit 0
+          fi
           
           # 读取每个 commit 并分类
           while IFS= read -r commit_msg; do
+            # 跳过空行
             if [ -z "$commit_msg" ]; then
               continue
             fi
             
             echo "处理: $commit_msg"
             
-            # 提取前缀 (支持 feat:, feat(xxx):, fix:, fix(xxx): 等格式)
-            # 使用更宽松的正则
+            # 提取前缀
             prefix=$(echo "$commit_msg" | sed -n 's/^\([a-z]*\)\(([^)]*)\)\?:.*/\1/p')
             if [ -z "$prefix" ]; then
               prefix=$(echo "$commit_msg" | sed -n 's/^\([a-z]*\):.*/\1/p')
@@ -102,61 +102,60 @@ jobs:
             # 去除前缀，获取消息正文
             clean_msg=$(echo "$commit_msg" | sed -E 's/^[a-z]+(\([^)]+\))?:\s*//')
             
-            # 如果没有匹配到前缀，或者清理后消息为空，使用原始消息
-            if [ -z "$prefix" ] || [ "$clean_msg" = "$commit_msg" ]; then
-              clean_msg="$commit_msg"
-              prefix=""
+            # 如果没有匹配到前缀，跳过这一条（理论上已经被过滤了，但双重保险）
+            if [ -z "$prefix" ]; then
+              echo "  -> 跳过（无前缀）: $commit_msg"
+              continue
             fi
             
             # 根据前缀分类
             case "$prefix" in
               feat)
                 features+=("$clean_msg")
-                echo "  -> 归类为: 新功能"
+                echo "  -> 新功能: $clean_msg"
                 ;;
               fix)
                 fixes+=("$clean_msg")
-                echo "  -> 归类为: 修复"
+                echo "  -> 修复: $clean_msg"
                 ;;
               docs)
                 docs+=("$clean_msg")
-                echo "  -> 归类为: 文档"
+                echo "  -> 文档: $clean_msg"
                 ;;
               style)
                 styles+=("$clean_msg")
-                echo "  -> 归类为: 样式"
+                echo "  -> 样式: $clean_msg"
                 ;;
               refactor)
                 refactors+=("$clean_msg")
-                echo "  -> 归类为: 重构"
+                echo "  -> 重构: $clean_msg"
                 ;;
               perf)
                 performances+=("$clean_msg")
-                echo "  -> 归类为: 性能"
+                echo "  -> 性能: $clean_msg"
                 ;;
               test)
                 tests+=("$clean_msg")
-                echo "  -> 归类为: 测试"
+                echo "  -> 测试: $clean_msg"
                 ;;
               chore|ci|build)
                 chores+=("$clean_msg")
-                echo "  -> 归类为: 杂项"
+                echo "  -> 杂项: $clean_msg"
                 ;;
               revert)
-                others+=("⏪ 回滚: $clean_msg")
-                echo "  -> 归类为: 回滚"
+                # 回滚单独处理
+                chores+=("⏪ 回滚: $clean_msg")
+                echo "  -> 回滚: $clean_msg"
                 ;;
               *)
-                # 没有前缀或未知前缀，归类为其他
-                if [ -n "$clean_msg" ]; then
-                  others+=("$clean_msg")
-                  echo "  -> 归类为: 其他"
-                fi
+                # 未知前缀，作为其他
+                chores+=("$clean_msg")
+                echo "  -> 其他: $clean_msg"
                 ;;
             esac
           done < commit_messages.txt
           
-          # 开始构建 changelog（使用安全的 echo 方式）
+          # 开始构建 changelog
           CHANGELOG_FILE=$(mktemp)
           
           # 新功能
@@ -219,10 +218,10 @@ jobs:
             echo "" >> "$CHANGELOG_FILE"
           fi
           
-          # 其他（包括杂项和未分类的）
-          if [ ${#others[@]} -gt 0 ] || [ ${#chores[@]} -gt 0 ] || [ ${#tests[@]} -gt 0 ]; then
+          # 其他（杂项、测试等）
+          if [ ${#chores[@]} -gt 0 ] || [ ${#tests[@]} -gt 0 ]; then
             echo "**其他：**" >> "$CHANGELOG_FILE"
-            all_others=("${others[@]}" "${chores[@]}" "${tests[@]}")
+            all_others=("${chores[@]}" "${tests[@]}")
             for i in "${!all_others[@]}"; do
               number=$((i+1))
               echo "${number}. ${all_others[$i]}" >> "$CHANGELOG_FILE"
@@ -230,7 +229,7 @@ jobs:
             echo "" >> "$CHANGELOG_FILE"
           fi
           
-          # 如果没有找到任何变更
+          # 如果没有任何分类，显示默认消息
           if [ ! -s "$CHANGELOG_FILE" ]; then
             echo "暂无详细更新记录" >> "$CHANGELOG_FILE"
             echo "" >> "$CHANGELOG_FILE"
@@ -242,11 +241,10 @@ jobs:
           echo "✨ 本次更新合并自 \`test\` 分支" >> "$CHANGELOG_FILE"
           
           # 读取并输出 changelog
-          CHANGELOG=$(cat "$CHANGELOG_FILE")
           echo "生成的更新日志:"
-          echo "$CHANGELOG"
+          cat "$CHANGELOG_FILE"
           
-          # 使用文件方式传递多行输出，避免特殊字符问题
+          # 使用文件方式传递多行输出
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           cat "$CHANGELOG_FILE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -254,7 +252,7 @@ jobs:
           # 清理临时文件
           rm -f "$CHANGELOG_FILE"
       
-      # 设置版本变量
+      # 设置版本变量（始终执行，不受 commit 影响）
       - name: Set version variables
         id: version
         run: |
@@ -269,6 +267,8 @@ jobs:
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "Version Name: $VERSION_NAME"
+          echo "Version Code: $VERSION_CODE"
 
   # ==================== Job 2: 构建 APK ====================
   build-apk:
