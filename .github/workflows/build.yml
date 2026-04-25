@@ -51,6 +51,21 @@ jobs:
       - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+          echo "KEYSTORE_PATH=release.keystore" >> $GITHUB_ENV
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      
+      # 如果没有正式密钥（fallback），使用 debug 密钥
+      - name: Create debug keystore (fallback)
+        if: env.KEYSTORE_PATH == ''
+        run: |
+          keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android
+          echo "KEYSTORE_PATH=debug.keystore" >> $GITHUB_ENV
+          echo "KEYSTORE_PASSWORD=android" >> $GITHUB_ENV
+          echo "KEY_ALIAS=androiddebugkey" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=android" >> $GITHUB_ENV
+      
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
       
@@ -61,10 +76,16 @@ jobs:
         env:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          KEYSTORE_PATH: ${{ env.KEYSTORE_PATH }}
           KEYSTORE_PATH: release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      
+      - name: List generated files
+        run: |
+          echo "=== 生成的文件 ==="
+          ls -la app/build/outputs/apk/release/
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -103,4 +124,5 @@ jobs:
             - 构建号：`${{ needs.build.outputs.version_code }}`
           files: apk/*.apk
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
