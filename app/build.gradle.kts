@@ -7,12 +7,25 @@ android {
     namespace = "com.fioiu8.devinfo"
     compileSdk = 37
 
+    // 添加签名配置
+    signingConfigs {
+        create("release") {
+            // 使用 GitHub Actions 的环境变量，本地调试用 debug key
+            storeFile = System.getenv("KEYSTORE_PATH")?.let { file(it) }
+                ?: file("debug.keystore")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "androiddebugkey"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.fioiu8.devinfo"
         minSdk = 30
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = System.getenv("VERSION_NAME") ?: "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -20,12 +33,24 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")  // 使用签名
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
     }
+
+    // 多架构支持
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
