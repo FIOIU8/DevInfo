@@ -10,11 +10,9 @@ on:
 
 permissions:
   contents: write
-  actions: read
 
 jobs:
-  # ==================== Job 1: 构建多架构 APK ====================
-  build-apk:
+  build:
     name: Build APK
     runs-on: ubuntu-latest
     outputs:
@@ -24,8 +22,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -50,56 +46,41 @@ jobs:
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
-          echo "Version Name: $VERSION_NAME"
-          echo "Version Code: $VERSION_CODE"
       
-      - name: Create debug keystore
-        run: |
-          keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
       
-      - name: Build all APKs
-        run: |
-          chmod +x gradlew
-          # 构建所有架构的 APK
-          ./gradlew assembleRelease
+      - name: Build APK
+        run: ./gradlew assembleRelease --stacktrace
         env:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
       
-      - name: List generated APKs
-        run: |
-          echo "=== 生成的 APK 文件 ==="
-          ls -la app/build/outputs/apk/release/ || echo "目录不存在"
-          echo "=== 查找所有 APK ==="
-          find app/build/outputs -name "*.apk" -type f 2>/dev/null || echo "未找到 APK"
-      
-      - name: Upload all APKs
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: DevInfo-${{ steps.version.outputs.version_name }}-build-${{ steps.version.outputs.version_code }}
-          path: |
-            app/build/outputs/apk/release/*.apk
+          name: DevInfo-${{ steps.version.outputs.version_name }}
+          path: app/build/outputs/apk/release/*.apk
           retention-days: 30
 
-  # ==================== Job 2: 生成更新日志 ====================
-  generate-changelog:
-    name: Generate Changelog
-    needs: build-apk
+  release:
+    name: Create Release
+    needs: build
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag'
-    outputs:
-      changelog: ${{ steps.changelog.outputs.changelog }}
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Download APK
+        uses: actions/download-artifact@v4
         with:
-          fetch-depth: 0
+          name: DevInfo-${{ needs.build.outputs.version_name }}
+          path: apk/
       
-      - name: Generate changelog from commits
+      - name: Generate Changelog
         id: changelog
         run: |
+          git clone --depth 1 https://github.com/${{ github.repository }}.git temp-repo
+          cd temp-repo
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           
           if [ -n "$LAST_TAG" ]; then
@@ -110,113 +91,41 @@ jobs:
           
           FEATURES=""
           FIXES=""
-          OTHER=""
           
           while IFS= read -r line; do
-            [ -z "$line" ] && continue
-            
             if [[ "$line" =~ ^feat: ]]; then
-              msg="${line#feat: }"
-              FEATURES="${FEATURES}\n${FEATURES:+ }• $msg"
+              FEATURES="${FEATURES}\n• ${line#feat: }"
             elif [[ "$line" =~ ^fix: ]]; then
-              msg="${line#fix: }"
-              FIXES="${FIXES}\n${FIXES:+ }• $msg"
-            else
-              if [[ "$line" =~ ^[a-z]+: ]]; then
-                OTHER="${OTHER}\n${OTHER:+ }• $line"
-              fi
+              FIXES="${FIXES}\n• ${line#fix: }"
             fi
           done <<< "$COMMITS"
           
           CHANGELOG=""
+          [ -n "$FEATURES" ] && CHANGELOG="${CHANGELOG}**新功能：**$FEATURES\n\n"
+          [ -n "$FIXES" ] && CHANGELOG="${CHANGELOG}**修复：**$FIXES\n\n"
+          [ -z "$CHANGELOG" ] && CHANGELOG="暂无详细更新记录\n\n"
           
-          if [ -n "$FEATURES" ]; then
-            CHANGELOG="${CHANGELOG}**新功能：**\n$FEATURES\n\n"
-          fi
-          
-          if [ -n "$FIXES" ]; then
-            CHANGELOG="${CHANGELOG}**修复：**\n$FIXES\n\n"
-          fi
-          
-          if [ -n "$OTHER" ]; then
-            CHANGELOG="${CHANGELOG}**其他：**\n$OTHER\n\n"
-          fi
-          
-          if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="暂无详细更新记录\n\n"
-          fi
-          
-          CHANGELOG="${CHANGELOG}---\n✨ 本次更新合并自 \`test\` 分支"
-          
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "content<<EOF" >> $GITHUB_OUTPUT
           echo -e "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
-  # ==================== Job 3: 创建 Release ====================
-  create-release:
-    name: Create Release
-    needs: [build-apk, generate-changelog]
-    runs-on: ubuntu-latest
-    if: github.ref_type == 'tag'
-    
-    steps:
-      - name: Download APKs
-        uses: actions/download-artifact@v4
-        with:
-          name: DevInfo-${{ needs.build-apk.outputs.version_name }}-build-${{ needs.build-apk.outputs.version_code }}
-          path: apk/
-      
-      - name: Rename APKs for clarity
-        run: |
-          cd apk/
-          for file in *.apk; do
-            if [[ "$file" == *"arm64-v8a"* ]]; then
-              mv "$file" "DevInfo-ARM64-v8a-${{ needs.build-apk.outputs.version_name }}.apk"
-            elif [[ "$file" == *"armeabi-v7a"* ]]; then
-              mv "$file" "DevInfo-ARM32-v7a-${{ needs.build-apk.outputs.version_name }}.apk"
-            elif [[ "$file" == *"x86_64"* ]]; then
-              mv "$file" "DevInfo-x86_64-${{ needs.build-apk.outputs.version_name }}.apk"
-            elif [[ "$file" == *"x86"* ]]; then
-              mv "$file" "DevInfo-x86-${{ needs.build-apk.outputs.version_name }}.apk"
-            elif [[ "$file" == *"universal"* ]]; then
-              mv "$file" "DevInfo-Universal-${{ needs.build-apk.outputs.version_name }}.apk"
-            fi
-          done
-          ls -la
+          cd ..
+          rm -rf temp-repo
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-          name: "v${{ needs.build-apk.outputs.version_name }}"
+          name: "v${{ needs.build.outputs.version_name }}"
           body: |
-            ${{ needs.generate-changelog.outputs.changelog }}
+            ${{ steps.changelog.outputs.content }}
             
             ---
             
             ### 📦 安装说明
-            
-            **选择对应的 APK：**
-            
-            | 文件名 | 适用设备 |
-            |--------|----------|
-            | `DevInfo-ARM64-v8a-*.apk` | 主流 Android 手机 (推荐) |
-            | `DevInfo-ARM32-v7a-*.apk` | 老款 32 位手机 |
-            | `DevInfo-Universal-*.apk` | 所有设备 (文件较大) |
-            | `DevInfo-x86_64-*.apk` | 64位模拟器 |
-            | `DevInfo-x86-*.apk` | 32位模拟器 |
-            
-            **安装步骤：**
-            1. 下载对应架构的 APK
-            2. 如果提示"禁止安装未知来源应用"，请在设置中允许
-            3. 如已安装旧版本，可能需要先卸载
+            下载 APK 到手机直接安装
             
             ### 🔧 技术信息
-            - 版本号：v${{ needs.build-apk.outputs.version_name }}
-            - 构建号：`${{ needs.build-apk.outputs.version_code }}`
-            - 提交哈希：`${{ github.sha }}`
+            - 构建号：`${{ needs.build.outputs.version_code }}`
           files: apk/*.apk
-          draft: false
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
