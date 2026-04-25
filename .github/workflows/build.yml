@@ -13,7 +13,7 @@ permissions:
   actions: read
 
 jobs:
-  # ==================== Job 1: 构建 APK ====================
+  # ==================== Job 1: 构建多架构 APK ====================
   build-apk:
     name: Build APK
     runs-on: ubuntu-latest
@@ -53,20 +53,53 @@ jobs:
           echo "Version Name: $VERSION_NAME"
           echo "Version Code: $VERSION_CODE"
       
-      - name: Build APK
+      # 创建调试密钥（如果没有配置正式密钥）
+      - name: Create debug keystore
+        run: |
+          keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android
+      
+      - name: Build all APKs
         run: |
           chmod +x gradlew
+          # 构建通用 APK 和分架构 APK
           ./gradlew assembleRelease
         env:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          # 如果不想使用调试密钥，可以配置这些 secrets
+          KEYSTORE_PATH: ${{ secrets.KEYSTORE_PATH }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       
-      - name: Upload APK artifact
+      # 上传通用 APK
+      - name: Upload universal APK
         uses: actions/upload-artifact@v4
         with:
-          name: DevInfo-${{ steps.version.outputs.version_name }}-build-${{ steps.version.outputs.version_code }}
-          path: app/build/outputs/apk/release/*.apk
+          name: DevInfo-${{ steps.version.outputs.version_name }}-universal
+          path: app/build/outputs/apk/release/*-universal-release.apk
           retention-days: 30
+      
+      # 上传分架构 APK
+      - name: Upload architecture APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: DevInfo-${{ steps.version.outputs.version_name }}-archs
+          path: |
+            app/build/outputs/apk/release/*-arm64-v8a-release.apk
+            app/build/outputs/apk/release/*-armeabi-v7a-release.apk
+            app/build/outputs/apk/release/*-x86-release.apk
+            app/build/outputs/apk/release/*-x86_64-release.apk
+          retention-days: 30
+      
+      # 列出生成的文件（调试用）
+      - name: List generated APKs
+        run: |
+          echo "=== 生成的 APK 文件 ==="
+          find app/build/outputs/apk -name "*.apk" -type f | while read file; do
+            echo "  $(basename "$file") - $(du -h "$file" | cut -f1)"
+          done
 
   # ==================== Job 2: 生成更新日志 ====================
   generate-changelog:
@@ -86,26 +119,21 @@ jobs:
       - name: Generate changelog from commits
         id: changelog
         run: |
-          # 获取上一个 tag
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           
-          # 获取所有 commit 消息
           if [ -n "$LAST_TAG" ]; then
             COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s" --reverse)
           else
             COMMITS=$(git log --pretty=format:"%s" --reverse)
           fi
           
-          # 初始化分类
           FEATURES=""
           FIXES=""
           OTHER=""
           
-          # 逐行处理 commit
           while IFS= read -r line; do
             [ -z "$line" ] && continue
             
-            # 检查是否以 feat: 或 fix: 开头
             if [[ "$line" =~ ^feat: ]]; then
               msg="${line#feat: }"
               FEATURES="${FEATURES}\n${FEATURES:+ }• $msg"
@@ -113,15 +141,12 @@ jobs:
               msg="${line#fix: }"
               FIXES="${FIXES}\n${FIXES:+ }• $msg"
             else
-              # 跳过没有前缀的提交（如 "Add README.md"）
               if [[ "$line" =~ ^[a-z]+: ]]; then
                 OTHER="${OTHER}\n${OTHER:+ }• $line"
               fi
-              # 否则完全忽略该提交
             fi
           done <<< "$COMMITS"
           
-          # 构建最终 changelog
           CHANGELOG=""
           
           if [ -n "$FEATURES" ]; then
@@ -142,15 +167,9 @@ jobs:
           
           CHANGELOG="${CHANGELOG}---\n✨ 本次更新合并自 \`test\` 分支"
           
-          # 输出
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           echo -e "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          
-          # 打印调试信息
-          echo "=== 生成的 Changelog ==="
-          echo -e "$CHANGELOG"
-          echo "========================"
 
   # ==================== Job 3: 创建 Release ====================
   create-release:
@@ -160,11 +179,17 @@ jobs:
     if: github.ref_type == 'tag'
     
     steps:
-      - name: Download APK
+      - name: Download universal APK
         uses: actions/download-artifact@v4
         with:
-          name: DevInfo-${{ needs.build-apk.outputs.version_name }}-build-${{ needs.build-apk.outputs.version_code }}
-          path: apk/
+          name: DevInfo-${{ needs.build-apk.outputs.version_name }}-universal
+          path: apk/universal/
+      
+      - name: Download architecture APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: DevInfo-${{ needs.build-apk.outputs.version_name }}-archs
+          path: apk/archs/
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -177,13 +202,29 @@ jobs:
             ---
             
             ### 📦 安装说明
-            - 下载 APK 后直接安装
-            - 如遇安装失败，请先卸载旧版本
+            
+            **推荐下载：**
+            - **通用版** (`-universal`): 适用于所有设备，文件较大
+            - **分架构版**: 根据手机 CPU 类型选择，文件更小
+            
+            **如何选择架构：**
+            | 架构 | 适用设备 |
+            |------|----------|
+            | arm64-v8a | 主流 Android 手机 (2015年后) |
+            | armeabi-v7a | 老款 32 位手机 |
+            | x86/x86_64 | 模拟器或 Intel 设备 |
+            
+            **安装步骤：**
+            1. 下载对应架构的 APK
+            2. 如果提示"禁止安装未知来源应用"，请在设置中允许
+            3. 如已安装旧版本，可能需要先卸载
             
             ### 🔧 技术信息
             - 构建版本：`${{ needs.build-apk.outputs.version_code }}`
             - 提交哈希：`${{ github.sha }}`
-          files: apk/*.apk
+          files: |
+            apk/universal/*.apk
+            apk/archs/*.apk
           draft: false
           prerelease: false
         env:
