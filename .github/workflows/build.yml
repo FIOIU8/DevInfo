@@ -1,15 +1,12 @@
 name: Build and Release
 
 on:
-  # 推送到 master 或 test 分支时自动构建（使用 debug 签名）
   push:
     branches:
       - master
       - test
-    # 当修改 workflow 文件本身时，跳过构建
     paths-ignore:
       - '.github/workflows/**'
-  # 手动触发（支持选择签名类型和版本信息）
   workflow_dispatch:
     inputs:
       version_name:
@@ -120,6 +117,7 @@ jobs:
       # 创建 debug 密钥（始终创建，作为备用）
       - name: Create debug keystore
         run: |
+          echo "🔧 创建调试密钥库... / Creating debug keystore..."
           keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Debug-CI, O=Android, C=CN" -storepass android -keypass android
           echo "✅ 调试密钥库已创建 / Debug keystore created"
@@ -128,6 +126,7 @@ jobs:
       - name: Decode release keystore
         if: env.SIGNATURE_TYPE == 'release'
         run: |
+          echo "🔐 解密正式版密钥库... / Decoding release keystore..."
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
             echo "✅ 正式版密钥库已解密 / Release keystore decoded"
