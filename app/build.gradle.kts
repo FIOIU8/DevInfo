@@ -7,9 +7,7 @@ android {
     namespace = "com.fioiu8.devinfo"
     compileSdk = 37
 
-    // 签名配置 - 只配置 release，debug 是默认存在的
     signingConfigs {
-        // release 签名配置（从环境变量读取）
         create("release") {
             storeFile = file(System.getenv("KEYSTORE_PATH") ?: "debug.keystore")
             storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
@@ -27,21 +25,33 @@ android {
         versionName = System.getenv("VERSION_NAME") ?: "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // BuildConfig 字段
+        buildConfigField("boolean", "IS_OFFICIAL", "false")
+        buildConfigField("String", "BUILD_TYPE_NAME", "\"dev\"")
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            // 根据环境变量选择签名配置
             signingConfig = if (System.getenv("SIGNATURE_TYPE") == "release") {
                 signingConfigs.getByName("release")
             } else {
-                signingConfigs.getByName("debug")  // debug 是默认存在的
+                signingConfigs.getByName("debug")
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+
+            // 关键：根据环境变量设置 IS_OFFICIAL
+            val isOfficial = System.getenv("SIGNATURE_TYPE") == "release"
+            buildConfigField("boolean", "IS_OFFICIAL", isOfficial.toString())
+            buildConfigField("String", "BUILD_TYPE_NAME", "\"${if (isOfficial) "official" else "dev"}\"")
+        }
+        debug {
+            buildConfigField("boolean", "IS_OFFICIAL", "false")
+            buildConfigField("String", "BUILD_TYPE_NAME", "\"debug\"")
         }
     }
 
@@ -50,12 +60,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlin {
-        jvmToolchain(11)
-    }
-
     buildFeatures {
         compose = true
+        buildConfig = true  // 关键：启用 BuildConfig 生成
+    }
+
+    kotlin {
+        jvmToolchain(11)
     }
 }
 
