@@ -1,13 +1,10 @@
 name: Build and Release
 
 on:
-  # 推送到 master 分支时自动构建（使用 debug 签名）
+  # 推送到 master 或 test 分支时自动构建（使用 debug 签名）
   push:
     branches:
       - master
-  # 推送到 test 分支时自动构建（使用 debug 签名）
-  push:
-    branches:
       - test
   # 手动触发（支持选择签名类型和版本信息）
   workflow_dispatch:
@@ -73,27 +70,14 @@ jobs:
         run: |
           # 获取触发信息
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TRIGGER_TYPE="手动触发"
+            TRIGGER_TYPE="手动触发 🖱️"
             TRIGGER_ACTOR="${{ github.actor }}"
-          elif [[ "${{ github.event_name }}" == "push" ]]; then
-            TRIGGER_TYPE="Push 触发"
-            TRIGGER_ACTOR="${{ github.actor }}"
-          else
-            TRIGGER_TYPE="其他"
-            TRIGGER_ACTOR="${{ github.actor }}"
-          fi
-          
-          # 获取分支信息
-          BRANCH_NAME="${GITHUB_REF_NAME}"
-          
-          # 判断触发方式
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            # 手动触发：使用输入的版本名
             VERSION_NAME="${{ github.event.inputs.version_name }}"
             SIGNATURE_TYPE="${{ github.event.inputs.signature_type }}"
             CREATE_RELEASE="${{ github.event.inputs.create_release }}"
           else
-            # 自动触发：使用 dev-commitHash 格式
+            TRIGGER_TYPE="Push 触发 📤"
+            TRIGGER_ACTOR="${{ github.actor }}"
             VERSION_NAME="dev-${GITHUB_SHA::7}"
             SIGNATURE_TYPE="debug"
             CREATE_RELEASE="false"
@@ -102,6 +86,7 @@ jobs:
           # 构建号始终自动递增
           VERSION_CODE="${{ github.run_number }}"
           BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          BRANCH_NAME="${GITHUB_REF_NAME}"
           
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
@@ -119,8 +104,17 @@ jobs:
           echo "TRIGGER_ACTOR=$TRIGGER_ACTOR" >> $GITHUB_ENV
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
           echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_ENV
+          
+          echo "========================================"
+          echo "📦 版本名称: v$VERSION_NAME"
+          echo "🔢 构建号: $VERSION_CODE"
+          echo "🔏 签名类型: $SIGNATURE_TYPE"
+          echo "🔔 触发方式: $TRIGGER_TYPE"
+          echo "👤 触发者: $TRIGGER_ACTOR"
+          echo "🌿 分支: $BRANCH_NAME"
+          echo "========================================"
 
-      # 创建 debug 密钥
+      # 创建 debug 密钥（始终创建，作为备用）
       - name: Create debug keystore
         run: |
           keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
@@ -131,9 +125,14 @@ jobs:
       - name: Decode release keystore
         if: env.SIGNATURE_TYPE == 'release'
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
-          echo "✅ Release keystore decoded"
-          ls -la release.keystore
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+            echo "✅ Release keystore decoded"
+            ls -la release.keystore
+          else
+            echo "⚠️ KEYSTORE_BASE64 secret not found, falling back to debug"
+            echo "SIGNATURE_TYPE=debug" >> $GITHUB_ENV
+          fi
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
@@ -146,15 +145,21 @@ jobs:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
           KEYSTORE_PATH: ${{ env.SIGNATURE_TYPE == 'release' && 'release.keystore' || 'debug.keystore' }}
-          KEYSTORE_PASSWORD: ${{ env.SIGNATURE_TYPE == 'release' && secrets.KEYSTORE_PASSWORD || 'android' }}
-          KEY_ALIAS: ${{ env.SIGNATURE_TYPE == 'release' && secrets.KEY_ALIAS || 'androiddebugkey' }}
-          KEY_PASSWORD: ${{ env.SIGNATURE_TYPE == 'release' && secrets.KEY_PASSWORD || 'android' }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          SIGNATURE_TYPE: ${{ env.SIGNATURE_TYPE }}
 
       # 列出生成的文件
       - name: List generated files
         run: |
           echo "=== 生成的 APK 文件 ==="
-          ls -la app/build/outputs/apk/release/ || echo "目录不存在"
+          ls -la app/build/outputs/apk/release/ 2>/dev/null || echo "目录不存在"
+          echo ""
+          echo "=== APK 文件详情 ==="
+          find app/build/outputs -name "*.apk" -type f 2>/dev/null | while read file; do
+            echo "📱 $(basename "$file") - $(du -h "$file" | cut -f1)"
+          done
 
       # 上传 APK artifact
       - name: Upload APK
@@ -164,7 +169,7 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           retention-days: 30
 
-      # 构建成功总结信息
+      # 构建成功总结
       - name: Build Success Summary
         if: success()
         run: |
@@ -184,16 +189,6 @@ jobs:
           echo "  - 分支: ${{ env.BRANCH_NAME }}"
           echo "  - Commit: ${GITHUB_SHA::7}"
           echo ""
-          echo "📤 产物信息："
-          echo "  - Artifact: DevInfo-${{ env.VERSION_NAME }}-${{ env.SIGNATURE_TYPE }}"
-          echo "  - 保存时间: 30 天"
-          echo ""
-          if [[ "${{ env.CREATE_RELEASE }}" == "true" ]]; then
-            echo "🚀 Release 信息："
-            echo "  - 将创建 GitHub Release"
-            echo "  - 标签: v${{ env.VERSION_NAME }}"
-            echo ""
-          fi
           echo "========================================"
           echo "📥 下载 APK:"
           echo "  https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
@@ -224,32 +219,11 @@ jobs:
           | **分支** | \`${{ env.BRANCH_NAME }}\` |
           | **Commit** | \`${GITHUB_SHA::7}\` |
           
-          ## 📤 产物信息
-          
-          - **Artifact 名称**: \`DevInfo-${{ env.VERSION_NAME }}-${{ env.SIGNATURE_TYPE }}\`
-          - **保存时间**: 30 天
-          - **下载方式**: 点击页面下方的 "Artifacts" 部分
-          
-          EOF
-          
-          if [[ "${{ env.CREATE_RELEASE }}" == "true" ]]; then
-            cat >> $GITHUB_STEP_SUMMARY <<EOF
-          ## 🚀 Release 信息
-          
-          - 将自动创建 GitHub Release
-          - Release 标签: \`v${{ env.VERSION_NAME }}\`
-          - 可在 [Releases](https://github.com/${{ github.repository }}/releases) 页面查看
-          
-          EOF
-          fi
-          
-          cat >> $GITHUB_STEP_SUMMARY <<EOF
           ## 📥 下载链接
           
           [查看运行详情](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
           
           ---
-          
           *由 GitHub Actions 自动生成*
           EOF
 
@@ -281,6 +255,8 @@ jobs:
           
           FEATURES=""
           FIXES=""
+          PERF=""
+          REFACTOR=""
           OTHER=""
           
           while IFS= read -r line; do
@@ -292,16 +268,24 @@ jobs:
             elif [[ "$line" =~ ^fix: ]]; then
               msg="${line#fix: }"
               FIXES="${FIXES}\n${FIXES:+ }• $msg"
-            elif [[ "$line" =~ ^(docs|style|refactor|perf|test|chore|ci|build): ]]; then
+            elif [[ "$line" =~ ^perf: ]]; then
+              msg="${line#perf: }"
+              PERF="${PERF}\n${PERF:+ }• $msg"
+            elif [[ "$line" =~ ^refactor: ]]; then
+              msg="${line#refactor: }"
+              REFACTOR="${REFACTOR}\n${REFACTOR:+ }• $msg"
+            elif [[ "$line" =~ ^(docs|style|test|chore|ci|build): ]]; then
               msg="${line}"
               OTHER="${OTHER}\n${OTHER:+ }• $msg"
             fi
           done <<< "$COMMITS"
           
           CHANGELOG=""
-          [ -n "$FEATURES" ] && CHANGELOG="${CHANGELOG}**新功能：**\n$FEATURES\n\n"
-          [ -n "$FIXES" ] && CHANGELOG="${CHANGELOG}**修复：**\n$FIXES\n\n"
-          [ -n "$OTHER" ] && CHANGELOG="${CHANGELOG}**其他：**\n$OTHER\n\n"
+          [ -n "$FEATURES" ] && CHANGELOG="${CHANGELOG}**✨ 新功能：**\n$FEATURES\n\n"
+          [ -n "$FIXES" ] && CHANGELOG="${CHANGELOG}**🐛 修复：**\n$FIXES\n\n"
+          [ -n "$PERF" ] && CHANGELOG="${CHANGELOG}**⚡ 性能优化：**\n$PERF\n\n"
+          [ -n "$REFACTOR" ] && CHANGELOG="${CHANGELOG}**♻️ 重构：**\n$REFACTOR\n\n"
+          [ -n "$OTHER" ] && CHANGELOG="${CHANGELOG}**📌 其他：**\n$OTHER\n\n"
           
           if [ -n "${{ github.event.inputs.release_notes }}" ]; then
             CHANGELOG="${{ github.event.inputs.release_notes }}\n\n---\n\n$CHANGELOG"
@@ -349,11 +333,13 @@ jobs:
           body: |
             ## 🔖 Version ${{ needs.build.outputs.version_name }}
             
-            > Build Number: `${{ needs.build.outputs.version_code }}`
-            > Signature: `${{ needs.build.outputs.signature_type }}`
-            > Trigger: `${{ needs.build.outputs.trigger_type }}`
-            > Triggered by: @${{ needs.build.outputs.trigger_actor }}
-            > Build Time: ${{ needs.build.outputs.build_time }}
+            | 项目 | 值 |
+            |------|-----|
+            | **构建号** | \`${{ needs.build.outputs.version_code }}\` |
+            | **签名类型** | \`${{ needs.build.outputs.signature_type }}\` |
+            | **触发方式** | ${{ needs.build.outputs.trigger_type }} |
+            | **触发者** | @${{ needs.build.outputs.trigger_actor }} |
+            | **构建时间** | ${{ needs.build.outputs.build_time }} |
             
             ---
             
@@ -362,13 +348,13 @@ jobs:
             ---
             
             ### 📦 安装说明
-            - 下载 APK 到手机直接安装
-            - 如提示"禁止安装未知来源应用"，请在设置中允许
-            - 如已安装旧版本，可能需要先卸载
+            1. 下载 APK 到手机直接安装
+            2. 如提示"禁止安装未知来源应用"，请在设置中允许
+            3. 如已安装旧版本，可能需要先卸载
             
             ### 🔧 技术信息
             - 构建链接: [GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            - 提交哈希: `${{ github.sha }}`
+            - 提交哈希: \`${{ github.sha }}\`
           files: apk/*.apk
           draft: false
           prerelease: false
@@ -391,23 +377,3 @@ jobs:
           echo "🔗 链接："
           echo "  https://github.com/${{ github.repository }}/releases/tag/v${{ needs.build.outputs.version_name }}"
           echo "========================================"
-          
-          cat >> $GITHUB_STEP_SUMMARY <<EOF
-          # 🚀 Release 创建成功！
-          
-          ## 📦 Release 信息
-          
-          | 项目 | 值 |
-          |------|-----|
-          | **版本** | v${{ needs.build.outputs.version_name }} |
-          | **标签** | \`v${{ needs.build.outputs.version_name }}\` |
-          | **签名类型** | \`${{ needs.build.outputs.signature_type }}\` |
-          
-          ## 🔗 链接
-          
-          - [查看 Release](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.build.outputs.version_name }})
-          
-          ---
-          
-          *APK 已上传到 Release 页面*
-          EOF
