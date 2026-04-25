@@ -7,6 +7,16 @@ android {
     namespace = "com.fioiu8.devinfo"
     compileSdk = 37
 
+    // 签名配置 - 从环境变量读取
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "debug.keystore")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "androiddebugkey"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.fioiu8.devinfo"
         minSdk = 30
@@ -21,6 +31,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -33,7 +44,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    // AGP 9.0+ 中，Kotlin 编译选项直接在 android 块中配置
     kotlin {
         jvmToolchain(11)
     }
