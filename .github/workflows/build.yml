@@ -1,0 +1,298 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  # ==================== Job 1: 生成更新日志 ====================
+  generate-changelog:
+    name: Generate Changelog
+    runs-on: ubuntu-latest
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+      version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      # 获取 commits
+      - name: Get commits since last release
+        id: commits
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -n "$LAST_TAG" ]; then
+            echo "Last tag: $LAST_TAG"
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s" --reverse)
+            echo "commits=$COMMITS" >> $GITHUB_OUTPUT
+            echo "last_tag=$LAST_TAG" >> $GITHUB_OUTPUT
+          else
+            echo "No previous tag found"
+            COMMITS=$(git log --pretty=format:"%s" --reverse)
+            echo "commits=$COMMITS" >> $GITHUB_OUTPUT
+            echo "last_tag=首次发布" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "$COMMITS" > commit_messages.txt
+          echo "总共有 $(echo "$COMMITS" | wc -l) 个提交"
+      
+      # 智能分类生成更新日志（中文分类）
+      - name: Generate changelog with categories
+        id: changelog
+        run: |
+          # 初始化分类数组
+          fixes=()
+          features=()
+          docs=()
+          styles=()
+          refactors=()
+          performances=()
+          tests=()
+          chores=()
+          others=()
+          
+          # 读取每个 commit 并分类
+          while IFS= read -r commit_msg; do
+            if [ -z "$commit_msg" ]; then
+              continue
+            fi
+            
+            echo "处理: $commit_msg"
+            
+            # 提取前缀
+            prefix=$(echo "$commit_msg" | grep -oE '^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\([^)]+\))?:' || echo "")
+            
+            # 去除前缀，获取消息正文
+            clean_msg=$(echo "$commit_msg" | sed -E 's/^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\([^)]+\))?:\s*//')
+            
+            case "$prefix" in
+              feat:*|feat\(*\):*)
+                features+=("$clean_msg")
+                echo "  -> 归类为: 新功能"
+                ;;
+              fix:*|fix\(*\):*)
+                fixes+=("$clean_msg")
+                echo "  -> 归类为: 修复"
+                ;;
+              docs:*|docs\(*\):*)
+                docs+=("$clean_msg")
+                echo "  -> 归类为: 文档"
+                ;;
+              style:*|style\(*\):*)
+                styles+=("$clean_msg")
+                echo "  -> 归类为: 样式"
+                ;;
+              refactor:*|refactor\(*\):*)
+                refactors+=("$clean_msg")
+                echo "  -> 归类为: 重构"
+                ;;
+              perf:*|perf\(*\):*)
+                performances+=("$clean_msg")
+                echo "  -> 归类为: 性能"
+                ;;
+              test:*|test\(*\):*)
+                tests+=("$clean_msg")
+                echo "  -> 归类为: 测试"
+                ;;
+              chore:*|chore\(*\):*|ci:*|ci\(*\):*|build:*|build\(*\):*)
+                chores+=("$clean_msg")
+                echo "  -> 归类为: 杂项"
+                ;;
+              revert:*|revert\(*\):*)
+                others+=("⏪ 回滚: $clean_msg")
+                echo "  -> 归类为: 回滚"
+                ;;
+              *)
+                others+=("$commit_msg")
+                echo "  -> 归类为: 其他"
+                ;;
+            esac
+          done < commit_messages.txt
+          
+          # 开始构建 changelog
+          CHANGELOG=""
+          
+          # 新功能
+          if [ ${#features[@]} -gt 0 ]; then
+            CHANGELOG="${CHANGELOG}**新功能：**\n"
+            for i in "${!features[@]}"; do
+              number=$((i+1))
+              CHANGELOG="${CHANGELOG}${number}. ${features[$i]}\n"
+            done
+            CHANGELOG="${CHANGELOG}\n"
+          fi
+          
+          # Bug 修复
+          if [ ${#fixes[@]} -gt 0 ]; then
+            CHANGELOG="${CHANGELOG}**修复：**\n"
+            for i in "${!fixes[@]}"; do
+              number=$((i+1))
+              CHANGELOG="${CHANGELOG}${number}. ${fixes[$i]}\n"
+            done
+            CHANGELOG="${CHANGELOG}\n"
+          fi
+          
+          # 性能优化
+          if [ ${#performances[@]} -gt 0 ]; then
+            CHANGELOG="${CHANGELOG}**性能优化：**\n"
+            for i in "${!performances[@]}"; do
+              number=$((i+1))
+              CHANGELOG="${CHANGELOG}${number}. ${performances[$i]}\n"
+            done
+            CHANGELOG="${CHANGELOG}\n"
+          fi
+          
+          # 代码重构
+          if [ ${#refactors[@]} -gt 0 ]; then
+            CHANGELOG="${CHANGELOG}**重构：**\n"
+            for i in "${!refactors[@]}"; do
+              number=$((i+1))
+              CHANGELOG="${CHANGELOG}${number}. ${refactors[$i]}\n"
+            done
+            CHANGELOG="${CHANGELOG}\n"
+          fi
+          
+          # UI/样式调整
+          if [ ${#styles[@]} -gt 0 ]; then
+            CHANGELOG="${CHANGELOG}**样式调整：**\n"
+            for i in "${!styles[@]}"; do
+              number=$((i+1))
+              CHANGELOG="${CHANGELOG}${number}. ${styles[$i]}\n"
+            done
+            CHANGELOG="${CHANGELOG}\n"
+          fi
+          
+          # 文档
+          if [ ${#docs[@]} -gt 0 ]; then
+            CHANGELOG="${CHANGELOG}**文档：**\n"
+            for i in "${!docs[@]}"; do
+              number=$((i+1))
+              CHANGELOG="${CHANGELOG}${number}. ${docs[$i]}\n"
+            done
+            CHANGELOG="${CHANGELOG}\n"
+          fi
+          
+          # 其他（包括杂项和未分类的）
+          if [ ${#others[@]} -gt 0 ] || [ ${#chores[@]} -gt 0 ]; then
+            CHANGELOG="${CHANGELOG}**其他：**\n"
+            all_others=("${others[@]}" "${chores[@]}" "${tests[@]}")
+            for i in "${!all_others[@]}"; do
+              number=$((i+1))
+              CHANGELOG="${CHANGELOG}${number}. ${all_others[$i]}\n"
+            done
+            CHANGELOG="${CHANGELOG}\n"
+          fi
+          
+          # 如果没有找到任何变更
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="暂无详细更新记录\n"
+          fi
+          
+          # 添加分隔线和 PR 信息
+          CHANGELOG="${CHANGELOG}\n---\n\n✨ 本次更新合并自 \`test\` 分支"
+          
+          echo "生成的更新日志:"
+          echo -e "$CHANGELOG"
+          
+          # 输出到 GitHub 环境变量
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      # 设置版本变量
+      - name: Set version variables
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION_NAME="${GITHUB_REF_NAME#v}"
+          else
+            VERSION_NAME="dev-${GITHUB_SHA::7}"
+          fi
+          VERSION_CODE="${{ github.run_number }}"
+          
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+
+  # ==================== Job 2: 构建 APK ====================
+  build-apk:
+    name: Build APK
+    needs: generate-changelog
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+      
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease
+        env:
+          VERSION_CODE: ${{ needs.generate-changelog.outputs.version_code }}
+          VERSION_NAME: ${{ needs.generate-changelog.outputs.version_name }}
+      
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DevInfo-${{ needs.generate-changelog.outputs.version_name }}-build-${{ needs.generate-changelog.outputs.version_code }}
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+  # ==================== Job 3: 创建 Release ====================
+  create-release:
+    name: Create Release
+    needs: [generate-changelog, build-apk]
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    
+    steps:
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: DevInfo-${{ needs.generate-changelog.outputs.version_name }}-build-${{ needs.generate-changelog.outputs.version_code }}
+          path: apk/
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "v${{ needs.generate-changelog.outputs.version_name }}"
+          body: |
+            ${{ needs.generate-changelog.outputs.changelog }}
+            
+            ---
+            
+            ### 📦 安装说明
+            - 下载 APK 后直接安装
+            - 如遇安装失败，请先卸载旧版本
+            
+            ### 🔧 技术信息
+            - 构建版本：`${{ needs.generate-changelog.outputs.version_code }}`
+            - 提交哈希：`${{ github.sha }}`
+          files: apk/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
