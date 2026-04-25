@@ -53,7 +53,6 @@ jobs:
           echo "Version Name: $VERSION_NAME"
           echo "Version Code: $VERSION_CODE"
       
-      # 创建调试密钥（如果没有配置正式密钥）
       - name: Create debug keystore
         run: |
           keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
@@ -62,44 +61,26 @@ jobs:
       - name: Build all APKs
         run: |
           chmod +x gradlew
-          # 构建通用 APK 和分架构 APK
+          # 构建所有架构的 APK
           ./gradlew assembleRelease
         env:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
-          # 如果不想使用调试密钥，可以配置这些 secrets
-          KEYSTORE_PATH: ${{ secrets.KEYSTORE_PATH }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       
-      # 上传通用 APK
-      - name: Upload universal APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: DevInfo-${{ steps.version.outputs.version_name }}-universal
-          path: app/build/outputs/apk/release/*-universal-release.apk
-          retention-days: 30
-      
-      # 上传分架构 APK
-      - name: Upload architecture APKs
-        uses: actions/upload-artifact@v4
-        with:
-          name: DevInfo-${{ steps.version.outputs.version_name }}-archs
-          path: |
-            app/build/outputs/apk/release/*-arm64-v8a-release.apk
-            app/build/outputs/apk/release/*-armeabi-v7a-release.apk
-            app/build/outputs/apk/release/*-x86-release.apk
-            app/build/outputs/apk/release/*-x86_64-release.apk
-          retention-days: 30
-      
-      # 列出生成的文件（调试用）
       - name: List generated APKs
         run: |
           echo "=== 生成的 APK 文件 ==="
-          find app/build/outputs/apk -name "*.apk" -type f | while read file; do
-            echo "  $(basename "$file") - $(du -h "$file" | cut -f1)"
-          done
+          ls -la app/build/outputs/apk/release/ || echo "目录不存在"
+          echo "=== 查找所有 APK ==="
+          find app/build/outputs -name "*.apk" -type f 2>/dev/null || echo "未找到 APK"
+      
+      - name: Upload all APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: DevInfo-${{ steps.version.outputs.version_name }}-build-${{ steps.version.outputs.version_code }}
+          path: |
+            app/build/outputs/apk/release/*.apk
+          retention-days: 30
 
   # ==================== Job 2: 生成更新日志 ====================
   generate-changelog:
@@ -179,17 +160,29 @@ jobs:
     if: github.ref_type == 'tag'
     
     steps:
-      - name: Download universal APK
+      - name: Download APKs
         uses: actions/download-artifact@v4
         with:
-          name: DevInfo-${{ needs.build-apk.outputs.version_name }}-universal
-          path: apk/universal/
+          name: DevInfo-${{ needs.build-apk.outputs.version_name }}-build-${{ needs.build-apk.outputs.version_code }}
+          path: apk/
       
-      - name: Download architecture APKs
-        uses: actions/download-artifact@v4
-        with:
-          name: DevInfo-${{ needs.build-apk.outputs.version_name }}-archs
-          path: apk/archs/
+      - name: Rename APKs for clarity
+        run: |
+          cd apk/
+          for file in *.apk; do
+            if [[ "$file" == *"arm64-v8a"* ]]; then
+              mv "$file" "DevInfo-ARM64-v8a-${{ needs.build-apk.outputs.version_name }}.apk"
+            elif [[ "$file" == *"armeabi-v7a"* ]]; then
+              mv "$file" "DevInfo-ARM32-v7a-${{ needs.build-apk.outputs.version_name }}.apk"
+            elif [[ "$file" == *"x86_64"* ]]; then
+              mv "$file" "DevInfo-x86_64-${{ needs.build-apk.outputs.version_name }}.apk"
+            elif [[ "$file" == *"x86"* ]]; then
+              mv "$file" "DevInfo-x86-${{ needs.build-apk.outputs.version_name }}.apk"
+            elif [[ "$file" == *"universal"* ]]; then
+              mv "$file" "DevInfo-Universal-${{ needs.build-apk.outputs.version_name }}.apk"
+            fi
+          done
+          ls -la
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -203,16 +196,15 @@ jobs:
             
             ### 📦 安装说明
             
-            **推荐下载：**
-            - **通用版** (`-universal`): 适用于所有设备，文件较大
-            - **分架构版**: 根据手机 CPU 类型选择，文件更小
+            **选择对应的 APK：**
             
-            **如何选择架构：**
-            | 架构 | 适用设备 |
-            |------|----------|
-            | arm64-v8a | 主流 Android 手机 (2015年后) |
-            | armeabi-v7a | 老款 32 位手机 |
-            | x86/x86_64 | 模拟器或 Intel 设备 |
+            | 文件名 | 适用设备 |
+            |--------|----------|
+            | `DevInfo-ARM64-v8a-*.apk` | 主流 Android 手机 (推荐) |
+            | `DevInfo-ARM32-v7a-*.apk` | 老款 32 位手机 |
+            | `DevInfo-Universal-*.apk` | 所有设备 (文件较大) |
+            | `DevInfo-x86_64-*.apk` | 64位模拟器 |
+            | `DevInfo-x86-*.apk` | 32位模拟器 |
             
             **安装步骤：**
             1. 下载对应架构的 APK
@@ -220,11 +212,10 @@ jobs:
             3. 如已安装旧版本，可能需要先卸载
             
             ### 🔧 技术信息
-            - 构建版本：`${{ needs.build-apk.outputs.version_code }}`
+            - 版本号：v${{ needs.build-apk.outputs.version_name }}
+            - 构建号：`${{ needs.build-apk.outputs.version_code }}`
             - 提交哈希：`${{ github.sha }}`
-          files: |
-            apk/universal/*.apk
-            apk/archs/*.apk
+          files: apk/*.apk
           draft: false
           prerelease: false
         env:
