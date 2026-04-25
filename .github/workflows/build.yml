@@ -1,0 +1,123 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    outputs:
+      version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+      
+      - name: Set version variables
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION_NAME="${GITHUB_REF_NAME#v}"
+          else
+            VERSION_NAME="dev-${GITHUB_SHA::7}"
+          fi
+          VERSION_CODE="${{ github.run_number }}"
+          
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+      
+      # 解码正式签名密钥
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+          echo "KEYSTORE_PATH=release.keystore" >> $GITHUB_ENV
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      
+      # 如果没有正式密钥（fallback），使用 debug 密钥
+      - name: Create debug keystore (fallback)
+        if: env.KEYSTORE_PATH == ''
+        run: |
+          keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug, O=Android, C=US" -storepass android -keypass android
+          echo "KEYSTORE_PATH=debug.keystore" >> $GITHUB_ENV
+          echo "KEYSTORE_PASSWORD=android" >> $GITHUB_ENV
+          echo "KEY_ALIAS=androiddebugkey" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=android" >> $GITHUB_ENV
+      
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --stacktrace
+        env:
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          KEYSTORE_PATH: ${{ env.KEYSTORE_PATH }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      
+      - name: List generated files
+        run: |
+          echo "=== 生成的文件 ==="
+          ls -la app/build/outputs/apk/release/
+      
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DevInfo-${{ steps.version.outputs.version_name }}
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    
+    steps:
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: DevInfo-${{ needs.build.outputs.version_name }}
+          path: apk/
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "v${{ needs.build.outputs.version_name }}"
+          body: |
+            ## v${{ needs.build.outputs.version_name }}
+            
+            ### 📦 安装说明
+            1. 下载 APK 到手机
+            2. 如果提示"禁止安装未知来源应用"，请在设置中允许
+            3. 如已安装旧版本，请先卸载
+            
+            ### 🔧 技术信息
+            - 构建号：`${{ needs.build.outputs.version_code }}`
+          files: apk/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
