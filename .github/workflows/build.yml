@@ -48,8 +48,13 @@ jobs:
           
           echo "$COMMITS" > commit_messages.txt
           echo "总共有 $(echo "$COMMITS" | wc -l) 个提交"
+          
+          # 显示所有提交（调试用）
+          echo "=== 提交列表 ==="
+          cat commit_messages.txt
+          echo "================"
       
-      # 智能分类生成更新日志（中文分类）
+      # 智能分类生成更新日志（增强版，支持无前缀的提交）
       - name: Generate changelog with categories
         id: changelog
         run: |
@@ -64,6 +69,21 @@ jobs:
           chores=()
           others=()
           
+          # 定义前缀映射
+          declare -A prefix_map=(
+            ["feat"]="feature"
+            ["fix"]="fix"
+            ["docs"]="docs"
+            ["style"]="style"
+            ["refactor"]="refactor"
+            ["perf"]="perf"
+            ["test"]="test"
+            ["chore"]="chore"
+            ["ci"]="chore"
+            ["build"]="chore"
+            ["revert"]="other"
+          )
+          
           # 读取每个 commit 并分类
           while IFS= read -r commit_msg; do
             if [ -z "$commit_msg" ]; then
@@ -72,145 +92,167 @@ jobs:
             
             echo "处理: $commit_msg"
             
-            # 提取前缀
-            prefix=$(echo "$commit_msg" | grep -oE '^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\([^)]+\))?:' || echo "")
+            # 提取前缀 (支持 feat:, feat(xxx):, fix:, fix(xxx): 等格式)
+            # 使用更宽松的正则
+            prefix=$(echo "$commit_msg" | sed -n 's/^\([a-z]*\)\(([^)]*)\)\?:.*/\1/p')
+            if [ -z "$prefix" ]; then
+              prefix=$(echo "$commit_msg" | sed -n 's/^\([a-z]*\):.*/\1/p')
+            fi
             
             # 去除前缀，获取消息正文
-            clean_msg=$(echo "$commit_msg" | sed -E 's/^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\([^)]+\))?:\s*//')
+            clean_msg=$(echo "$commit_msg" | sed -E 's/^[a-z]+(\([^)]+\))?:\s*//')
             
+            # 如果没有匹配到前缀，或者清理后消息为空，使用原始消息
+            if [ -z "$prefix" ] || [ "$clean_msg" = "$commit_msg" ]; then
+              clean_msg="$commit_msg"
+              prefix=""
+            fi
+            
+            # 根据前缀分类
             case "$prefix" in
-              feat:*|feat\(*\):*)
+              feat)
                 features+=("$clean_msg")
                 echo "  -> 归类为: 新功能"
                 ;;
-              fix:*|fix\(*\):*)
+              fix)
                 fixes+=("$clean_msg")
                 echo "  -> 归类为: 修复"
                 ;;
-              docs:*|docs\(*\):*)
+              docs)
                 docs+=("$clean_msg")
                 echo "  -> 归类为: 文档"
                 ;;
-              style:*|style\(*\):*)
+              style)
                 styles+=("$clean_msg")
                 echo "  -> 归类为: 样式"
                 ;;
-              refactor:*|refactor\(*\):*)
+              refactor)
                 refactors+=("$clean_msg")
                 echo "  -> 归类为: 重构"
                 ;;
-              perf:*|perf\(*\):*)
+              perf)
                 performances+=("$clean_msg")
                 echo "  -> 归类为: 性能"
                 ;;
-              test:*|test\(*\):*)
+              test)
                 tests+=("$clean_msg")
                 echo "  -> 归类为: 测试"
                 ;;
-              chore:*|chore\(*\):*|ci:*|ci\(*\):*|build:*|build\(*\):*)
+              chore|ci|build)
                 chores+=("$clean_msg")
                 echo "  -> 归类为: 杂项"
                 ;;
-              revert:*|revert\(*\):*)
+              revert)
                 others+=("⏪ 回滚: $clean_msg")
                 echo "  -> 归类为: 回滚"
                 ;;
               *)
-                others+=("$commit_msg")
-                echo "  -> 归类为: 其他"
+                # 没有前缀或未知前缀，归类为其他
+                if [ -n "$clean_msg" ]; then
+                  others+=("$clean_msg")
+                  echo "  -> 归类为: 其他"
+                fi
                 ;;
             esac
           done < commit_messages.txt
           
-          # 开始构建 changelog
-          CHANGELOG=""
+          # 开始构建 changelog（使用安全的 echo 方式）
+          CHANGELOG_FILE=$(mktemp)
           
           # 新功能
           if [ ${#features[@]} -gt 0 ]; then
-            CHANGELOG="${CHANGELOG}**新功能：**\n"
+            echo "**新功能：**" >> "$CHANGELOG_FILE"
             for i in "${!features[@]}"; do
               number=$((i+1))
-              CHANGELOG="${CHANGELOG}${number}. ${features[$i]}\n"
+              echo "${number}. ${features[$i]}" >> "$CHANGELOG_FILE"
             done
-            CHANGELOG="${CHANGELOG}\n"
+            echo "" >> "$CHANGELOG_FILE"
           fi
           
           # Bug 修复
           if [ ${#fixes[@]} -gt 0 ]; then
-            CHANGELOG="${CHANGELOG}**修复：**\n"
+            echo "**修复：**" >> "$CHANGELOG_FILE"
             for i in "${!fixes[@]}"; do
               number=$((i+1))
-              CHANGELOG="${CHANGELOG}${number}. ${fixes[$i]}\n"
+              echo "${number}. ${fixes[$i]}" >> "$CHANGELOG_FILE"
             done
-            CHANGELOG="${CHANGELOG}\n"
+            echo "" >> "$CHANGELOG_FILE"
           fi
           
           # 性能优化
           if [ ${#performances[@]} -gt 0 ]; then
-            CHANGELOG="${CHANGELOG}**性能优化：**\n"
+            echo "**性能优化：**" >> "$CHANGELOG_FILE"
             for i in "${!performances[@]}"; do
               number=$((i+1))
-              CHANGELOG="${CHANGELOG}${number}. ${performances[$i]}\n"
+              echo "${number}. ${performances[$i]}" >> "$CHANGELOG_FILE"
             done
-            CHANGELOG="${CHANGELOG}\n"
+            echo "" >> "$CHANGELOG_FILE"
           fi
           
           # 代码重构
           if [ ${#refactors[@]} -gt 0 ]; then
-            CHANGELOG="${CHANGELOG}**重构：**\n"
+            echo "**重构：**" >> "$CHANGELOG_FILE"
             for i in "${!refactors[@]}"; do
               number=$((i+1))
-              CHANGELOG="${CHANGELOG}${number}. ${refactors[$i]}\n"
+              echo "${number}. ${refactors[$i]}" >> "$CHANGELOG_FILE"
             done
-            CHANGELOG="${CHANGELOG}\n"
+            echo "" >> "$CHANGELOG_FILE"
           fi
           
           # UI/样式调整
           if [ ${#styles[@]} -gt 0 ]; then
-            CHANGELOG="${CHANGELOG}**样式调整：**\n"
+            echo "**样式调整：**" >> "$CHANGELOG_FILE"
             for i in "${!styles[@]}"; do
               number=$((i+1))
-              CHANGELOG="${CHANGELOG}${number}. ${styles[$i]}\n"
+              echo "${number}. ${styles[$i]}" >> "$CHANGELOG_FILE"
             done
-            CHANGELOG="${CHANGELOG}\n"
+            echo "" >> "$CHANGELOG_FILE"
           fi
           
           # 文档
           if [ ${#docs[@]} -gt 0 ]; then
-            CHANGELOG="${CHANGELOG}**文档：**\n"
+            echo "**文档：**" >> "$CHANGELOG_FILE"
             for i in "${!docs[@]}"; do
               number=$((i+1))
-              CHANGELOG="${CHANGELOG}${number}. ${docs[$i]}\n"
+              echo "${number}. ${docs[$i]}" >> "$CHANGELOG_FILE"
             done
-            CHANGELOG="${CHANGELOG}\n"
+            echo "" >> "$CHANGELOG_FILE"
           fi
           
           # 其他（包括杂项和未分类的）
-          if [ ${#others[@]} -gt 0 ] || [ ${#chores[@]} -gt 0 ]; then
-            CHANGELOG="${CHANGELOG}**其他：**\n"
+          if [ ${#others[@]} -gt 0 ] || [ ${#chores[@]} -gt 0 ] || [ ${#tests[@]} -gt 0 ]; then
+            echo "**其他：**" >> "$CHANGELOG_FILE"
             all_others=("${others[@]}" "${chores[@]}" "${tests[@]}")
             for i in "${!all_others[@]}"; do
               number=$((i+1))
-              CHANGELOG="${CHANGELOG}${number}. ${all_others[$i]}\n"
+              echo "${number}. ${all_others[$i]}" >> "$CHANGELOG_FILE"
             done
-            CHANGELOG="${CHANGELOG}\n"
+            echo "" >> "$CHANGELOG_FILE"
           fi
           
           # 如果没有找到任何变更
-          if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="暂无详细更新记录\n"
+          if [ ! -s "$CHANGELOG_FILE" ]; then
+            echo "暂无详细更新记录" >> "$CHANGELOG_FILE"
+            echo "" >> "$CHANGELOG_FILE"
           fi
           
           # 添加分隔线和 PR 信息
-          CHANGELOG="${CHANGELOG}\n---\n\n✨ 本次更新合并自 \`test\` 分支"
+          echo "---" >> "$CHANGELOG_FILE"
+          echo "" >> "$CHANGELOG_FILE"
+          echo "✨ 本次更新合并自 \`test\` 分支" >> "$CHANGELOG_FILE"
           
+          # 读取并输出 changelog
+          CHANGELOG=$(cat "$CHANGELOG_FILE")
           echo "生成的更新日志:"
-          echo -e "$CHANGELOG"
+          echo "$CHANGELOG"
           
-          # 输出到 GitHub 环境变量
+          # 使用文件方式传递多行输出，避免特殊字符问题
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$CHANGELOG" >> $GITHUB_OUTPUT
+          cat "$CHANGELOG_FILE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+          
+          # 清理临时文件
+          rm -f "$CHANGELOG_FILE"
       
       # 设置版本变量
       - name: Set version variables
@@ -225,6 +267,8 @@ jobs:
           
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
 
   # ==================== Job 2: 构建 APK ====================
   build-apk:
