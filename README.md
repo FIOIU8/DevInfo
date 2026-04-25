@@ -1,63 +1,141 @@
-# 📱 DevInfo - 设备信息查看器
+# 设备信息查看器 (DevInfo)
 
-[![版本](https://img.shields.io/badge/version-1.0-blue.svg)](https://github.com/FIOIU8/DevInfo/releases)
-[![许可证](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-6.0%2B-brightgreen.svg)](https://developer.android.com)
-[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-purple.svg)](https://kotlinlang.org)
-[![Compose](https://img.shields.io/badge/Jetpack%20Compose-2024.02.00-blue.svg)](https://developer.android.com/jetpack/compose)
+一款基于 Kotlin Compose 和 Miuix 开发的 Android 设备信息查看工具，提供详细的硬件、系统、网络等信息展示。
 
-一款简洁、优雅、开源的 Android 设备信息查看工具，帮助你全面了解自己的设备。
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Android](https://img.shields.io/badge/Android-8.0%2B-brightgreen.svg)](https://developer.android.com)
+[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Automated-blue)](https://github.com/FIOIU8/DevInfo/actions)
 
-[功能特点](#-功能特点) • [截图](#-截图) • [下载](#-下载) • [快速开始](#-快速开始) • [技术栈](#-技术栈) • [开源协议](#-开源协议)
+## 📱 功能特性
 
----
+- 🔍 **设备信息查看** - 全面展示设备硬件信息（CPU、内存、存储、屏幕等）
+- 📡 **系统信息** - Android 版本、SDK 版本、安全补丁等
+- 🔋 **电池信息** - 电量百分比、充电状态
+- 📶 **网络信息** - 网络类型、运营商、SIM 卡状态
+- 🎨 **Miuix 风格 UI** - 支持浅色/深色模式、Monet 主题引擎
+- 📤 **模块导出** - 导出设备信息为改造模块
+- 🌐 **多语言支持** - 支持中英文
 
-## ✨ 功能特点
+## 🚀 GitHub Actions 自动构建
 
-### 📊 全面的信息展示
-展示 **40+ 项**设备详细信息，涵盖：
+本项目已集成 GitHub Actions CI/CD 流水线，支持自动化构建和发布。
 
-| 分类 | 信息项 |
-|------|--------|
-| **基本信息** | ANDROID_ID、序列号、品牌、型号、硬件、指纹等 15 项 |
-| **系统信息** | Android 版本、SDK 版本、安全补丁、基带版本等 6 项 |
-| **屏幕信息** | 分辨率、DPI、刷新率、字体缩放等 5 项 |
-| **内存存储** | 总内存/可用内存、总存储/可用存储 |
-| **电池信息** | 电量百分比、充电状态 |
-| **硬件功能** | NFC、摄像头数量、蓝牙状态 |
-| **网络信息** | 网络类型、运营商、SIM 卡状态 |
+### 触发方式
 
-### 🎨 个性化定制
-- **多种主题**：浅色模式、深色模式、跟随系统
-- **Monet 主题**：Android 12+ 支持动态取色
-- **8 种主题色**：默认、红色、橙色、绿色、青色、紫色、粉色、深色
-- **5 种导航栏样式**：悬浮/固定、图标/文字自由组合
+| 触发方式 | 签名类型 | 版本名 | 是否创建 Release |
+|---------|---------|--------|-----------------|
+| 推送到 `master`/`test` | debug | `dev-{commit}` | ❌ |
+| 手动触发 - debug | debug | 自定义 | 可选 |
+| 手动触发 - release | release | 自定义 | 可选 |
 
-### 🔧 实用工具
-- **一键导出**：导出设备信息为 ZIP 压缩包
-- **长按复制**：任意信息项长按即可复制
-- **下拉刷新**：实时更新设备状态
+### 手动构建使用说明
 
-### 🔐 隐私安全
-- **完全离线**：不联网，不上传任何数据
-- **无广告**：纯净体验
-- **开源透明**：代码完全公开
+1. 进入 GitHub 仓库 → **Actions** → **Build and Release**
+2. 点击 **Run workflow**
+3. 填写参数：
+   - **Version name**: 版本号（如 `1.0.1`）
+   - **Signature type**: `debug`（测试）或 `release`（正式）
+   - **Create GitHub Release**: 是否自动创建 Release
+   - **Release notes**: 更新内容（可选）
+4. 点击 **Run workflow** 开始构建
 
----
+### 🔐 配置正式签名（仅 release 构建需要）
 
-## 🚀 快速开始
+> ⚠️ **注意**：如果只需要 debug 签名进行测试，可以跳过此步骤。debug 签名的 APK 可以直接安装使用。
 
-### 方式一：直接安装 APK
-1. 从 [Releases](https://github.com/FIOIU8/DevInfo/releases) 下载最新 APK
-2. 在设备上允许“安装未知应用”
-3. 点击安装即可使用
+如果您 Fork 了此仓库且需要使用 release 签名功能，需要在 GitHub Secrets 中配置以下密钥：
 
-### 方式二：从源码构建
+1. 进入仓库：**Settings** → **Secrets and variables** → **Actions** → **Repository secrets**
+2. 点击 **New repository secret** 添加以下密钥：
+
+| Secret 名称 | 说明 | 示例 |
+|------------|------|------|
+| `KEYSTORE_BASE64` | 密钥库文件的 Base64 编码 | （从 `release.keystore` 生成） |
+| `KEYSTORE_PASSWORD` | 密钥库密码 | `your_password` |
+| `KEY_ALIAS` | 密钥别名 | `devinfo` |
+| `KEY_PASSWORD` | 密钥密码 | `your_key_password` |
+
+**生成密钥库和 Base64 编码：**
 
 ```bash
-# 克隆项目
-git clone https://github.com/FIOIU8/DevInfo.git
-cd DevInfo
+# 1. 生成密钥库
+keytool -genkey -v -keystore release.keystore -alias devinfo -keyalg RSA -keysize 2048 -validity 10000
 
-# 使用 Android Studio 打开项目
-# 等待 Gradle 同步完成后，点击 Build → Build APK
+# 2. Base64 编码（Linux/Mac）
+base64 -w 0 release.keystore > release.keystore.base64
+
+# 3. Base64 编码（Windows PowerShell）
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("release.keystore")) | Out-File -FilePath release.keystore.base64 -NoNewline
+```
+
+## 📥 下载
+
+- **最新构建**：前往 [Actions](https://github.com/FIOIU8/DevInfo/actions) 页面，点击最新的工作流，在 **Artifacts** 中下载 APK
+- **正式发布**：前往 [Releases](https://github.com/FIOIU8/DevInfo/releases) 页面下载正式版本
+
+> 💡 **提示**：Actions 中的构建可能包含未稳定的新功能，建议测试使用。
+
+## 🛠️ 技术栈
+
+- **UI 框架**：Jetpack Compose + [Miuix](https://github.com/yukonga/Miuix)
+- **开发语言**：Kotlin
+- **最低 SDK**：Android 8.0 (API 30)
+- **构建工具**：Gradle Kotlin DSL
+- **CI/CD**：GitHub Actions
+
+## 📁 项目结构
+
+```
+DevInfo/
+├── .github/workflows/     # GitHub Actions 工作流
+├── app/
+│   ├── src/main/java/     # 源代码
+│   └── build.gradle.kts   # 模块构建配置
+├── gradle/                # Gradle 配置
+└── build.gradle.kts       # 项目构建配置
+```
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+1. Fork 本项目
+2. 创建你的功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交你的更改 (`git commit -m 'feat: Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 打开一个 Pull Request
+
+### Commit 规范
+
+推荐使用以下前缀：
+
+| 前缀 | 说明 |
+|------|------|
+| `feat:` | 新功能 |
+| `fix:` | Bug 修复 |
+| `docs:` | 文档更新 |
+| `style:` | 代码格式调整 |
+| `refactor:` | 代码重构 |
+| `perf:` | 性能优化 |
+| `test:` | 测试相关 |
+| `chore:` | 构建/工具相关 |
+| `ci:` | CI/CD 配置 |
+
+## 📄 开源协议
+
+本项目基于 MIT 协议开源，详见 [LICENSE](LICENSE) 文件。
+
+## 🙏 致谢
+
+- [Miuix](https://github.com/yukonga/Miuix) - 提供优秀的 Compose UI 组件库
+- 所有贡献者和用户
+
+---
+
+**⚡ 注意**：通过 GitHub Actions 自动构建的版本为开发测试版，不建议在生产环境中使用。正式版本请从 Releases 页面下载。
+
+<p align="center">
+  <a href="https://github.com/FIOIU8/DevInfo/actions">
+    <img src="https://github.com/FIOIU8/DevInfo/actions/workflows/build.yml/badge.svg" alt="Build Status">
+  </a>
+</p>
