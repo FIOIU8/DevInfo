@@ -1,13 +1,11 @@
 package com.fioiu8.devinfo
 
 import android.app.ActivityManager
-import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import android.content.Intent
 import android.hardware.camera2.CameraManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.Uri
 import android.nfc.NfcAdapter
 import android.os.BatteryManager
 import android.os.Build
@@ -58,6 +56,9 @@ import top.yukonga.miuix.kmp.theme.LocalDismissState
 import top.yukonga.miuix.kmp.icon.extended.*
 import top.yukonga.miuix.kmp.theme.ThemePaletteStyle
 import top.yukonga.miuix.kmp.theme.ThemeColorSpec
+
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.core.net.toUri
 
 // 导航栏显示模式选项
 enum class NavigationBarMode(val displayName: String) {
@@ -173,10 +174,10 @@ class MainActivity : ComponentActivity() {
         onUseMountThemeChange: (Boolean) -> Unit
     ) {
         val context = LocalContext.current
-        var selectedIndex by remember { mutableStateOf(0) }
+        var selectedIndex by remember { mutableIntStateOf(0) }
         val itemsState = remember { mutableStateListOf<ItemWithVisibility>() }
         var isLoading by remember { mutableStateOf(true) }
-        var refreshTrigger by remember { mutableStateOf(0) }
+        var refreshTrigger by remember { mutableIntStateOf(0) }
 
         // 对话框状态
         var showAboutDialog by remember { mutableStateOf(false) }
@@ -203,11 +204,11 @@ class MainActivity : ComponentActivity() {
         val isMonetMode = themeMode.name.startsWith("Monet")
 
         // 导航栏模式选项
-        val navBarModeOptions = NavigationBarMode.values().map { it.displayName }
-        val selectedNavBarModeIndex = NavigationBarMode.values().indexOf(navBarMode)
+        val navBarModeOptions = NavigationBarMode.entries.map { it.displayName }
+        val selectedNavBarModeIndex = NavigationBarMode.entries.indexOf(navBarMode)
 
         // Mount 主题颜色选项
-        val mountColorOptions = MountThemeColor.values().map { color ->
+        val mountColorOptions = MountThemeColor.entries.map { color ->
             SpinnerEntry(
                 icon = {
                     ColorPreview(
@@ -219,7 +220,7 @@ class MainActivity : ComponentActivity() {
                 summary = color.description
             )
         }
-        val selectedMountColorIndex = MountThemeColor.values().indexOf(mountThemeColor)
+        val selectedMountColorIndex = MountThemeColor.entries.indexOf(mountThemeColor)
 
         LaunchedEffect(Unit) {
             loadDeviceInfo(context, itemsState)
@@ -353,12 +354,12 @@ class MainActivity : ComponentActivity() {
                             selectedNavBarMode = selectedNavBarModeIndex,
                             navBarModeOptions = navBarModeOptions,
                             onNavBarModeChange = { index ->
-                                navBarMode = NavigationBarMode.values()[index]
+                                navBarMode = NavigationBarMode.entries[index]
                             },
                             mountColorOptions = mountColorOptions,
                             selectedMountColorIndex = selectedMountColorIndex,
                             onMountColorChange = { index ->
-                                onMountThemeColorChange(MountThemeColor.values()[index])
+                                onMountThemeColorChange(MountThemeColor.entries[index])
                                 onUseMountThemeChange(true)
                             },
                             isMonetMode = isMonetMode,
@@ -379,7 +380,7 @@ class MainActivity : ComponentActivity() {
                 show = showExportDialog,
                 onConfirm = {
                     showExportDialog = false
-                    exportHelper.exportModule(  // 改用 exportModule
+                    exportHelper.exportModule(
                         deviceId = deviceId,
                         itemsState = itemsState,
                         onSuccess = { path ->
@@ -620,12 +621,8 @@ class MainActivity : ComponentActivity() {
         infoList.add(DeviceInfoItem("CPU核心数", Runtime.getRuntime().availableProcessors().toString()))
         infoList.add(DeviceInfoItem("SDK版本", Build.VERSION.SDK_INT.toString()))
         infoList.add(DeviceInfoItem("Android版本", Build.VERSION.RELEASE))
-        infoList.add(DeviceInfoItem("安全补丁", safeGet {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) Build.VERSION.SECURITY_PATCH else "需要 Android 6.0+"
-        }))
-        infoList.add(DeviceInfoItem("基带版本", safeGet {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) Build.getRadioVersion() else "需要 Android 5.0+"
-        }))
+        infoList.add(DeviceInfoItem("安全补丁", safeGet { Build.VERSION.SECURITY_PATCH }))
+        infoList.add(DeviceInfoItem("基带版本", safeGet { Build.getRadioVersion() }))
 
         // 区域信息
         infoList.add(DeviceInfoItem("语言", Locale.getDefault().language))
@@ -636,10 +633,8 @@ class MainActivity : ComponentActivity() {
         infoList.add(DeviceInfoItem("屏幕DPI", context.resources.displayMetrics.densityDpi.toString()))
         infoList.add(DeviceInfoItem("屏幕宽度", context.resources.displayMetrics.widthPixels.toString()))
         infoList.add(DeviceInfoItem("屏幕高度", context.resources.displayMetrics.heightPixels.toString()))
-        infoList.add(DeviceInfoItem("刷新率", safeGet {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) context.display?.refreshRate?.toString() ?: "未知" else "需要 Android 6.0+"
-        }))
-        infoList.add(DeviceInfoItem("字体缩放", safeGet { context.resources?.configuration?.fontScale?.toString() ?: "未知" }))
+        infoList.add(DeviceInfoItem("刷新率", safeGet { context.display.refreshRate.toString() }))
+        infoList.add(DeviceInfoItem("字体缩放", safeGet { context.resources.configuration.fontScale.toString() }))
 
         // 内存和存储
         infoList.add(DeviceInfoItem("总内存", getTotalMemory(context)))
@@ -654,8 +649,7 @@ class MainActivity : ComponentActivity() {
         // 硬件功能
         infoList.add(DeviceInfoItem("NFC功能", if (NfcAdapter.getDefaultAdapter(context) != null) "支持" else "不支持"))
         infoList.add(DeviceInfoItem("摄像头数量", getCameraCount(context)))
-        infoList.add(DeviceInfoItem("蓝牙状态", if (BluetoothAdapter.getDefaultAdapter()?.isEnabled == true) "开启" else "关闭"))
-
+        infoList.add(DeviceInfoItem("蓝牙状态", getBluetoothState(context)))
         // 网络
         infoList.add(DeviceInfoItem("网络类型", getNetworkType(context)))
         infoList.add(DeviceInfoItem("运营商", getNetworkOperator(context)))
@@ -670,7 +664,7 @@ class MainActivity : ComponentActivity() {
             ItemWithVisibility(item, mutableStateOf(false))
         })
 
-        itemsState.forEachIndexed { index, item ->
+        itemsState.forEachIndexed { _, item ->
             delay(30)
             item.visible.value = true
         }
@@ -685,7 +679,7 @@ class MainActivity : ComponentActivity() {
         onRefresh: () -> Unit
     ) {
         val ctx = LocalContext.current
-        val clipboard = LocalClipboardManager.current
+        val clipboardManager = LocalClipboardManager.current
 
         var isRefreshing by remember { mutableStateOf(false) }
         val pullToRefreshState = rememberPullToRefreshState()
@@ -706,7 +700,7 @@ class MainActivity : ComponentActivity() {
             Card(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(12.dp),  // 减小外边距 16 -> 12
+                    .padding(12.dp),
                 cornerRadius = 16.dp,
                 insideMargin = PaddingValues(0.dp)
             ) {
@@ -719,28 +713,28 @@ class MainActivity : ComponentActivity() {
                 ) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(12.dp),  // 减小内边距 16 -> 12
-                        verticalArrangement = Arrangement.spacedBy(6.dp)  // 减小间距 12 -> 6
+                        contentPadding = PaddingValues(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         item {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                cornerRadius = 10.dp,  // 减小圆角
-                                insideMargin = PaddingValues(10.dp)  // 减小内边距
+                                cornerRadius = 10.dp,
+                                insideMargin = PaddingValues(10.dp)
                             ) {
                                 Column {
                                     Text(
                                         text = "设备唯一标识",
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp  // 稍微减小字体
+                                        fontSize = 13.sp
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))  // 减小间距
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = deviceId,
                                         fontSize = 11.sp,
                                         modifier = Modifier.combinedClickable(
                                             onLongClick = {
-                                                clipboard.setText(AnnotatedString(deviceId))
+                                                clipboardManager.setText(AnnotatedString(deviceId))
                                                 Toast.makeText(ctx, "已复制", Toast.LENGTH_SHORT).show()
                                             },
                                             onClick = {}
@@ -750,7 +744,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        itemsIndexed(itemsState) { index, currentItem ->
+                        itemsIndexed(itemsState) { _, currentItem ->
                             AnimatedVisibility(
                                 visible = currentItem.visible.value,
                                 enter = fadeIn() + slideInHorizontally()
@@ -760,13 +754,13 @@ class MainActivity : ComponentActivity() {
                                         .fillMaxWidth()
                                         .combinedClickable(
                                             onLongClick = {
-                                                clipboard.setText(AnnotatedString(currentItem.item.value))
+                                                clipboardManager.setText(AnnotatedString(currentItem.item.value))
                                                 Toast.makeText(ctx, "${currentItem.item.key} 已复制", Toast.LENGTH_SHORT).show()
                                             },
                                             onClick = {}
                                         ),
                                     cornerRadius = 10.dp,
-                                    insideMargin = PaddingValues(horizontal = 12.dp, vertical = 8.dp)  // 减小垂直内边距
+                                    insideMargin = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -775,7 +769,7 @@ class MainActivity : ComponentActivity() {
                                         Text(
                                             text = "${currentItem.item.key}:",
                                             modifier = Modifier.weight(1f),
-                                            fontSize = 12.sp,  // 减小字体
+                                            fontSize = 12.sp,
                                             fontWeight = FontWeight.Medium
                                         )
                                         Text(
@@ -809,110 +803,108 @@ class MainActivity : ComponentActivity() {
     fun AboutDialog(show: Boolean, onDismiss: () -> Unit) {
         val context = LocalContext.current
 
-        if (show) {
-            WindowDialog(
-                show = show,
-                title = "关于",
-                onDismissRequest = onDismiss,
-                content = {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+        WindowDialog(
+            show = show,
+            title = "关于",
+            onDismissRequest = onDismiss,
+            content = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // 应用图标
+                    Card(
+                        modifier = Modifier.size(80.dp),
+                        cornerRadius = 40.dp,
+                        insideMargin = PaddingValues(0.dp),
+                        pressFeedbackType = PressFeedbackType.Tilt
                     ) {
-                        // 应用图标
-                        Card(
-                            modifier = Modifier.size(80.dp),
-                            cornerRadius = 40.dp,
-                            insideMargin = PaddingValues(0.dp),
-                            pressFeedbackType = PressFeedbackType.Tilt
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                                    contentDescription = "应用图标",
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(12.dp)
-                                )
-                            }
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                contentDescription = "应用图标",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(12.dp)
+                            )
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                        Text(
-                            text = "设备信息查看器",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                    Text(
+                        text = "设备信息查看器",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
 
-                        Text(
-                            text = "版本 ${getAppVersionName(context)}",
-                            fontSize = 14.sp,
-                            color = Color.Gray
-                        )
+                    Text(
+                        text = "版本 ${getAppVersionName(context)}",
+                        fontSize = 14.sp,
+                        color = Color.Gray
+                    )
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                        Card(
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        cornerRadius = 16.dp,
+                        insideMargin = PaddingValues(20.dp)
+                    ) {
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            cornerRadius = 16.dp,
-                            insideMargin = PaddingValues(20.dp)
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),  // 添加这行
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(
-                                    imageVector = MiuixIcons.Info,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(40.dp),
-                                    tint = MiuixTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "这是一个完全开源的项目",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "使用者需遵守 MIT 协议",
-                                    fontSize = 13.sp,
-                                    color = Color.Gray
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "欢迎贡献代码和提出建议",
-                                    fontSize = 13.sp,
-                                    color = Color.Gray
-                                )
-                            }
+                            Icon(
+                                imageVector = MiuixIcons.Info,
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                                tint = MiuixTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "这是一个完全开源的项目",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "使用者需遵守 MIT 协议",
+                                fontSize = 13.sp,
+                                color = Color.Gray
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "欢迎贡献代码和提出建议",
+                                fontSize = 13.sp,
+                                color = Color.Gray
+                            )
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(
+                            onClick = onDismiss,
+                            colors = ButtonDefaults.buttonColors(
+                                color = MiuixTheme.colorScheme.primary
+                            )
                         ) {
-                            Button(
-                                onClick = onDismiss,
-                                colors = ButtonDefaults.buttonColors(
-                                    color = MiuixTheme.colorScheme.primary
-                                )
-                            ) {
-                                Text("确定")
-                            }
+                            Text("确定")
                         }
                     }
                 }
-            )
-        }
+            }
+        )
     }
 
     @Composable
@@ -921,72 +913,72 @@ class MainActivity : ComponentActivity() {
         onConfirm: () -> Unit,
         onDismiss: () -> Unit
     ) {
-        if (show) {
-            WindowDialog(
-                show = show,
-                title = "导出模块",
-                onDismissRequest = onDismiss,
-                content = {
-                    val dismiss = LocalDismissState.current
+        WindowDialog(
+            show = show,
+            title = "导出模块",
+            onDismissRequest = onDismiss,
+            content = {
+                val dismiss = LocalDismissState.current
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "即将导出当前设备信息为改机型模块",
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        cornerRadius = 12.dp,
+                        insideMargin = PaddingValues(12.dp)
                     ) {
-                        Text(
-                            text = "即将导出当前设备信息为改机型模块",
-                            fontSize = 14.sp
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            cornerRadius = 12.dp,
-                            insideMargin = PaddingValues(12.dp)
-                        ) {
-                            Column {
-                                InfoRow("导出格式", "ZIP 压缩包")
-                                InfoRow("保存位置", "/sdcard/Download/")
-                                InfoRow("文件名", "${Build.MODEL}.zip")
-                            }
+                        Column {
+                            InfoRow("导出格式", "ZIP 压缩包")
+                            InfoRow("保存位置", Environment.getExternalStoragePublicDirectory(
+                                Environment.DIRECTORY_DOWNLOADS
+                            ).absolutePath)
+                            InfoRow("文件名", "${Build.MODEL}.zip")
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "确认导出吗？",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "确认导出吗？",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 按钮行
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(
+                            text = "取消",
+                            onClick = { dismiss?.invoke() }
                         )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // 按钮行
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            TextButton(
-                                text = "取消",
-                                onClick = { dismiss?.invoke() }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                onConfirm()
+                                dismiss?.invoke()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                color = MiuixTheme.colorScheme.primary
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(
-                                onClick = {
-                                    onConfirm()
-                                    dismiss?.invoke()
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    color = MiuixTheme.colorScheme.primary
-                                )
-                            ) {
-                                Text("确认导出")
-                            }
+                        ) {
+                            Text("确认导出")
                         }
                     }
                 }
-            )
-        }
+            }
+        )
     }
 
     @Composable
@@ -996,91 +988,90 @@ class MainActivity : ComponentActivity() {
         onDismiss: () -> Unit
     ) {
         val context = LocalContext.current
-        val clipboard = LocalClipboardManager.current
+        val clipboardManager = LocalClipboardManager.current
 
-        if (show) {
-            WindowDialog(
-                show = show,
-                title = "导出成功",
-                onDismissRequest = onDismiss,
-                content = {
-                    val dismiss = LocalDismissState.current
+        WindowDialog(
+            show = show,
+            title = "导出成功",
+            onDismissRequest = onDismiss,
+            content = {
+                val dismiss = LocalDismissState.current
 
-                    Column(
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Icon(
+                        imageVector = MiuixIcons.Info,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .align(Alignment.CenterHorizontally),
+                        tint = Color(0xFF4CAF50)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "文件已保存至：",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .combinedClickable(
+                                onClick = {},
+                                onLongClick = {
+                                    clipboardManager.setText(AnnotatedString(filePath))
+                                    Toast.makeText(context, "路径已复制", Toast.LENGTH_SHORT).show()
+                                }
+                            ),
+                        cornerRadius = 8.dp,
+                        insideMargin = PaddingValues(12.dp)
                     ) {
-                        Icon(
-                            imageVector = MiuixIcons.Info,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .align(Alignment.CenterHorizontally),
-                            tint = Color(0xFF4CAF50)
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
                         Text(
-                            text = "文件已保存至：",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .combinedClickable(
-                                    onClick = {},
-                                    onLongClick = {
-                                        clipboard.setText(AnnotatedString(filePath))
-                                        Toast.makeText(context, "路径已复制", Toast.LENGTH_SHORT).show()
-                                    }
-                                ),
-                            cornerRadius = 8.dp,
-                            insideMargin = PaddingValues(12.dp)
-                        ) {
-                            Text(
-                                text = filePath,
-                                fontSize = 12.sp,
-                                color = Color.Gray
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = "长按路径可复制",
+                            text = filePath,
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
+                    }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                        // 按钮
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
+                    Text(
+                        text = "长按路径可复制",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 按钮
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(
+                            onClick = {
+                                onDismiss()
+                                dismiss?.invoke()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                color = MiuixTheme.colorScheme.primary
+                            )
                         ) {
-                            Button(
-                                onClick = {
-                                    onDismiss()
-                                    dismiss?.invoke()
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    color = MiuixTheme.colorScheme.primary
-                                )
-                            ) {
-                                Text("确定")
-                            }
+                            Text("确定")
                         }
                     }
                 }
-            )
-        }
+            }
+        )
+
     }
 
     @Composable
@@ -1109,54 +1100,59 @@ class MainActivity : ComponentActivity() {
 
     private fun openSourceCode(context: Context) {
         try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/FIOIU8/DevInfo"))
+            val intent = Intent(Intent.ACTION_VIEW, "https://github.com/FIOIU8/DevInfo".toUri())
             context.startActivity(intent)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             Toast.makeText(context, "无法打开链接", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun openCommunity(context: Context) {
         try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.coolapk.com/u/32334444"))
+            val intent = Intent(Intent.ACTION_VIEW, "https://www.coolapk.com/u/32334444".toUri())
             context.startActivity(intent)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             Toast.makeText(context, "无法打开链接", Toast.LENGTH_SHORT).show()
         }
     }
 
+    // Android ID
     private fun getAndroidIdSafe(context: Context): String {
         return safeGet {
-            Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "未知"
+            @Suppress("HardwareIds")
+            val androidId = Settings.Secure.getString(
+                context.contentResolver,
+                Settings.Secure.ANDROID_ID
+            )
+            androidId ?: "未知"
         }
     }
 
-    private fun getSerialNumberSafe() =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            safeGet {
-                try {
-                    Build.getSerial()
-                } catch (e: SecurityException) {
-                    "需要权限"
-                }
-            }
-        } else {
-            safeGet {
-                @Suppress("DEPRECATION")
-                Build.SERIAL
-            }
+    @Suppress("MissingPermission", "HardwareIds")
+    private fun getSerialNumberSafe(): String {
+        return safeGet {
+            Build.getSerial()
         }
+    }
+
+    // 蓝牙
+    private fun getBluetoothState(context: Context): String {
+        return safeGet {
+            val bluetoothManager = context.getSystemService(BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager
+            if (bluetoothManager?.adapter?.isEnabled == true) "开启" else "关闭"
+        }
+    }
 
     private fun getTotalMemory(context: Context): String {
         val mi = ActivityManager.MemoryInfo()
-        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val am = context.getSystemService(ACTIVITY_SERVICE) as ActivityManager
         am.getMemoryInfo(mi)
         return "${mi.totalMem / 1024 / 1024} MB"
     }
 
     private fun getAvailMemory(context: Context): String {
         val mi = ActivityManager.MemoryInfo()
-        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val am = context.getSystemService(ACTIVITY_SERVICE) as ActivityManager
         am.getMemoryInfo(mi)
         return "${mi.availMem / 1024 / 1024} MB"
     }
@@ -1168,22 +1164,22 @@ class MainActivity : ComponentActivity() {
         safeGet { "${Environment.getExternalStorageDirectory().freeSpace / 1024 / 1024 / 1024} GB" }
 
     private fun getBatteryLevel(context: Context) = safeGet {
-        val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        val bm = context.getSystemService(BATTERY_SERVICE) as BatteryManager
         bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY).toString() + "%"
     }
 
     private fun getBatteryCharging(context: Context) = safeGet {
-        val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        val bm = context.getSystemService(BATTERY_SERVICE) as BatteryManager
         if (bm.isCharging) "充电中" else "未充电"
     }
 
     private fun getCameraCount(context: Context) = safeGet {
-        val cam = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        val cam = context.getSystemService(CAMERA_SERVICE) as CameraManager
         cam.cameraIdList.size.toString()
     }
 
     private fun getNetworkType(context: Context): String {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val cm = context.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         val nc = cm.getNetworkCapabilities(cm.activeNetwork) ?: return "未知"
         return when {
             nc.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
@@ -1195,19 +1191,25 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun getNetworkOperator(context: Context) = safeGet {
-        val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+        val tm = context.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
         tm.networkOperatorName ?: "未知"
     }
 
+    @Suppress("DEPRECATION")
     private fun getSimState(context: Context) = safeGet {
-        val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+        val tm = context.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
         when (tm.simState) {
             TelephonyManager.SIM_STATE_READY -> "就绪"
             TelephonyManager.SIM_STATE_ABSENT -> "无SIM卡"
             TelephonyManager.SIM_STATE_NETWORK_LOCKED -> "网络锁定"
             TelephonyManager.SIM_STATE_PIN_REQUIRED -> "需要PIN"
             TelephonyManager.SIM_STATE_PUK_REQUIRED -> "需要PUK"
-            else -> "未知"
+            TelephonyManager.SIM_STATE_UNKNOWN -> "未知"
+            TelephonyManager.SIM_STATE_NOT_READY -> "未就绪"
+            TelephonyManager.SIM_STATE_PERM_DISABLED -> "永久禁用"
+            TelephonyManager.SIM_STATE_CARD_IO_ERROR -> "卡IO错误"
+            TelephonyManager.SIM_STATE_CARD_RESTRICTED -> "卡受限"
+            else -> "未知状态"
         }
     }
 
@@ -1215,7 +1217,7 @@ class MainActivity : ComponentActivity() {
         return try {
             val p = context.packageManager.getPackageInfo(context.packageName, 0)
             p.versionName ?: "1.0.0"
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             "1.0.0"
         }
     }
@@ -1223,9 +1225,8 @@ class MainActivity : ComponentActivity() {
     private fun getAppVersionCode(context: Context): Long {
         return try {
             val p = context.packageManager.getPackageInfo(context.packageName, 0)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) p.longVersionCode
-            else p.versionCode.toLong()
-        } catch (e: Exception) {
+            p.longVersionCode
+        } catch (_: Exception) {
             1
         }
     }
@@ -1233,7 +1234,7 @@ class MainActivity : ComponentActivity() {
     private inline fun safeGet(default: String = "未知", block: () -> String): String {
         return try {
             block()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             default
         }
     }

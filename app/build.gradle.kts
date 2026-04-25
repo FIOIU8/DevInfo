@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "com.fioiu8.devinfo"
-    compileSdk = 37  // 直接设置为 37
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.fioiu8.devinfo"
-        minSdk = 24
-        targetSdk = 37  // 同时更新 targetSdk
+        minSdk = 30
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
