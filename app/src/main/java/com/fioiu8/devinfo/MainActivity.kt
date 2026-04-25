@@ -58,7 +58,7 @@ import top.yukonga.miuix.kmp.theme.LocalDismissState
 import top.yukonga.miuix.kmp.icon.extended.*
 import top.yukonga.miuix.kmp.theme.ThemePaletteStyle
 import top.yukonga.miuix.kmp.theme.ThemeColorSpec
-
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.mutableIntStateOf // 用于创建 Compose 状态的整型可变状态
 import androidx.core.net.toUri // 将字符串转换为 Uri 对象的扩展函数
 
@@ -952,7 +952,26 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    // 导出确认对话框 Composable
+    /**
+     * 导出确认对话框
+     *
+     * 动态主题适配的核心原理：
+     * 1. 通过 MiuixTheme.colorScheme 获取当前主题的语义化颜色令牌（Color Tokens）
+     * 2. 使用语义化颜色名称（如 onSurface、onSurfaceSecondary、onPrimary）而非硬编码颜色值
+     * 3. 颜色令牌会根据当前主题模式（浅色/深色/Monet）自动返回合适的 ARGB 颜色值
+     * 4. 当用户切换主题时，Compose 会检测到 colorScheme 状态变化，自动重组（Recompose）所有使用这些颜色的 UI 组件
+     * 5. 重组后的 UI 会使用新主题的颜色值，实现无需重启应用的实时主题切换
+     *
+     * 颜色令牌说明：
+     * - onSurface: 绘制在表面容器上的主要文本颜色（高对比度）
+     * - onSurfaceSecondary: 绘制在表面容器上的次要文本颜色（中等对比度，用于标签、辅助说明）
+     * - onPrimary: 绘制在主色按钮/组件上的文本颜色（确保与主色背景形成足够对比度）
+     *
+     * Miuix 颜色系统特性：
+     * - 浅色模式：自动使用浅色主题的颜色值（如深色文字、浅色背景）
+     * - 深色模式：自动使用深色主题的颜色值（如浅色文字、深色背景）
+     * - Monet 模式：基于系统壁纸动态生成主题色，所有语义化颜色会相应调整
+     */
     @Composable
     fun ExportConfirmDialog(
         show: Boolean,
@@ -964,17 +983,40 @@ class MainActivity : ComponentActivity() {
             title = "导出模块",
             onDismissRequest = onDismiss,
             content = {
-                val dismiss = LocalDismissState.current // 获取对话框关闭的状态处理器
+                val dismiss = LocalDismissState.current
+
+                // ========== 动态主题适配的关键代码 ==========
+                // 获取当前主题的颜色方案（响应式状态）
+                // colorScheme 是 Compose State 对象，其变化会自动触发 UI 重组
+                val colorScheme = MiuixTheme.colorScheme
+
+                // onSurface：表面上的主要文本颜色
+                // 浅色主题 → 黑色/深灰色（高对比度）
+                // 深色主题 → 白色/浅灰色（高对比度）
+                val textColor = colorScheme.onSurface
+
+                // onSurfaceSecondary：表面上的次要文本颜色
+                // 浅色主题 → 半透明黑色（降低对比度，突出主要信息）
+                // 深色主题 → 半透明白色（降低对比度）
+                // 适用于：标签、摘要、辅助说明等非核心信息
+                val secondaryTextColor = colorScheme.onSurfaceSecondary
+
+                // onPrimary：主色调容器上的文本颜色
+                // 用于确保按钮文字与背景有足够的可读性对比度
+                // 浅色主题（primary 为蓝色）→ 白色文字
+                // 深色主题（primary 为浅蓝）→ 深色文字
+                val onPrimaryColor = colorScheme.onPrimary
 
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
                 ) {
-                    // 提示文本
+                    // 主要说明文字使用高对比度的 onSurface
                     Text(
                         text = "即将导出当前设备信息为改机型模块",
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        color = textColor  // 主题切换时自动更新颜色值
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -983,45 +1025,73 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxWidth(),
                         cornerRadius = 12.dp,
                         insideMargin = PaddingValues(12.dp)
+                        // Card 的背景色来自主题的 surface 色值
+                        // 浅色主题：浅灰色/白色背景
+                        // 深色主题：深色背景
                     ) {
                         Column {
-                            InfoRow("导出格式", "ZIP 压缩包")
-                            InfoRow("保存位置", Environment.getExternalStoragePublicDirectory(
-                                Environment.DIRECTORY_DOWNLOADS
-                            ).absolutePath)
-                            InfoRow("文件名", "${Build.MODEL}.zip")
+                            // InfoRow 接收动态颜色参数
+                            InfoRow(
+                                label = "导出格式",
+                                value = "ZIP 压缩包",
+                                labelColor = secondaryTextColor,  // 标签使用次要颜色
+                                valueColor = textColor            // 值使用主要颜色
+                            )
+                            InfoRow(
+                                label = "保存位置",
+                                value = Environment.getExternalStoragePublicDirectory(
+                                    Environment.DIRECTORY_DOWNLOADS
+                                ).absolutePath,
+                                labelColor = secondaryTextColor,
+                                valueColor = textColor,
+                                valueAlignment = Alignment.End
+                            )
+                            InfoRow(
+                                label = "文件名",
+                                value = "${Build.MODEL}.zip",
+                                labelColor = secondaryTextColor,
+                                valueColor = textColor
+                            )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    // 确认提示文字
                     Text(
                         text = "确认导出吗？",
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        color = textColor
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 按钮行：取消 和 确认导出
+                    // 按钮区域
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
                         TextButton(
                             text = "取消",
-                            onClick = { dismiss?.invoke() } // 点击取消，关闭对话框
+                            onClick = { dismiss?.invoke() }
+                            // TextButton 内部使用主题的次要色/灰色系
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
                             onClick = {
-                                onConfirm() // 执行确认回调
-                                dismiss?.invoke() // 关闭对话框
+                                onConfirm()
+                                dismiss?.invoke()
                             },
                             colors = ButtonDefaults.buttonColors(
-                                color = MiuixTheme.colorScheme.primary
+                                color = colorScheme.primary  // 按钮背景使用主题主色
                             )
                         ) {
-                            Text("确认导出")
+                            Text(
+                                text = "确认导出",
+                                color = onPrimaryColor  // 按钮文字使用 onPrimary
+                                // 确保在任何主题下文字都清晰可读
+                            )
                         }
                     }
                 }
@@ -1124,24 +1194,56 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    // 一个用于在对话框中显示“标签-值”对的辅助 Composable
+    /**
+     * 信息行组件
+     *
+     * 设计思路：
+     * - 接收颜色参数，由调用方根据主题动态传入
+     * - 不硬编码颜色值，保持组件的可复用性
+     * - valueAlignment 参数控制值的对齐方式
+     */
     @Composable
-    fun InfoRow(label: String, value: String) {
+    private fun InfoRow(
+        label: String,
+        value: String,
+        labelColor: Color = Color.Unspecified,  // 默认值，表示不指定颜色
+        valueColor: Color = Color.Unspecified,
+        valueAlignment: Alignment.Horizontal? = null
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            // 标签文字，使用传入的颜色（由主题提供）
             Text(
                 text = label,
                 fontSize = 13.sp,
-                color = Color.Gray
+                color = labelColor  // 当主题切换时，这里会跟随变为新主题的颜色
             )
+
+            // 值文字，使用 weight 修饰符实现右对齐
             Text(
                 text = value,
                 fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
+                color = valueColor,  // 同样跟随主题动态变化
+                textAlign = valueAlignment?.let {
+                    when (it) {
+                        Alignment.Start -> TextAlign.Start
+                        Alignment.CenterHorizontally -> TextAlign.Center
+                        Alignment.End -> TextAlign.End
+                        else -> TextAlign.Start
+                    }
+                } ?: TextAlign.Start,
+                // weight(1f) 让此文本占据剩余空间
+                // 配合 textAlign = TextAlign.End 实现内容右对齐
+                modifier = if (valueAlignment == Alignment.End) {
+                    Modifier.weight(1f, fill = false)
+                } else {
+                    Modifier
+                }
             )
         }
     }
