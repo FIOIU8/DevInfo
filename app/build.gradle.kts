@@ -7,17 +7,6 @@ android {
     namespace = "com.fioiu8.devinfo"
     compileSdk = 37
 
-    // 签名配置
-    signingConfigs {
-        create("release") {
-            storeFile = System.getenv("KEYSTORE_PATH")?.let { file(it) }
-                ?: file("debug.keystore")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "androiddebugkey"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
-        }
-    }
-
     defaultConfig {
         applicationId = "com.fioiu8.devinfo"
         minSdk = 30
@@ -32,7 +21,6 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -40,20 +28,16 @@ android {
         }
     }
 
-    // 多架构支持配置（不自定义文件名，使用默认命名）
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-            isUniversalApk = true
-        }
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    // AGP 9.0+ 中，Kotlin 编译选项直接在 android 块中配置
+    kotlin {
+        jvmToolchain(11)
+    }
+
     buildFeatures {
         compose = true
     }
@@ -68,10 +52,12 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+
     implementation("top.yukonga.miuix.kmp:miuix-ui:0.9.0")
     implementation("top.yukonga.miuix.kmp:miuix-preference:0.9.0")
     implementation("top.yukonga.miuix.kmp:miuix-icons:0.9.0")
     implementation("top.yukonga.miuix.kmp:miuix-shapes:0.9.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
