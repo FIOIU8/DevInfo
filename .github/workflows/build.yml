@@ -40,6 +40,7 @@ jobs:
       version_code: ${{ steps.version.outputs.version_code }}
       signature_type: ${{ steps.version.outputs.signature_type }}
       create_release: ${{ steps.version.outputs.create_release }}
+      release_title: ${{ steps.version.outputs.release_title }}
       trigger_type: ${{ steps.version.outputs.trigger_type }}
       trigger_actor: ${{ steps.version.outputs.trigger_actor }}
       build_time: ${{ steps.version.outputs.build_time }}
@@ -75,12 +76,14 @@ jobs:
             VERSION_NAME="${{ github.event.inputs.version_name }}"
             SIGNATURE_TYPE="${{ github.event.inputs.signature_type }}"
             CREATE_RELEASE="${{ github.event.inputs.create_release }}"
+            RELEASE_TITLE="${{ github.event.inputs.release_title }}"
           else
             TRIGGER_TYPE="push"
             TRIGGER_ACTOR="${{ github.actor }}"
             VERSION_NAME="dev-${GITHUB_SHA::7}"
             SIGNATURE_TYPE="debug"
             CREATE_RELEASE="false"
+            RELEASE_TITLE=""
           fi
           
           VERSION_CODE="${{ github.run_number }}"
@@ -92,6 +95,7 @@ jobs:
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "signature_type=$SIGNATURE_TYPE" >> $GITHUB_OUTPUT
           echo "create_release=$CREATE_RELEASE" >> $GITHUB_OUTPUT
+          echo "release_title=$RELEASE_TITLE" >> $GITHUB_OUTPUT
           echo "trigger_type=$TRIGGER_TYPE" >> $GITHUB_OUTPUT
           echo "trigger_actor=$TRIGGER_ACTOR" >> $GITHUB_OUTPUT
           echo "build_time=$BUILD_TIME" >> $GITHUB_OUTPUT
@@ -100,6 +104,7 @@ jobs:
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
           echo "SIGNATURE_TYPE=$SIGNATURE_TYPE" >> $GITHUB_ENV
+          echo "RELEASE_TITLE=$RELEASE_TITLE" >> $GITHUB_ENV
           echo "CREATE_RELEASE=$CREATE_RELEASE" >> $GITHUB_ENV
           echo "TRIGGER_TYPE=$TRIGGER_TYPE" >> $GITHUB_ENV
           echo "TRIGGER_ACTOR=$TRIGGER_ACTOR" >> $GITHUB_ENV
@@ -110,6 +115,7 @@ jobs:
       - name: Create debug keystore
         run: |
           keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Debug, O=Android, C=US" -storepass android -keypass android
             -dname "CN=Debug-CI, O=Android, C=CN" -storepass android -keypass android
           echo "Debug keystore created"
 
@@ -128,7 +134,7 @@ jobs:
       - name: Build APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew assembleRelease
         env:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
@@ -219,6 +225,7 @@ jobs:
     if: needs.build.outputs.create_release == 'true'
     outputs:
       changelog: ${{ steps.changelog.outputs.changelog }}
+      release_title: ${{ steps.changelog.outputs.release_title }}
 
     steps:
       - name: Checkout code
@@ -232,11 +239,40 @@ jobs:
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           
           if [ -n "$LAST_TAG" ]; then
-            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s" --reverse)
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s" --reverse)
           else
-            COMMITS=$(git log --pretty=format:"%s" --reverse)
+            COMMITS=$(git log --pretty=format:"- %s" --reverse)
           fi
           
+          if [ -z "$COMMITS" ]; then
+            COMMITS="- No changes"
+          fi
+          
+          # 设置 Release 标题
+          RELEASE_TITLE_INPUT="${{ needs.build.outputs.release_title }}"
+          if [ -n "$RELEASE_TITLE_INPUT" ]; then
+            RELEASE_TITLE="$RELEASE_TITLE_INPUT"
+          else
+            RELEASE_TITLE="Version v${{ needs.build.outputs.version_name }}"
+          fi
+          
+          echo "release_title=$RELEASE_TITLE" >> $GITHUB_OUTPUT
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "## $RELEASE_TITLE" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### What's Changed" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### Build Info" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "- Version: ${{ needs.build.outputs.version_name }}" >> $GITHUB_OUTPUT
+          echo "- Build Number: ${{ needs.build.outputs.version_code }}" >> $GITHUB_OUTPUT
+          echo "- Signature: ${{ needs.build.outputs.signature_type }}" >> $GITHUB_OUTPUT
+          echo "- Trigger: ${{ github.actor }}" >> $GITHUB_OUTPUT
+          echo "- [View Build Log](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
           FEATURES=""
           FIXES=""
           PERF=""
@@ -302,6 +338,17 @@ jobs:
 
 ---
 
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.build.outputs.version_name }}
+          name: ${{ needs.generate-changelog.outputs.release_title }}
+          body: ${{ needs.generate-changelog.outputs.changelog }}
+          files: apk/*.apk
+          draft: false
+          prerelease: ${{ needs.build.outputs.signature_type == 'debug' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ### What's Changed
 ${UPDATES}
 ---
