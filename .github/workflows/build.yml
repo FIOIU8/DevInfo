@@ -26,11 +26,6 @@ on:
         required: true
         default: false
         type: boolean
-      release_title:
-        description: 'Release 标题 (可选，默认使用版本号)'
-        required: false
-        type: string
-        default: ''
 
 permissions:
   contents: write
@@ -46,6 +41,12 @@ jobs:
       signature_type: ${{ steps.version.outputs.signature_type }}
       create_release: ${{ steps.version.outputs.create_release }}
       release_title: ${{ steps.version.outputs.release_title }}
+      trigger_type: ${{ steps.version.outputs.trigger_type }}
+      trigger_actor: ${{ steps.version.outputs.trigger_actor }}
+      build_time: ${{ steps.version.outputs.build_time }}
+      run_id: ${{ steps.version.outputs.run_id }}
+      build_duration: ${{ steps.duration.outputs.duration }}
+      apk_size: ${{ steps.apk_info.outputs.apk_size }}
 
     steps:
       - name: Checkout code
@@ -62,15 +63,23 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Record build start time
+        id: start_time
+        run: echo "start=$(date +%s)" >> $GITHUB_OUTPUT
+
       - name: Set version variables
         id: version
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TRIGGER_TYPE="manual"
+            TRIGGER_ACTOR="${{ github.actor }}"
             VERSION_NAME="${{ github.event.inputs.version_name }}"
             SIGNATURE_TYPE="${{ github.event.inputs.signature_type }}"
             CREATE_RELEASE="${{ github.event.inputs.create_release }}"
             RELEASE_TITLE="${{ github.event.inputs.release_title }}"
           else
+            TRIGGER_TYPE="push"
+            TRIGGER_ACTOR="${{ github.actor }}"
             VERSION_NAME="dev-${GITHUB_SHA::7}"
             SIGNATURE_TYPE="debug"
             CREATE_RELEASE="false"
@@ -78,28 +87,48 @@ jobs:
           fi
           
           VERSION_CODE="${{ github.run_number }}"
+          BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          RUN_ID="${{ github.run_id }}"
           
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "signature_type=$SIGNATURE_TYPE" >> $GITHUB_OUTPUT
           echo "create_release=$CREATE_RELEASE" >> $GITHUB_OUTPUT
           echo "release_title=$RELEASE_TITLE" >> $GITHUB_OUTPUT
+          echo "trigger_type=$TRIGGER_TYPE" >> $GITHUB_OUTPUT
+          echo "trigger_actor=$TRIGGER_ACTOR" >> $GITHUB_OUTPUT
+          echo "build_time=$BUILD_TIME" >> $GITHUB_OUTPUT
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
           
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
           echo "SIGNATURE_TYPE=$SIGNATURE_TYPE" >> $GITHUB_ENV
           echo "RELEASE_TITLE=$RELEASE_TITLE" >> $GITHUB_ENV
+          echo "CREATE_RELEASE=$CREATE_RELEASE" >> $GITHUB_ENV
+          echo "TRIGGER_TYPE=$TRIGGER_TYPE" >> $GITHUB_ENV
+          echo "TRIGGER_ACTOR=$TRIGGER_ACTOR" >> $GITHUB_ENV
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_ENV
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
       - name: Create debug keystore
         run: |
           keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Debug, O=Android, C=US" -storepass android -keypass android
+            -dname "CN=Debug-CI, O=Android, C=CN" -storepass android -keypass android
+          echo "Debug keystore created"
 
       - name: Decode release keystore
         if: env.SIGNATURE_TYPE == 'release'
         run: |
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+            echo "Release keystore decoded"
+            ls -la release.keystore
+          else
+            echo "Warning: KEYSTORE_BASE64 not found, falling back to debug"
+            echo "SIGNATURE_TYPE=debug" >> $GITHUB_ENV
           fi
 
       - name: Build APK
@@ -113,6 +142,74 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Calculate build duration
+        id: duration
+        run: |
+          duration=$(( $(date +%s) - ${{ steps.start_time.outputs.start }} ))
+          minutes=$((duration / 60))
+          seconds=$((duration % 60))
+          echo "duration=${minutes}m ${seconds}s" >> $GITHUB_OUTPUT
+
+      - name: Get APK info
+        id: apk_info
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -1)
+          if [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ]; then
+            SIZE=$(du -h "$APK_PATH" | cut -f1)
+            echo "apk_size=$SIZE" >> $GITHUB_OUTPUT
+            echo "apk_name=$(basename "$APK_PATH")" >> $GITHUB_OUTPUT
+          else
+            echo "apk_size=unknown" >> $GITHUB_OUTPUT
+            echo "apk_name=not_found" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Success Output
+        if: success()
+        run: |
+          echo ""
+          echo "========================================"
+          echo "Build Successful!"
+          echo "========================================"
+          echo ""
+          echo "Build Info:"
+          echo "  Version: v${{ env.VERSION_NAME }}"
+          echo "  Build Number: ${{ env.VERSION_CODE }}"
+          echo "  Signature: ${{ env.SIGNATURE_TYPE }}"
+          echo "  Trigger: ${{ env.TRIGGER_TYPE }} by ${{ env.TRIGGER_ACTOR }}"
+          echo "  Duration: ${{ steps.duration.outputs.duration }}"
+          echo "  APK Size: ${{ steps.apk_info.outputs.apk_size }}"
+          echo ""
+          echo "Download:"
+          echo "  https://github.com/${{ github.repository }}/actions/runs/${{ env.RUN_ID }}"
+          echo "========================================"
+
+      - name: Generate Build Summary
+        if: success()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          ## Build Successful
+          
+          ### Build Info
+          
+          | Item | Value |
+          |------|-------|
+          | Version | v${{ env.VERSION_NAME }} |
+          | Build Number | ${{ env.VERSION_CODE }} |
+          | Signature | ${{ env.SIGNATURE_TYPE }} |
+          | Trigger | ${{ env.TRIGGER_TYPE }} by ${{ env.TRIGGER_ACTOR }} |
+          | Branch | ${{ env.BRANCH_NAME }} |
+          | Duration | ${{ steps.duration.outputs.duration }} |
+          | APK Size | ${{ steps.apk_info.outputs.apk_size }} |
+          
+          ### Download
+          
+          - Artifact: DevInfo-${{ env.VERSION_NAME }}-${{ env.SIGNATURE_TYPE }}
+          - [View Run Details](https://github.com/${{ github.repository }}/actions/runs/${{ env.RUN_ID }})
+          
+          ---
+          *Generated by GitHub Actions*
+          EOF
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -136,7 +233,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Generate changelog
+      - name: Generate changelog from commits
         id: changelog
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -176,19 +273,70 @@ jobs:
           echo "- Trigger: ${{ github.actor }}" >> $GITHUB_OUTPUT
           echo "- [View Build Log](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+          FEATURES=""
+          FIXES=""
+          PERF=""
+          REFACTOR=""
+          CI=""
+          DOCS=""
+          OTHER=""
+          
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+          
+            if [[ "$line" =~ ^feat: ]]; then
+              msg="${line#feat: }"
+              FEATURES="${FEATURES}\n${FEATURES:+ }- $msg"
+            elif [[ "$line" =~ ^fix: ]]; then
+              msg="${line#fix: }"
+              FIXES="${FIXES}\n${FIXES:+ }- $msg"
+            elif [[ "$line" =~ ^perf: ]]; then
+              msg="${line#perf: }"
+              PERF="${PERF}\n${PERF:+ }- $msg"
+            elif [[ "$line" =~ ^refactor: ]]; then
+              msg="${line#refactor: }"
+              REFACTOR="${REFACTOR}\n${REFACTOR:+ }- $msg"
+            elif [[ "$line" =~ ^ci: ]]; then
+              msg="${line#ci: }"
+              CI="${CI}\n${CI:+ }- $msg"
+            elif [[ "$line" =~ ^docs: ]]; then
+              msg="${line#docs: }"
+              DOCS="${DOCS}\n${DOCS:+ }- $msg"
+            elif [[ "$line" =~ ^(chore|style|test|build): ]]; then
+              msg="${line}"
+              OTHER="${OTHER}\n${OTHER:+ }- $msg"
+            fi
+          done <<< "$COMMITS"
+          
+          UPDATES=""
+          [ -n "$FEATURES" ] && UPDATES="${UPDATES}\n### New Features\n${FEATURES}\n"
+          [ -n "$FIXES" ] && UPDATES="${UPDATES}\n### Bug Fixes\n${FIXES}\n"
+          [ -n "$PERF" ] && UPDATES="${UPDATES}\n### Performance\n${PERF}\n"
+          [ -n "$REFACTOR" ] && UPDATES="${UPDATES}\n### Refactor\n${REFACTOR}\n"
+          [ -n "$CI" ] && UPDATES="${UPDATES}\n### CI/CD\n${CI}\n"
+          [ -n "$DOCS" ] && UPDATES="${UPDATES}\n### Documentation\n${DOCS}\n"
+          [ -n "$OTHER" ] && UPDATES="${UPDATES}\n### Other\n${OTHER}\n"
+          
+          if [ -z "$UPDATES" ]; then
+            UPDATES="\nNo detailed update record, please check commit history\n"
+          fi
+          
+          VERSION_NAME="${{ needs.build.outputs.version_name }}"
+          SIGNATURE_TYPE="${{ needs.build.outputs.signature_type }}"
+          TRIGGER_TYPE="${{ needs.build.outputs.trigger_type }}"
+          TRIGGER_ACTOR="${{ needs.build.outputs.trigger_actor }}"
+          BUILD_TIME="${{ needs.build.outputs.build_time }}"
+          RUN_ID="${{ needs.build.outputs.run_id }}"
+          BUILD_DURATION="${{ needs.build.outputs.build_duration }}"
+          APK_SIZE="${{ needs.build.outputs.apk_size }}"
+          
+          cat > release_body.md <<EOF
+## Version v${VERSION_NAME}
 
-  release:
-    name: Create Release
-    needs: [build, generate-changelog]
-    runs-on: ubuntu-latest
-    if: needs.build.outputs.create_release == 'true'
+  > Generated from commit history
+  > Open source under MIT license
 
-    steps:
-      - name: Download APK
-        uses: actions/download-artifact@v4
-        with:
-          name: DevInfo-${{ needs.build.outputs.version_name }}-${{ needs.build.outputs.signature_type }}
-          path: apk/
+---
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -201,3 +349,96 @@ jobs:
           prerelease: ${{ needs.build.outputs.signature_type == 'debug' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+### What's Changed
+${UPDATES}
+---
+
+### Build Info
+
+  | Item | Value |
+  |------|-------|
+  | Build Status | Success |
+  | Duration | ${BUILD_DURATION} |
+  | Trigger | ${TRIGGER_TYPE} by ${TRIGGER_ACTOR} |
+  | Signature | ${SIGNATURE_TYPE} |
+  | APK Size | ${APK_SIZE} |
+  | Build Time | ${BUILD_TIME} |
+  | Build Details | [View Log #${RUN_ID}](https://github.com/${{ github.repository }}/actions/runs/${RUN_ID}) |
+
+---
+
+### Links
+
+- Repository: [github.com/${{ github.repository }}](https://github.com/${{ github.repository }})
+- Releases: [github.com/${{ github.repository }}/releases](https://github.com/${{ github.repository }}/releases)
+
+---
+
+*Generated by GitHub Actions*
+  EOF
+  
+  echo "changelog<<EOF" >> $GITHUB_OUTPUT
+  cat release_body.md >> $GITHUB_OUTPUT
+  echo "EOF" >> $GITHUB_OUTPUT
+  
+  echo ""
+  echo "========================================"
+  echo "Release Notes Generated"
+  echo "========================================"
+  echo ""
+  cat release_body.md
+  echo ""
+
+release:
+  name: Create Release
+  needs: [build, generate-changelog]
+  runs-on: ubuntu-latest
+  if: needs.build.outputs.create_release == 'true'
+
+  steps:
+    - name: Download APK
+      uses: actions/download-artifact@v4
+      with:
+        name: DevInfo-${{ needs.build.outputs.version_name }}-${{ needs.build.outputs.signature_type }}
+        path: apk/
+
+    - name: Rename APK
+      run: |
+        cd apk/
+        for file in *.apk; do
+          if [[ -f "$file" ]]; then
+            new_name="DevInfo-v${{ needs.build.outputs.version_name }}-${{ needs.build.outputs.signature_type }}.apk"
+            mv "$file" "$new_name"
+            echo "Renamed: $new_name"
+          fi
+        done
+        ls -la
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: "v${{ needs.build.outputs.version_name }}"
+        name: "Version ${{ needs.build.outputs.version_name }}"
+        body: ${{ needs.generate-changelog.outputs.changelog }}
+        files: apk/*.apk
+        draft: false
+        prerelease: ${{ needs.build.outputs.signature_type == 'debug' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Release Success Output
+      if: success()
+      run: |
+        echo ""
+        echo "========================================"
+        echo "Release Created Successfully!"
+        echo "========================================"
+        echo ""
+        echo "Release Info:"
+        echo "  Version: v${{ needs.build.outputs.version_name }}"
+        echo "  Tag: v${{ needs.build.outputs.version_name }}"
+        echo "  Signature: ${{ needs.build.outputs.signature_type }}"
+        echo ""
+        echo "Link:"
+        echo "  https://github.com/${{ github.repository }}/releases/tag/v${{ needs.build.outputs.version_name }}"
+        echo ""
