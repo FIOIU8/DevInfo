@@ -172,6 +172,46 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
+      - name: Organize APKs by signature type
+        if: success()
+        run: |
+          SIGNATURE_TYPE="${{ steps.version.outputs.signature_type }}"
+          
+          # 创建对应签名类型的目录
+          mkdir -p "apks/${SIGNATURE_TYPE}/arm64-v8a"
+          mkdir -p "apks/${SIGNATURE_TYPE}/armeabi-v7a"
+          mkdir -p "apks/${SIGNATURE_TYPE}/universal"
+          mkdir -p "apks/${SIGNATURE_TYPE}/x86"
+          mkdir -p "apks/${SIGNATURE_TYPE}/x86_64"
+          
+          # 查找并移动 APK 文件到对应架构目录
+          find app/build/outputs/apk -name "*.apk" -type f | while read -r apk_file; do
+            filename=$(basename "$apk_file")
+          
+            if [[ "$filename" == *"arm64-v8a"* ]]; then
+              cp "$apk_file" "apks/${SIGNATURE_TYPE}/arm64-v8a/"
+              echo "✅ Organized: arm64-v8a/${filename}"
+            elif [[ "$filename" == *"armeabi-v7a"* ]] || [[ "$filename" == *"arm-v7a"* ]]; then
+              cp "$apk_file" "apks/${SIGNATURE_TYPE}/armeabi-v7a/"
+              echo "✅ Organized: armeabi-v7a/${filename}"
+            elif [[ "$filename" == *"universal"* ]]; then
+              cp "$apk_file" "apks/${SIGNATURE_TYPE}/universal/"
+              echo "✅ Organized: universal/${filename}"
+            elif [[ "$filename" == *"x86_64"* ]]; then
+              cp "$apk_file" "apks/${SIGNATURE_TYPE}/x86_64/"
+              echo "✅ Organized: x86_64/${filename}"
+            elif [[ "$filename" == *"x86"* ]]; then
+              cp "$apk_file" "apks/${SIGNATURE_TYPE}/x86/"
+              echo "✅ Organized: x86/${filename}"
+            fi
+          done
+          
+          echo ""
+          echo "========================================"
+          echo "📁 Organized APK Structure:"
+          echo "========================================"
+          find apks -name "*.apk" -type f -exec ls -lh {} \;
+
       - name: Calculate build duration
         id: duration
         if: success()
@@ -186,7 +226,7 @@ jobs:
         if: success()
         run: |
           # 获取第一个 APK 作为示例信息
-          APK_PATH=$(find app/build/outputs/apk -name "*.apk" 2>/dev/null | head -1)
+          APK_PATH=$(find apks -name "*.apk" 2>/dev/null | head -1)
           if [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ]; then
             SIZE=$(du -h "$APK_PATH" | cut -f1)
             APK_NAME="DevInfo-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.signature_type }}.apk"
@@ -196,14 +236,6 @@ jobs:
             echo "apk_size=unknown" >> $GITHUB_OUTPUT
             echo "apk_name=not_found" >> $GITHUB_OUTPUT
           fi
-
-      - name: List all generated APKs
-        if: success()
-        run: |
-          echo "========================================"
-          echo "Generated APKs:"
-          echo "========================================"
-          find app/build/outputs/apk -name "*.apk" -type f -exec ls -lh {} \; -exec echo "---" \;
 
       - name: Build Success Output
         if: success()
@@ -220,6 +252,7 @@ jobs:
           echo "  🔘 Trigger | 触发方式: ${{ env.TRIGGER_TYPE }} (${{ env.TRIGGER_TYPE_DISPLAY }}) by @${{ env.TRIGGER_ACTOR }}"
           echo "  ⏱️  Duration | 构建耗时: ${{ steps.duration.outputs.duration }}"
           echo "  📦 Architectures | 架构: arm64-v8a, armeabi-v7a, universal, x86, x86_64"
+          echo "  📁 Output | 输出目录: apks/${{ env.SIGNATURE_TYPE }}/"
           echo ""
           echo "📥 Download | 下载:"
           echo "  https://github.com/${{ github.repository }}/actions/runs/${{ env.RUN_ID }}"
@@ -242,6 +275,7 @@ jobs:
           | 🌿 Branch 分支 | ${{ env.BRANCH_NAME }} |
           | ⏱️ Duration 构建耗时 | ${{ steps.duration.outputs.duration }} |
           | 📦 Architectures 架构 | arm64-v8a, armeabi-v7a, universal, x86, x86_64 |
+          | 📁 Output 输出目录 | apks/${{ env.SIGNATURE_TYPE }}/ |
 
           ### 📥 Download 下载
 
@@ -256,8 +290,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DevInfo-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.signature_type }}
-          path: |
-            app/build/outputs/apk/**/*.apk
+          path: apks/**/*.apk
           retention-days: 30
 
   generate-changelog:
@@ -370,6 +403,7 @@ jobs:
           | 🔘 **触发方式 Trigger** | ${TRIGGER_TYPE} (${TRIGGER_TYPE_DISPLAY}) by @${TRIGGER_ACTOR} |
           | 📦 **产物 Artifact** | DevInfo-${VERSION_NAME}-${SIGNATURE_TYPE} |
           | 🏗️ **支持架构** | arm64-v8a, armeabi-v7a, universal, x86, x86_64 |
+          | 📁 **输出目录** | ${SIGNATURE_TYPE}/ |
           | 🔗 **构建详情 Details** | [查看构建日志 View Build Log #${RUN_ID}](https://github.com/${{ github.repository }}/actions/runs/${RUN_ID}) |
 
           ---
@@ -389,6 +423,7 @@ jobs:
           | 🔘 **Trigger** | ${TRIGGER_TYPE} (Manual) by @${TRIGGER_ACTOR} |
           | 📦 **Artifact** | DevInfo-${VERSION_NAME}-${SIGNATURE_TYPE} |
           | 🏗️ **Architectures** | arm64-v8a, armeabi-v7a, universal, x86, x86_64 |
+          | 📁 **Output** | ${SIGNATURE_TYPE}/ |
           | 🔗 **Details** | [View Build Log #${RUN_ID}](https://github.com/${{ github.repository }}/actions/runs/${RUN_ID}) |
 
           ---
@@ -423,29 +458,35 @@ jobs:
           name: DevInfo-${{ needs.build.outputs.version_name }}-${{ needs.build.outputs.signature_type }}
           path: apk/
 
-      - name: Rename APKs by architecture
+      - name: Rename APKs for release
         run: |
           cd apk/
-          # 创建架构子目录并重命名 APK
-          mkdir -p arm64-v8a armeabi-v7a universal x86 x86_64
+          SIGNATURE_TYPE="${{ needs.build.outputs.signature_type }}"
           
-          for file in $(find . -maxdepth 1 -name "*.apk" -type f); do
+          # 在 release 目录下创建架构子目录
+          mkdir -p "${SIGNATURE_TYPE}/arm64-v8a"
+          mkdir -p "${SIGNATURE_TYPE}/armeabi-v7a"
+          mkdir -p "${SIGNATURE_TYPE}/universal"
+          mkdir -p "${SIGNATURE_TYPE}/x86"
+          mkdir -p "${SIGNATURE_TYPE}/x86_64"
+          
+          # 移动并重命名 APK 文件
+          find . -maxdepth 2 -name "*.apk" -type f | while read -r file; do
             filename=$(basename "$file")
-            # 根据文件名中包含的架构信息移动到对应目录
             if [[ "$filename" == *"arm64-v8a"* ]]; then
-              mv "$file" "arm64-v8a/DevInfo-v${{ needs.build.outputs.version_name }}-arm64-v8a-${{ needs.build.outputs.signature_type }}.apk"
+              mv "$file" "${SIGNATURE_TYPE}/arm64-v8a/DevInfo-v${{ needs.build.outputs.version_name }}-arm64-v8a-${SIGNATURE_TYPE}.apk"
             elif [[ "$filename" == *"armeabi-v7a"* ]] || [[ "$filename" == *"arm-v7a"* ]]; then
-              mv "$file" "armeabi-v7a/DevInfo-v${{ needs.build.outputs.version_name }}-armeabi-v7a-${{ needs.build.outputs.signature_type }}.apk"
+              mv "$file" "${SIGNATURE_TYPE}/armeabi-v7a/DevInfo-v${{ needs.build.outputs.version_name }}-armeabi-v7a-${SIGNATURE_TYPE}.apk"
             elif [[ "$filename" == *"universal"* ]]; then
-              mv "$file" "universal/DevInfo-v${{ needs.build.outputs.version_name }}-universal-${{ needs.build.outputs.signature_type }}.apk"
+              mv "$file" "${SIGNATURE_TYPE}/universal/DevInfo-v${{ needs.build.outputs.version_name }}-universal-${SIGNATURE_TYPE}.apk"
             elif [[ "$filename" == *"x86_64"* ]]; then
-              mv "$file" "x86_64/DevInfo-v${{ needs.build.outputs.version_name }}-x86_64-${{ needs.build.outputs.signature_type }}.apk"
+              mv "$file" "${SIGNATURE_TYPE}/x86_64/DevInfo-v${{ needs.build.outputs.version_name }}-x86_64-${SIGNATURE_TYPE}.apk"
             elif [[ "$filename" == *"x86"* ]]; then
-              mv "$file" "x86/DevInfo-v${{ needs.build.outputs.version_name }}-x86-${{ needs.build.outputs.signature_type }}.apk"
+              mv "$file" "${SIGNATURE_TYPE}/x86/DevInfo-v${{ needs.build.outputs.version_name }}-x86-${SIGNATURE_TYPE}.apk"
             fi
           done
           
-          echo "Organized APKs by architecture:"
+          echo "Organized APKs for ${SIGNATURE_TYPE} release:"
           find . -name "*.apk" -type f -exec ls -lh {} \;
 
       - name: Create GitHub Release
@@ -474,6 +515,7 @@ jobs:
           echo "  🏷️  Tag | 标签: v${{ needs.build.outputs.version_name }}"
           echo "  ✍️  Signature | 签名类型: ${{ needs.build.outputs.signature_type }}"
           echo "  🏗️  Architectures | 架构: arm64-v8a, armeabi-v7a, universal, x86, x86_64"
+          echo "  📁 Output | 输出目录: ${{ needs.build.outputs.signature_type }}/"
           echo ""
           echo "🔗 Link | 链接:"
           echo "  https://github.com/${{ github.repository }}/releases/tag/v${{ needs.build.outputs.version_name }}"
