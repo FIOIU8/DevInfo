@@ -3,8 +3,8 @@
 一款基于 Kotlin Compose 和 Miuix 开发的 Android 设备信息查看工具，提供详细的硬件、系统、网络等信息展示。
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-8.0%2B-brightgreen.svg)](https://developer.android.com)
-[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Automated-blue)](https://github.com/FIOIU8/DevInfo/actions)
+[![Android](https://img.shields.io/badge/Android-11%2B-brightgreen.svg)](https://developer.android.com)
+[![Build Status](https://github.com/FIOIU8/DevInfo/actions/workflows/build.yml/badge.svg)](https://github.com/FIOIU8/DevInfo/actions)
 
 ## 📱 功能特性
 
@@ -18,26 +18,37 @@
 
 ## 🚀 GitHub Actions 自动构建
 
-本项目已集成 GitHub Actions CI/CD 流水线，支持自动化构建和发布。
+本项目已集成 GitHub Actions CI/CD 流水线，支持多架构 APK 自动化构建和发布。
+
+### 支持架构
+
+| 架构 | 说明 | 适用设备 |
+|------|------|----------|
+| `arm64-v8a` | 64位 ARM | 大多数现代 Android 设备 |
+| `armeabi-v7a` | 32位 ARM | 老旧 Android 设备 |
+| `x86_64` | 64位 x86 | Android 模拟器、部分平板 |
+| `x86` | 32位 x86 | 旧版 Android 模拟器 |
+| `universal` | 通用包 | 包含所有架构（体积较大） |
 
 ### 触发方式
 
-| 触发方式 | 签名类型 | 版本名 | 是否创建 Release |
-|---------|---------|--------|-----------------|
-| 推送到 `master`/`test` | debug | `dev-{commit}` | ❌ |
-| 手动触发 - debug | debug | 自定义 | 可选 |
-| 手动触发 - release | release | 自定义 | 可选 |
+| 触发方式 | 签名类型 | 版本名 | 是否创建 Release | 输出目录 |
+|---------|---------|--------|-----------------|----------|
+| 推送到 `main`/`test` | debug | `dev-{commit}` | ❌ | `apks/debug/` |
+| 手动触发 - debug | debug | 自定义 | 可选 | `apks/debug/` |
+| 手动触发 - release | release | 自定义 | 可选 | `apks/release/` |
 
 ### 手动构建使用说明
 
 1. 进入 GitHub 仓库 → **Actions** → **Build and Release**
 2. 点击 **Run workflow**
 3. 填写参数：
-   - **Version name**: 版本号（如 `1.0.1`）
-   - **Signature type**: `debug`（测试）或 `release`（正式）
-   - **Create GitHub Release**: 是否自动创建 Release
-   - **Release notes**: 更新内容（可选）
+   - **Version name**：版本号（如 `1.0.1`）
+   - **Signature type**：`debug`（测试）或 `release`（正式）
+   - **Create GitHub Release**：是否自动创建 Release
 4. 点击 **Run workflow** 开始构建
+
+> 💡 **提示**：每次构建会生成 5 个不同架构的 APK，根据你的设备选择合适的架构下载。
 
 ### 🔐 配置正式签名（仅 release 构建需要）
 
@@ -71,28 +82,37 @@ base64 -w 0 release.keystore > release.keystore.base64
 ## 📥 下载
 
 - **最新构建**：前往 [Actions](https://github.com/FIOIU8/DevInfo/actions) 页面，点击最新的工作流，在 **Artifacts** 中下载 APK
+  - Debug 构建位于 `apks/debug/` 目录
+  - Release 构建位于 `apks/release/` 目录
+  - 每个目录下按架构分类：`arm64-v8a/`、`armeabi-v7a/`、`universal/`、`x86/`、`x86_64/`
 - **正式发布**：前往 [Releases](https://github.com/FIOIU8/DevInfo/releases) 页面下载正式版本
 
-> 💡 **提示**：Actions 中的构建可能包含未稳定的新功能，建议测试使用。
+> 💡 **提示**：Actions 中的构建可能包含未稳定的新功能，建议测试使用。大部分现代手机请选择 `arm64-v8a` 架构。
 
 ## 🛠️ 技术栈
 
 - **UI 框架**：Jetpack Compose + [Miuix](https://github.com/yukonga/Miuix)
 - **开发语言**：Kotlin
-- **最低 SDK**：Android 8.0 (API 30)
+- **最低 SDK**：Android 11 (API 30)
 - **构建工具**：Gradle Kotlin DSL
 - **CI/CD**：GitHub Actions
+- **构建特性**：
+  - ABI 拆分：支持 5 种架构独立打包
+  - 自动签名：根据构建类型自动选择 debug/release 签名
+  - 分类输出：按签名类型和架构组织 APK
 
 ## 📁 项目结构
 
 ```
 DevInfo/
 ├── .github/workflows/     # GitHub Actions 工作流
+│   └── build.yml          # 自动构建配置
 ├── app/
 │   ├── src/main/java/     # 源代码
-│   └── build.gradle.kts   # 模块构建配置
+│   └── build.gradle.kts   # 模块构建配置（含 ABI 拆分）
 ├── gradle/                # Gradle 配置
-└── build.gradle.kts       # 项目构建配置
+├── build.gradle.kts       # 项目构建配置
+└── settings.gradle.kts    # 项目设置
 ```
 
 ## 🤝 贡献
@@ -111,7 +131,9 @@ DevInfo/
 
 | 前缀 | 说明 |
 |------|------|
-| `feat:` | 新功能 |
+| `ui:` | UI/界面相关 |
+| `logic:` | 逻辑/核心功能 |
+| `repo:` | 仓库/构建相关 |
 | `fix:` | Bug 修复 |
 | `docs:` | 文档更新 |
 | `style:` | 代码格式调整 |
@@ -132,7 +154,10 @@ DevInfo/
 
 ---
 
-**⚡ 注意**：通过 GitHub Actions 自动构建的版本为开发测试版，不建议在生产环境中使用。正式版本请从 Releases 页面下载。
+**⚡ 注意**：
+- 通过 GitHub Actions 自动构建的 debug 版本为开发测试版，不建议在生产环境中使用
+- Release 版本需要配置签名密钥才能构建
+- 下载 APK 时请根据设备架构选择对应版本，`universal` 版本体积最大但兼容所有设备
 
 <p align="center">
   <a href="https://github.com/FIOIU8/DevInfo/actions">
