@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       version_name:
-        description: '版本名称 (例如: 1.0.1)'
+        description: '版本名称'
         required: true
         type: string
       signature_type:
@@ -42,10 +42,13 @@ jobs:
       create_release: ${{ steps.version.outputs.create_release }}
       trigger_type: ${{ steps.version.outputs.trigger_type }}
       trigger_actor: ${{ steps.version.outputs.trigger_actor }}
+      trigger_type_display: ${{ steps.version.outputs.trigger_type_display }}
       build_time: ${{ steps.version.outputs.build_time }}
       run_id: ${{ steps.version.outputs.run_id }}
       build_duration: ${{ steps.duration.outputs.duration }}
       apk_size: ${{ steps.apk_info.outputs.apk_size }}
+      apk_name: ${{ steps.apk_info.outputs.apk_name }}
+      build_title: ${{ steps.build_title.outputs.title }}
 
     steps:
       - name: Checkout code
@@ -70,13 +73,15 @@ jobs:
         id: version
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TRIGGER_TYPE="manual"
+            TRIGGER_TYPE="workflow_dispatch"
+            TRIGGER_TYPE_DISPLAY="手动触发"
             TRIGGER_ACTOR="${{ github.actor }}"
             VERSION_NAME="${{ github.event.inputs.version_name }}"
             SIGNATURE_TYPE="${{ github.event.inputs.signature_type }}"
             CREATE_RELEASE="${{ github.event.inputs.create_release }}"
           else
             TRIGGER_TYPE="push"
+            TRIGGER_TYPE_DISPLAY="推送触发"
             TRIGGER_ACTOR="${{ github.actor }}"
             VERSION_NAME="dev-${GITHUB_SHA::7}"
             SIGNATURE_TYPE="debug"
@@ -93,6 +98,7 @@ jobs:
           echo "signature_type=$SIGNATURE_TYPE" >> $GITHUB_OUTPUT
           echo "create_release=$CREATE_RELEASE" >> $GITHUB_OUTPUT
           echo "trigger_type=$TRIGGER_TYPE" >> $GITHUB_OUTPUT
+          echo "trigger_type_display=$TRIGGER_TYPE_DISPLAY" >> $GITHUB_OUTPUT
           echo "trigger_actor=$TRIGGER_ACTOR" >> $GITHUB_OUTPUT
           echo "build_time=$BUILD_TIME" >> $GITHUB_OUTPUT
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
@@ -102,10 +108,27 @@ jobs:
           echo "SIGNATURE_TYPE=$SIGNATURE_TYPE" >> $GITHUB_ENV
           echo "CREATE_RELEASE=$CREATE_RELEASE" >> $GITHUB_ENV
           echo "TRIGGER_TYPE=$TRIGGER_TYPE" >> $GITHUB_ENV
+          echo "TRIGGER_TYPE_DISPLAY=$TRIGGER_TYPE_DISPLAY" >> $GITHUB_ENV
           echo "TRIGGER_ACTOR=$TRIGGER_ACTOR" >> $GITHUB_ENV
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
           echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_ENV
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+
+      - name: Set build title
+        id: build_title
+        run: |
+          if [[ "${{ env.SIGNATURE_TYPE }}" == "release" ]]; then
+            TITLE="正式编译 / Release Compile"
+          else
+            TITLE="测试编译 / Test Compile"
+          fi
+
+          if [[ "${{ env.CREATE_RELEASE }}" == "true" ]]; then
+            TITLE="${TITLE} (发布到Releases / Releases Publish)"
+          fi
+
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+          echo "BUILD_TITLE=$TITLE" >> $GITHUB_ENV
 
       - name: Setup keystore for signing
         run: |
@@ -133,10 +156,14 @@ jobs:
             echo "✅ Debug keystore created"
           fi
 
-      - name: Build APK
+      - name: Build all ABI APKs
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace
+          # 分别构建所有架构的 APK
+          for abi in arm64-v8a armeabi-v7a universal x86 x86_64; do
+            echo "Building APK for ABI: $abi"
+            ./gradlew assembleRelease -PtargetAbi=$abi --stacktrace
+          done
         env:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
@@ -144,6 +171,46 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Organize APKs by signature type
+        if: success()
+        run: |
+          SIGNATURE_TYPE="${{ steps.version.outputs.signature_type }}"
+          
+          # 创建对应签名类型的目录
+          mkdir -p "apks/${SIGNATURE_TYPE}/arm64-v8a"
+          mkdir -p "apks/${SIGNATURE_TYPE}/armeabi-v7a"
+          mkdir -p "apks/${SIGNATURE_TYPE}/universal"
+          mkdir -p "apks/${SIGNATURE_TYPE}/x86"
+          mkdir -p "apks/${SIGNATURE_TYPE}/x86_64"
+          
+          # 查找并移动 APK 文件到对应架构目录
+          find app/build/outputs/apk -name "*.apk" -type f | while read -r apk_file; do
+            filename=$(basename "$apk_file")
+          
+            if [[ "$filename" == *"arm64-v8a"* ]]; then
+              cp "$apk_file" "apks/${SIGNATURE_TYPE}/arm64-v8a/"
+              echo "✅ Organized: arm64-v8a/${filename}"
+            elif [[ "$filename" == *"armeabi-v7a"* ]] || [[ "$filename" == *"arm-v7a"* ]]; then
+              cp "$apk_file" "apks/${SIGNATURE_TYPE}/armeabi-v7a/"
+              echo "✅ Organized: armeabi-v7a/${filename}"
+            elif [[ "$filename" == *"universal"* ]]; then
+              cp "$apk_file" "apks/${SIGNATURE_TYPE}/universal/"
+              echo "✅ Organized: universal/${filename}"
+            elif [[ "$filename" == *"x86_64"* ]]; then
+              cp "$apk_file" "apks/${SIGNATURE_TYPE}/x86_64/"
+              echo "✅ Organized: x86_64/${filename}"
+            elif [[ "$filename" == *"x86"* ]]; then
+              cp "$apk_file" "apks/${SIGNATURE_TYPE}/x86/"
+              echo "✅ Organized: x86/${filename}"
+            fi
+          done
+          
+          echo ""
+          echo "========================================"
+          echo "📁 Organized APK Structure:"
+          echo "========================================"
+          find apks -name "*.apk" -type f -exec ls -lh {} \;
 
       - name: Calculate build duration
         id: duration
@@ -158,11 +225,13 @@ jobs:
         id: apk_info
         if: success()
         run: |
-          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -1)
+          # 获取第一个 APK 作为示例信息
+          APK_PATH=$(find apks -name "*.apk" 2>/dev/null | head -1)
           if [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ]; then
             SIZE=$(du -h "$APK_PATH" | cut -f1)
-            echo "apk_size=$SIZE" >> $GITHUB_OUTPUT
-            echo "apk_name=$(basename "$APK_PATH")" >> $GITHUB_OUTPUT
+            APK_NAME="DevInfo-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.signature_type }}.apk"
+            echo "apk_size=multiple (see artifacts)" >> $GITHUB_OUTPUT
+            echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
           else
             echo "apk_size=unknown" >> $GITHUB_OUTPUT
             echo "apk_name=not_found" >> $GITHUB_OUTPUT
@@ -173,18 +242,19 @@ jobs:
         run: |
           echo ""
           echo "========================================"
-          echo "Build Successful!"
+          echo "🎉 ${{ env.BUILD_TITLE }}"
           echo "========================================"
           echo ""
-          echo "Build Info:"
-          echo "  Version: v${{ env.VERSION_NAME }}"
-          echo "  Build Number: ${{ env.VERSION_CODE }}"
-          echo "  Signature: ${{ env.SIGNATURE_TYPE }}"
-          echo "  Trigger: ${{ env.TRIGGER_TYPE }} by ${{ env.TRIGGER_ACTOR }}"
-          echo "  Duration: ${{ steps.duration.outputs.duration }}"
-          echo "  APK Size: ${{ steps.apk_info.outputs.apk_size }}"
+          echo "📋 Build Info | 构建信息:"
+          echo "  🏷️  Version | 版本: v${{ env.VERSION_NAME }}"
+          echo "  🔢 Build Number | 构建编号: ${{ env.VERSION_CODE }}"
+          echo "  ✍️  Signature | 签名类型: ${{ env.SIGNATURE_TYPE }}"
+          echo "  🔘 Trigger | 触发方式: ${{ env.TRIGGER_TYPE }} (${{ env.TRIGGER_TYPE_DISPLAY }}) by @${{ env.TRIGGER_ACTOR }}"
+          echo "  ⏱️  Duration | 构建耗时: ${{ steps.duration.outputs.duration }}"
+          echo "  📦 Architectures | 架构: arm64-v8a, armeabi-v7a, universal, x86, x86_64"
+          echo "  📁 Output | 输出目录: apks/${{ env.SIGNATURE_TYPE }}/"
           echo ""
-          echo "Download:"
+          echo "📥 Download | 下载:"
           echo "  https://github.com/${{ github.repository }}/actions/runs/${{ env.RUN_ID }}"
           echo "========================================"
 
@@ -192,34 +262,35 @@ jobs:
         if: success()
         run: |
           cat >> $GITHUB_STEP_SUMMARY <<EOF
-          ## Build Successful ✔️
+          ## ${{ env.BUILD_TITLE }}
 
-          ### 📋 Build Info
+          ### 📋 Build Info | 构建信息
 
-          | Item | Value |
-          |------|-------|
-          | Version | v${{ env.VERSION_NAME }} |
-          | Build Number | ${{ env.VERSION_CODE }} |
-          | Signature | ${{ env.SIGNATURE_TYPE }} |
-          | Trigger | ${{ env.TRIGGER_TYPE }} by ${{ env.TRIGGER_ACTOR }} |
-          | Branch | ${{ env.BRANCH_NAME }} |
-          | Duration | ${{ steps.duration.outputs.duration }} |
-          | APK Size | ${{ steps.apk_info.outputs.apk_size }} |
+          | Item 项目 | Value 值 |
+          |-----------|----------|
+          | 🏷️ Version 版本 | v${{ env.VERSION_NAME }} |
+          | 🔢 Build Number 构建编号 | ${{ env.VERSION_CODE }} |
+          | ✍️ Signature 签名类型 | ${{ env.SIGNATURE_TYPE }} |
+          | 🔘 Trigger 触发方式 | ${{ env.TRIGGER_TYPE }} (${{ env.TRIGGER_TYPE_DISPLAY }}) by @${{ env.TRIGGER_ACTOR }} |
+          | 🌿 Branch 分支 | ${{ env.BRANCH_NAME }} |
+          | ⏱️ Duration 构建耗时 | ${{ steps.duration.outputs.duration }} |
+          | 📦 Architectures 架构 | arm64-v8a, armeabi-v7a, universal, x86, x86_64 |
+          | 📁 Output 输出目录 | apks/${{ env.SIGNATURE_TYPE }}/ |
 
-          ### 📥 Download
+          ### 📥 Download 下载
 
           - Artifact: DevInfo-${{ env.VERSION_NAME }}-${{ env.SIGNATURE_TYPE }}
-          - [View Run Details](https://github.com/${{ github.repository }}/actions/runs/${{ env.RUN_ID }})
+          - [View Run Details 查看运行详情](https://github.com/${{ github.repository }}/actions/runs/${{ env.RUN_ID }})
 
           ---
-          *Generated by GitHub Actions*
+          *Generated by GitHub Actions | 由 GitHub Actions 自动生成*
           EOF
 
-      - name: Upload APK
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
           name: DevInfo-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.signature_type }}
-          path: app/build/outputs/apk/release/*.apk
+          path: apks/**/*.apk
           retention-days: 30
 
   generate-changelog:
@@ -247,15 +318,6 @@ jobs:
             COMMITS=$(git log --pretty=format:"%s" --reverse)
           fi
 
-          # Initialize category arrays
-          declare -A categories
-          categories["ui"]="### 🎨 UI/界面"
-          categories["logic"]="### ⚙️ 逻辑/核心"
-          categories["repo"]="### 📦 仓库/构建"
-          categories["fix"]="### 🐛 修复"
-          categories["docs"]="### 📝 文档"
-          categories["ci"]="### 🔧 CI/CD"
-
           # Process commits
           UI=""
           LOGIC=""
@@ -270,90 +332,108 @@ jobs:
 
             if [[ "$line" =~ ^ui: ]]; then
               msg="${line#ui: }"
-              UI="${UI}\n- ${msg}"
+              UI="${UI}- ${msg}"$'\n'
             elif [[ "$line" =~ ^logic: ]]; then
               msg="${line#logic: }"
-              LOGIC="${LOGIC}\n- ${msg}"
+              LOGIC="${LOGIC}- ${msg}"$'\n'
             elif [[ "$line" =~ ^repo: ]]; then
               msg="${line#repo: }"
-              REPO="${REPO}\n- ${msg}"
+              REPO="${REPO}- ${msg}"$'\n'
             elif [[ "$line" =~ ^fix: ]]; then
               msg="${line#fix: }"
-              FIX="${FIX}\n- ${msg}"
+              FIX="${FIX}- ${msg}"$'\n'
             elif [[ "$line" =~ ^docs: ]]; then
               msg="${line#docs: }"
-              DOCS="${DOCS}\n- ${msg}"
+              DOCS="${DOCS}- ${msg}"$'\n'
             elif [[ "$line" =~ ^ci: ]]; then
               msg="${line#ci: }"
-              CI="${CI}\n- ${msg}"
+              CI="${CI}- ${msg}"$'\n'
             elif [[ "$line" =~ ^(feat|perf|refactor|chore|style|test): ]]; then
               msg="${line}"
-              OTHER="${OTHER}\n- ${msg}"
+              OTHER="${OTHER}- ${msg}"$'\n'
             fi
           done <<< "$COMMITS"
 
           # Build updates section
           UPDATES=""
-          [ -n "$UI" ] && UPDATES="${UPDATES}\n### 🎨 UI/界面\n${UI}\n"
-          [ -n "$LOGIC" ] && UPDATES="${UPDATES}\n### ⚙️ 逻辑/核心\n${LOGIC}\n"
-          [ -n "$REPO" ] && UPDATES="${UPDATES}\n### 📦 仓库/构建\n${REPO}\n"
-          [ -n "$FIX" ] && UPDATES="${UPDATES}\n### 🐛 修复\n${FIX}\n"
-          [ -n "$DOCS" ] && UPDATES="${UPDATES}\n### 📝 文档\n${DOCS}\n"
-          [ -n "$CI" ] && UPDATES="${UPDATES}\n### 🔧 CI/CD\n${CI}\n"
-          [ -n "$OTHER" ] && UPDATES="${UPDATES}\n### 📌 其他\n${OTHER}\n"
+          [ -n "$UI" ] && UPDATES="${UPDATES}### 🎨 UI/界面"$'\n'$'\n'"${UI}"$'\n'
+          [ -n "$LOGIC" ] && UPDATES="${UPDATES}### ⚙️ Logic/Core 逻辑/核心"$'\n'$'\n'"${LOGIC}"$'\n'
+          [ -n "$REPO" ] && UPDATES="${UPDATES}### 📦 Repo/Build 仓库/构建"$'\n'$'\n'"${REPO}"$'\n'
+          [ -n "$FIX" ] && UPDATES="${UPDATES}### 🐛 Fix 修复"$'\n'$'\n'"${FIX}"$'\n'
+          [ -n "$DOCS" ] && UPDATES="${UPDATES}### 📝 Docs 文档"$'\n'$'\n'"${DOCS}"$'\n'
+          [ -n "$CI" ] && UPDATES="${UPDATES}### 🔧 CI/CD"$'\n'$'\n'"${CI}"$'\n'
+          [ -n "$OTHER" ] && UPDATES="${UPDATES}### 📌 Others 其他"$'\n'$'\n'"${OTHER}"$'\n'
 
           if [ -z "$UPDATES" ]; then
-            UPDATES="\n暂无详细更新记录，请查看提交历史\n"
+            UPDATES="暂无详细更新记录，请查看提交历史"$'\n'"No detailed update log, please check the commit history"$'\n'
           fi
 
           VERSION_NAME="${{ needs.build.outputs.version_name }}"
           SIGNATURE_TYPE="${{ needs.build.outputs.signature_type }}"
           TRIGGER_TYPE="${{ needs.build.outputs.trigger_type }}"
+          TRIGGER_TYPE_DISPLAY="${{ needs.build.outputs.trigger_type_display }}"
           TRIGGER_ACTOR="${{ needs.build.outputs.trigger_actor }}"
           BUILD_TIME="${{ needs.build.outputs.build_time }}"
           RUN_ID="${{ needs.build.outputs.run_id }}"
           BUILD_DURATION="${{ needs.build.outputs.build_duration }}"
           APK_SIZE="${{ needs.build.outputs.apk_size }}"
+          APK_NAME="${{ needs.build.outputs.apk_name }}"
+          BUILD_TITLE="${{ needs.build.outputs.build_title }}"
 
-          # Create release body
+          # Create release body with proper line breaks
           cat > release_body.md <<RELEASE_EOF
-          ## 🔖 v${VERSION_NAME}
+          ## 🔖 ${BUILD_TITLE}
 
           > 🤖 由提交记录自动生成
-          > 🌐 项目完全开源，使用 MIT 协议
+          > 🌐 项目代码完全开源免费，并使用 MIT 协议
 
           ---
 
-          ### 📋 更新内容
+          ### 🚀 更新内容 | Update Contents
+
           ${UPDATES}
 
           ---
 
-          ### 🤖 构建信息
+          ### 🤖 构建信息 | Build Information
 
-          | 项目 | 值 |
-          |------|-----|
-          | **构建状态** | ✅ 成功 |
-          | **构建耗时** | ${BUILD_DURATION} |
-          | **触发方式** | ${TRIGGER_TYPE} by @${TRIGGER_ACTOR} |
-          | **签名类型** | \`${SIGNATURE_TYPE}\` |
-          | **APK 大小** | ${APK_SIZE} |
-          | **构建时间** | ${BUILD_TIME} |
-          | **构建详情** | [查看日志 #${RUN_ID}](https://github.com/${{ github.repository }}/actions/runs/${RUN_ID}) |
-
-          ---
-
-          ### 🔗 链接
-
-          - 📦 **仓库：** [github.com/${{ github.repository }}](https://github.com/${{ github.repository }})
-          - 📥 **下载：** [Releases](https://github.com/${{ github.repository }}/releases)
+          | 项目 Item | 值 Value |
+          |-----------|----------|
+          | ✅ **构建状态 Status** | Success |
+          | ⏱️ **构建耗时 Duration** | ${BUILD_DURATION} |
+          | 🔘 **触发方式 Trigger** | ${TRIGGER_TYPE} (${TRIGGER_TYPE_DISPLAY}) by @${TRIGGER_ACTOR} |
+          | 📦 **产物 Artifact** | DevInfo-${VERSION_NAME}-${SIGNATURE_TYPE} |
+          | 🏗️ **支持架构** | arm64-v8a, armeabi-v7a, universal, x86, x86_64 |
+          | 📁 **输出目录** | ${SIGNATURE_TYPE}/ |
+          | 🔗 **构建详情 Details** | [查看构建日志 View Build Log #${RUN_ID}](https://github.com/${{ github.repository }}/actions/runs/${RUN_ID}) |
 
           ---
 
-          *由 GitHub Actions 自动生成*
+          > 🤖 AI-generated: Please do not use if you mind.
+          > 🌐 This project is fully open-source and free, licensed under MIT.
+
+          ### 🚀 Update Contents
+
+          ${UPDATES}
+
+          ### 🤖 Build Information
+
+          | Item | Value |
+          |------|-------|
+          | ✅ **Status** | Success |
+          | ⏱️ **Duration** | ${BUILD_DURATION} |
+          | 🔘 **Trigger** | ${TRIGGER_TYPE} (Manual) by @${TRIGGER_ACTOR} |
+          | 📦 **Artifact** | DevInfo-${VERSION_NAME}-${SIGNATURE_TYPE} |
+          | 🏗️ **Architectures** | arm64-v8a, armeabi-v7a, universal, x86, x86_64 |
+          | 📁 **Output** | ${SIGNATURE_TYPE}/ |
+          | 🔗 **Details** | [View Build Log #${RUN_ID}](https://github.com/${{ github.repository }}/actions/runs/${RUN_ID}) |
+
+          ---
+
+          *由 GitHub Actions 自动生成 | Generated by GitHub Actions*
           RELEASE_EOF
           
-          # Set output
+          # Set output with proper multiline handling
           {
             echo 'changelog<<EOF'
             cat release_body.md
@@ -363,7 +443,7 @@ jobs:
       - name: Display Release Notes
         run: |
           echo "========================================"
-          echo "Release Notes Generated"
+          echo "Release Notes Generated | 发布说明已生成"
           echo "========================================"
           cat release_body.md
 
@@ -374,23 +454,50 @@ jobs:
     if: needs.build.outputs.create_release == 'true'
 
     steps:
-      - name: Download APK
+      - name: Download APKs
         uses: actions/download-artifact@v4
         with:
           name: DevInfo-${{ needs.build.outputs.version_name }}-${{ needs.build.outputs.signature_type }}
           path: apk/
 
-      - name: Rename APK
+      - name: Rename APKs for release
         run: |
           cd apk/
-          for file in *.apk; do
-            if [[ -f "$file" ]]; then
-              new_name="DevInfo-v${{ needs.build.outputs.version_name }}-${{ needs.build.outputs.signature_type }}.apk"
-              mv "$file" "$new_name"
-              echo "Renamed: $file -> $new_name"
+          SIGNATURE_TYPE="${{ needs.build.outputs.signature_type }}"
+          
+          # 在 release 目录下创建架构子目录
+          mkdir -p "${SIGNATURE_TYPE}/arm64-v8a"
+          mkdir -p "${SIGNATURE_TYPE}/armeabi-v7a"
+          mkdir -p "${SIGNATURE_TYPE}/universal"
+          mkdir -p "${SIGNATURE_TYPE}/x86"
+          mkdir -p "${SIGNATURE_TYPE}/x86_64"
+          
+          # 移动并重命名 APK 文件
+          find . -maxdepth 2 -name "*.apk" -type f | while read -r file; do
+            filename=$(basename "$file")
+            if [[ "$filename" == *"arm64-v8a"* ]]; then
+              mv "$file" "${SIGNATURE_TYPE}/arm64-v8a/DevInfo-v${{ needs.build.outputs.version_name }}-arm64-v8a-${SIGNATURE_TYPE}.apk"
+              echo "✅ Renamed: arm64-v8a APK"
+            elif [[ "$filename" == *"armeabi-v7a"* ]] || [[ "$filename" == *"arm-v7a"* ]]; then
+              mv "$file" "${SIGNATURE_TYPE}/armeabi-v7a/DevInfo-v${{ needs.build.outputs.version_name }}-armeabi-v7a-${SIGNATURE_TYPE}.apk"
+              echo "✅ Renamed: armeabi-v7a APK"
+            elif [[ "$filename" == *"universal"* ]]; then
+              mv "$file" "${SIGNATURE_TYPE}/universal/DevInfo-v${{ needs.build.outputs.version_name }}-universal-${SIGNATURE_TYPE}.apk"
+              echo "✅ Renamed: universal APK"
+            elif [[ "$filename" == *"x86_64"* ]]; then
+              mv "$file" "${SIGNATURE_TYPE}/x86_64/DevInfo-v${{ needs.build.outputs.version_name }}-x86_64-${SIGNATURE_TYPE}.apk"
+              echo "✅ Renamed: x86_64 APK"
+            elif [[ "$filename" == *"x86"* ]]; then
+              mv "$file" "${SIGNATURE_TYPE}/x86/DevInfo-v${{ needs.build.outputs.version_name }}-x86-${SIGNATURE_TYPE}.apk"
+              echo "✅ Renamed: x86 APK"
             fi
           done
-          ls -la
+          
+          echo ""
+          echo "========================================"
+          echo "Organized APKs for ${SIGNATURE_TYPE} release:"
+          echo "========================================"
+          find . -name "*.apk" -type f -exec ls -lh {} \;
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -398,7 +505,8 @@ jobs:
           tag_name: "v${{ needs.build.outputs.version_name }}"
           name: "🔖 v${{ needs.build.outputs.version_name }}"
           body: ${{ needs.generate-changelog.outputs.changelog }}
-          files: apk/*.apk
+          files: |
+            apk/**/*.apk
           draft: false
           prerelease: ${{ needs.build.outputs.signature_type == 'debug' }}
         env:
@@ -409,13 +517,15 @@ jobs:
         run: |
           echo ""
           echo "========================================"
-          echo "Release Created Successfully!"
+          echo "🎉 ${{ needs.build.outputs.build_title }}"
           echo "========================================"
           echo ""
-          echo "Release Info:"
-          echo "  Version: v${{ needs.build.outputs.version_name }}"
-          echo "  Tag: v${{ needs.build.outputs.version_name }}"
-          echo "  Signature: ${{ needs.build.outputs.signature_type }}"
+          echo "📋 Release Info | 发布信息:"
+          echo "  🏷️  Version | 版本: v${{ needs.build.outputs.version_name }}"
+          echo "  🏷️  Tag | 标签: v${{ needs.build.outputs.version_name }}"
+          echo "  ✍️  Signature | 签名类型: ${{ needs.build.outputs.signature_type }}"
+          echo "  🏗️  Architectures | 架构: arm64-v8a, armeabi-v7a, universal, x86, x86_64"
+          echo "  📁 Output | 输出目录: ${{ needs.build.outputs.signature_type }}/"
           echo ""
-          echo "Link:"
+          echo "🔗 Link | 链接:"
           echo "  https://github.com/${{ github.repository }}/releases/tag/v${{ needs.build.outputs.version_name }}"
