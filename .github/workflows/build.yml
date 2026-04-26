@@ -42,10 +42,12 @@ jobs:
       create_release: ${{ steps.version.outputs.create_release }}
       trigger_type: ${{ steps.version.outputs.trigger_type }}
       trigger_actor: ${{ steps.version.outputs.trigger_actor }}
+      trigger_type_display: ${{ steps.version.outputs.trigger_type_display }}
       build_time: ${{ steps.version.outputs.build_time }}
       run_id: ${{ steps.version.outputs.run_id }}
       build_duration: ${{ steps.duration.outputs.duration }}
       apk_size: ${{ steps.apk_info.outputs.apk_size }}
+      apk_name: ${{ steps.apk_info.outputs.apk_name }}
 
     steps:
       - name: Checkout code
@@ -70,13 +72,15 @@ jobs:
         id: version
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TRIGGER_TYPE="manual"
+            TRIGGER_TYPE="workflow_dispatch"
+            TRIGGER_TYPE_DISPLAY="手动触发"
             TRIGGER_ACTOR="${{ github.actor }}"
             VERSION_NAME="${{ github.event.inputs.version_name }}"
             SIGNATURE_TYPE="${{ github.event.inputs.signature_type }}"
             CREATE_RELEASE="${{ github.event.inputs.create_release }}"
           else
             TRIGGER_TYPE="push"
+            TRIGGER_TYPE_DISPLAY="推送触发"
             TRIGGER_ACTOR="${{ github.actor }}"
             VERSION_NAME="dev-${GITHUB_SHA::7}"
             SIGNATURE_TYPE="debug"
@@ -93,6 +97,7 @@ jobs:
           echo "signature_type=$SIGNATURE_TYPE" >> $GITHUB_OUTPUT
           echo "create_release=$CREATE_RELEASE" >> $GITHUB_OUTPUT
           echo "trigger_type=$TRIGGER_TYPE" >> $GITHUB_OUTPUT
+          echo "trigger_type_display=$TRIGGER_TYPE_DISPLAY" >> $GITHUB_OUTPUT
           echo "trigger_actor=$TRIGGER_ACTOR" >> $GITHUB_OUTPUT
           echo "build_time=$BUILD_TIME" >> $GITHUB_OUTPUT
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
@@ -102,6 +107,7 @@ jobs:
           echo "SIGNATURE_TYPE=$SIGNATURE_TYPE" >> $GITHUB_ENV
           echo "CREATE_RELEASE=$CREATE_RELEASE" >> $GITHUB_ENV
           echo "TRIGGER_TYPE=$TRIGGER_TYPE" >> $GITHUB_ENV
+          echo "TRIGGER_TYPE_DISPLAY=$TRIGGER_TYPE_DISPLAY" >> $GITHUB_ENV
           echo "TRIGGER_ACTOR=$TRIGGER_ACTOR" >> $GITHUB_ENV
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
           echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_ENV
@@ -161,8 +167,9 @@ jobs:
           APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -1)
           if [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ]; then
             SIZE=$(du -h "$APK_PATH" | cut -f1)
+            APK_NAME=$(basename "$APK_PATH")
             echo "apk_size=$SIZE" >> $GITHUB_OUTPUT
-            echo "apk_name=$(basename "$APK_PATH")" >> $GITHUB_OUTPUT
+            echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
           else
             echo "apk_size=unknown" >> $GITHUB_OUTPUT
             echo "apk_name=not_found" >> $GITHUB_OUTPUT
@@ -173,46 +180,66 @@ jobs:
         run: |
           echo ""
           echo "========================================"
-          echo "Build Successful!"
+          echo "🎉 Build Successful! | 构建成功！"
           echo "========================================"
           echo ""
-          echo "Build Info:"
-          echo "  Version: v${{ env.VERSION_NAME }}"
-          echo "  Build Number: ${{ env.VERSION_CODE }}"
-          echo "  Signature: ${{ env.SIGNATURE_TYPE }}"
-          echo "  Trigger: ${{ env.TRIGGER_TYPE }} by ${{ env.TRIGGER_ACTOR }}"
-          echo "  Duration: ${{ steps.duration.outputs.duration }}"
-          echo "  APK Size: ${{ steps.apk_info.outputs.apk_size }}"
+          echo "📋 Build Info | 构建信息:"
+          echo "  🏷️  Version | 版本: v${{ env.VERSION_NAME }}"
+          echo "  🔢 Build Number | 构建编号: ${{ env.VERSION_CODE }}"
+          echo "  ✍️  Signature | 签名类型: ${{ env.SIGNATURE_TYPE }}"
+          echo "  🔘 Trigger | 触发方式: ${{ env.TRIGGER_TYPE }} (${{ env.TRIGGER_TYPE_DISPLAY }}) by @${{ env.TRIGGER_ACTOR }}"
+          echo "  ⏱️  Duration | 构建耗时: ${{ steps.duration.outputs.duration }}"
+          echo "  📦 APK Size | APK 大小: ${{ steps.apk_info.outputs.apk_size }}"
           echo ""
-          echo "Download:"
+          echo "📥 Download | 下载:"
           echo "  https://github.com/${{ github.repository }}/actions/runs/${{ env.RUN_ID }}"
           echo "========================================"
 
       - name: Generate Build Summary
         if: success()
         run: |
-          cat >> $GITHUB_STEP_SUMMARY <<EOF
-          ## Build Successful ✔️
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
+          ## 🎉 Build Successful | 构建成功
 
-          ### 📋 Build Info
+          ### 📋 Build Info | 构建信息
 
-          | Item | Value |
-          |------|-------|
-          | Version | v${{ env.VERSION_NAME }} |
-          | Build Number | ${{ env.VERSION_CODE }} |
-          | Signature | ${{ env.SIGNATURE_TYPE }} |
-          | Trigger | ${{ env.TRIGGER_TYPE }} by ${{ env.TRIGGER_ACTOR }} |
-          | Branch | ${{ env.BRANCH_NAME }} |
-          | Duration | ${{ steps.duration.outputs.duration }} |
-          | APK Size | ${{ steps.apk_info.outputs.apk_size }} |
+          | Item 项目 | Value 值 |
+          |-----------|----------|
+          | 🏷️ Version 版本 | vEOF
+          echo "${{ env.VERSION_NAME }}" >> $GITHUB_STEP_SUMMARY
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
+          | 🔢 Build Number 构建编号 | EOF
+          echo "${{ env.VERSION_CODE }}" >> $GITHUB_STEP_SUMMARY
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
+          | ✍️ Signature 签名类型 | EOF
+          echo "${{ env.SIGNATURE_TYPE }}" >> $GITHUB_STEP_SUMMARY
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
+          | 🔘 Trigger 触发方式 | EOF
+          echo "${{ env.TRIGGER_TYPE }} (${{ env.TRIGGER_TYPE_DISPLAY }}) by @${{ env.TRIGGER_ACTOR }}" >> $GITHUB_STEP_SUMMARY
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
+          | 🌿 Branch 分支 | EOF
+          echo "${{ env.BRANCH_NAME }}" >> $GITHUB_STEP_SUMMARY
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
+          | ⏱️ Duration 构建耗时 | EOF
+          echo "${{ steps.duration.outputs.duration }}" >> $GITHUB_STEP_SUMMARY
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
+          | 📦 APK Size 大小 | EOF
+          echo "${{ steps.apk_info.outputs.apk_size }}" >> $GITHUB_STEP_SUMMARY
 
-          ### 📥 Download
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
 
-          - Artifact: DevInfo-${{ env.VERSION_NAME }}-${{ env.SIGNATURE_TYPE }}
-          - [View Run Details](https://github.com/${{ github.repository }}/actions/runs/${{ env.RUN_ID }})
+          ### 📥 Download 下载
+
+          - Artifact: EOF
+          echo "DevInfo-${{ env.VERSION_NAME }}-${{ env.SIGNATURE_TYPE }}" >> $GITHUB_STEP_SUMMARY
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
+          - [View Run Details 查看运行详情](https://github.com/EOF
+          echo "${{ github.repository }}/actions/runs/${{ env.RUN_ID }})" >> $GITHUB_STEP_SUMMARY
+
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
 
           ---
-          *Generated by GitHub Actions*
+          *Generated by GitHub Actions | 由 GitHub Actions 自动生成*
           EOF
 
       - name: Upload APK
@@ -246,15 +273,6 @@ jobs:
           else
             COMMITS=$(git log --pretty=format:"%s" --reverse)
           fi
-
-          # Initialize category arrays
-          declare -A categories
-          categories["ui"]="### 🎨 UI/界面"
-          categories["logic"]="### ⚙️ 逻辑/核心"
-          categories["repo"]="### 📦 仓库/构建"
-          categories["fix"]="### 🐛 修复"
-          categories["docs"]="### 📝 文档"
-          categories["ci"]="### 🔧 CI/CD"
 
           # Process commits
           UI=""
@@ -295,62 +313,71 @@ jobs:
           # Build updates section
           UPDATES=""
           [ -n "$UI" ] && UPDATES="${UPDATES}\n### 🎨 UI/界面\n${UI}\n"
-          [ -n "$LOGIC" ] && UPDATES="${UPDATES}\n### ⚙️ 逻辑/核心\n${LOGIC}\n"
-          [ -n "$REPO" ] && UPDATES="${UPDATES}\n### 📦 仓库/构建\n${REPO}\n"
-          [ -n "$FIX" ] && UPDATES="${UPDATES}\n### 🐛 修复\n${FIX}\n"
-          [ -n "$DOCS" ] && UPDATES="${UPDATES}\n### 📝 文档\n${DOCS}\n"
+          [ -n "$LOGIC" ] && UPDATES="${UPDATES}\n### ⚙️ Logic/Core 逻辑/核心\n${LOGIC}\n"
+          [ -n "$REPO" ] && UPDATES="${UPDATES}\n### 📦 Repo/Build 仓库/构建\n${REPO}\n"
+          [ -n "$FIX" ] && UPDATES="${UPDATES}\n### 🐛 Fix 修复\n${FIX}\n"
+          [ -n "$DOCS" ] && UPDATES="${UPDATES}\n### 📝 Docs 文档\n${DOCS}\n"
           [ -n "$CI" ] && UPDATES="${UPDATES}\n### 🔧 CI/CD\n${CI}\n"
-          [ -n "$OTHER" ] && UPDATES="${UPDATES}\n### 📌 其他\n${OTHER}\n"
+          [ -n "$OTHER" ] && UPDATES="${UPDATES}\n### 📌 Others 其他\n${OTHER}\n"
 
           if [ -z "$UPDATES" ]; then
-            UPDATES="\n暂无详细更新记录，请查看提交历史\n"
+            UPDATES="\n暂无详细更新记录，请查看提交历史\nNo detailed update log, please check the commit history\n"
           fi
 
           VERSION_NAME="${{ needs.build.outputs.version_name }}"
           SIGNATURE_TYPE="${{ needs.build.outputs.signature_type }}"
           TRIGGER_TYPE="${{ needs.build.outputs.trigger_type }}"
+          TRIGGER_TYPE_DISPLAY="${{ needs.build.outputs.trigger_type_display }}"
           TRIGGER_ACTOR="${{ needs.build.outputs.trigger_actor }}"
           BUILD_TIME="${{ needs.build.outputs.build_time }}"
           RUN_ID="${{ needs.build.outputs.run_id }}"
           BUILD_DURATION="${{ needs.build.outputs.build_duration }}"
           APK_SIZE="${{ needs.build.outputs.apk_size }}"
+          APK_NAME="${{ needs.build.outputs.apk_name }}"
 
-          # Create release body
+          # Create release body with bilingual content
           cat > release_body.md <<RELEASE_EOF
-          ## 🔖 v${VERSION_NAME}
-
-          > 🤖 由提交记录自动生成
-          > 🌐 项目完全开源，使用 MIT 协议
+          > 🤖 由 AI 生成：如果介意，请勿使用。
+          > 🌐 项目代码完全开源免费，并使用 MIT 协议。
 
           ---
 
-          ### 📋 更新内容
+          ### 🚀 更新内容
           ${UPDATES}
 
           ---
 
-          ### 🤖 构建信息
+          ### 🤖 构建信息 | Build Information
 
-          | 项目 | 值 |
-          |------|-----|
-          | **构建状态** | ✅ 成功 |
-          | **构建耗时** | ${BUILD_DURATION} |
-          | **触发方式** | ${TRIGGER_TYPE} by @${TRIGGER_ACTOR} |
-          | **签名类型** | \`${SIGNATURE_TYPE}\` |
-          | **APK 大小** | ${APK_SIZE} |
-          | **构建时间** | ${BUILD_TIME} |
-          | **构建详情** | [查看日志 #${RUN_ID}](https://github.com/${{ github.repository }}/actions/runs/${RUN_ID}) |
+          | 项目 Item | 值 Value |
+          |-----------|----------|
+          | ✅ **构建状态 Status** | Success |
+          | ⏱️ **构建耗时 Duration** | ${BUILD_DURATION} |
+          | 🔘 **触发方式 Trigger** | ${TRIGGER_TYPE} (${TRIGGER_TYPE_DISPLAY}) by @${TRIGGER_ACTOR} |
+          | 📦 **产物 Artifact** | DevInfo-${VERSION_NAME}-${SIGNATURE_TYPE} (${APK_SIZE}) |
+          | 🔗 **构建详情 Details** | [查看构建日志 View Build Log #${RUN_ID}](https://github.com/${{ github.repository }}/actions/runs/${RUN_ID}) |
 
           ---
 
-          ### 🔗 链接
+          > 🤖 AI-generated: Please do not use if you mind.
+          > 🌐 This project is fully open-source and free, licensed under MIT.
 
-          - 📦 **仓库：** [github.com/${{ github.repository }}](https://github.com/${{ github.repository }})
-          - 📥 **下载：** [Releases](https://github.com/${{ github.repository }}/releases)
+          ### 🚀 Update Contents
+          ${UPDATES}
+
+          ### 🤖 Build Information
+
+          | Item | Value |
+          |------|-------|
+          | ✅ **Status** | Success |
+          | ⏱️ **Duration** | ${BUILD_DURATION} |
+          | 🔘 **Trigger** | ${TRIGGER_TYPE} (${TRIGGER_TYPE_DISPLAY}) by @${TRIGGER_ACTOR} |
+          | 📦 **Artifact** | DevInfo-${VERSION_NAME}-${SIGNATURE_TYPE} (${APK_SIZE}) |
+          | 🔗 **Details** | [View Build Log #${RUN_ID}](https://github.com/${{ github.repository }}/actions/runs/${RUN_ID}) |
 
           ---
 
-          *由 GitHub Actions 自动生成*
+          *由 GitHub Actions 自动生成 | Generated by GitHub Actions*
           RELEASE_EOF
           
           # Set output
@@ -363,7 +390,7 @@ jobs:
       - name: Display Release Notes
         run: |
           echo "========================================"
-          echo "Release Notes Generated"
+          echo "Release Notes Generated | 发布说明已生成"
           echo "========================================"
           cat release_body.md
 
@@ -409,13 +436,13 @@ jobs:
         run: |
           echo ""
           echo "========================================"
-          echo "Release Created Successfully!"
+          echo "🎉 Release Created Successfully! | 发布创建成功！"
           echo "========================================"
           echo ""
-          echo "Release Info:"
-          echo "  Version: v${{ needs.build.outputs.version_name }}"
-          echo "  Tag: v${{ needs.build.outputs.version_name }}"
-          echo "  Signature: ${{ needs.build.outputs.signature_type }}"
+          echo "📋 Release Info | 发布信息:"
+          echo "  🏷️  Version | 版本: v${{ needs.build.outputs.version_name }}"
+          echo "  🏷️  Tag | 标签: v${{ needs.build.outputs.version_name }}"
+          echo "  ✍️  Signature | 签名类型: ${{ needs.build.outputs.signature_type }}"
           echo ""
-          echo "Link:"
+          echo "🔗 Link | 链接:"
           echo "  https://github.com/${{ github.repository }}/releases/tag/v${{ needs.build.outputs.version_name }}"
