@@ -6,6 +6,10 @@
 [![Android](https://img.shields.io/badge/Android-11%2B-brightgreen.svg)](https://developer.android.com)
 [![Build Status](https://github.com/FIOIU8/DevInfo/actions/workflows/build.yml/badge.svg)](https://github.com/FIOIU8/DevInfo/actions)
 
+> 🤖 由 AI 生成：如果介意，请勿使用。
+> 
+> 🌐 项目代码完全开源免费，并使用 MIT 协议。
+
 ## 📱 功能特性
 
 - 🔍 **设备信息查看** - 全面展示设备硬件信息（CPU、内存、存储、屏幕等）
