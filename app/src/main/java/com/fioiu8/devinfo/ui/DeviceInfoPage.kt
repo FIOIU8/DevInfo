@@ -36,7 +36,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -60,6 +64,9 @@ import com.fioiu8.devinfo.DeviceInfoCollector
 import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ItemWithVisibility
 import kotlinx.coroutines.delay
+
+/** 分类卡片每页显示的最大条目数 */
+private const val ITEMS_PER_PAGE = 8
 
 /**
  * 设备信息页 — 分类浏览 + 下拉刷新。
@@ -88,6 +95,7 @@ fun DeviceInfoPage(
     var isRefreshing by remember { mutableStateOf(false) }
     var selectedCategoryIndex by remember { mutableIntStateOf(0) }
     var previousCategoryIndex by remember { mutableIntStateOf(0) }
+    var currentPage by remember(selectedCategoryIndex) { mutableIntStateOf(0) }
     val categories = InfoCategory.entries
 
     // 实时计算存储百分比（刷新时重新获取）
@@ -135,25 +143,33 @@ fun DeviceInfoPage(
                     )
                 }
 
-                // Category Hero Card with directional animation
+                // Category Hero Card with directional animation + pagination
                 item {
+                    val categoryItems = itemsState.filter { it.item.category == selectedCategory }
+                    val totalPages = ((categoryItems.size + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE).coerceAtLeast(1)
+                    // 超出页码范围时自动修正
+                    LaunchedEffect(selectedCategoryIndex, totalPages) {
+                        if (currentPage >= totalPages) currentPage = 0
+                    }
                     val animDirection = if (selectedCategoryIndex > previousCategoryIndex) 1 else -1
                     AnimatedContent(
-                        targetState = selectedCategory,
+                        targetState = selectedCategory to currentPage,
                         transitionSpec = {
                             (fadeIn() + slideInHorizontally { animDirection * it / 4 })
                                 .togetherWith(fadeOut() + slideOutHorizontally { -animDirection * it / 4 })
                         },
-                        label = "categorySwitch"
-                    ) { category ->
+                        label = "categoryPageSwitch"
+                    ) { (category, page) ->
                         CategoryCard(
                             category = category,
-                            items = itemsState.filter { it.item.category == category },
+                            items = categoryItems,
+                            currentPage = page,
+                            totalPages = totalPages,
+                            onPageChange = { currentPage = it },
                             onItemCopy = { item ->
                                 clipboardManager.setText(AnnotatedString(item.item.value))
                                 Toast.makeText(ctx, "${item.item.key} 已复制", Toast.LENGTH_SHORT).show()
                             },
-                            // 传递给存储和电池的分类卡片额外数据
                             storagePercent = storagePercent,
                             memoryPercent = memoryPercent,
                             batteryLevel = batteryState.level,
@@ -205,18 +221,23 @@ private fun CategoryTabRow(
 }
 
 // ── Category Hero Card ──
-/** 分类信息卡片，包含 Header + 进度条（存储/电池）+ 数据项列表，长按复制 */
+/** 分类信息卡片，包含 Header + 进度条（存储/电池）+ 分页数据项列表，长按复制 */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CategoryCard(
     category: InfoCategory,
     items: List<ItemWithVisibility>,
+    currentPage: Int,
+    totalPages: Int,
+    onPageChange: (Int) -> Unit,
     onItemCopy: (ItemWithVisibility) -> Unit,
     storagePercent: Float = 0f,
     memoryPercent: Float = 0f,
     batteryLevel: Int = 100,
     batteryCharging: Boolean = false
 ) {
+    // 分页切片
+    val pagedItems = items.drop(currentPage * ITEMS_PER_PAGE).take(ITEMS_PER_PAGE)
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -305,11 +326,11 @@ private fun CategoryCard(
                 )
             }
 
-            // Data items
+            // Data items (paginated)
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                items.forEach { item ->
+                pagedItems.forEach { item ->
                     AnimatedVisibility(
                         visible = item.visible.value,
                         enter = fadeIn() + slideInHorizontally()
@@ -333,6 +354,70 @@ private fun CategoryCard(
                     }
                 }
             }
+
+            // Page navigation
+            if (totalPages > 1) {
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                PageNavigationRow(
+                    currentPage = currentPage,
+                    totalPages = totalPages,
+                    onPrevious = { if (currentPage > 0) onPageChange(currentPage - 1) },
+                    onNext = { if (currentPage < totalPages - 1) onPageChange(currentPage + 1) },
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+// ── Page Navigation Row ──
+/** 上一页/下一页导航条 */
+@Composable
+private fun PageNavigationRow(
+    currentPage: Int,
+    totalPages: Int,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(
+            onClick = onPrevious,
+            enabled = currentPage > 0
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "上一页",
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(2.dp))
+            Text("上一页")
+        }
+
+        Text(
+            text = "第 ${currentPage + 1} / $totalPages 页",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        TextButton(
+            onClick = onNext,
+            enabled = currentPage < totalPages - 1
+        ) {
+            Text("下一页")
+            Spacer(Modifier.width(2.dp))
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "下一页",
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

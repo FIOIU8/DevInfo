@@ -106,6 +106,7 @@ fun AboutPage(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("关于", fontWeight = FontWeight.SemiBold) },

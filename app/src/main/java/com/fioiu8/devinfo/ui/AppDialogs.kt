@@ -4,10 +4,14 @@ import android.os.Environment
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -352,21 +356,19 @@ fun UpdateAvailableDialog(
                     )
                     if (info.body.isNotBlank()) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                            )
+                        // 可滚动的 Markdown 渲染区域
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 320.dp)
+                                .verticalScroll(rememberScrollState())
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceContainerLow,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(12.dp)
                         ) {
-                            Text(
-                                text = info.body,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(12.dp),
-                                maxLines = 12,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            MarkdownText(markdown = info.body)
                         }
                     }
                 }

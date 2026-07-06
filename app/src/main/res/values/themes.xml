@@ -1,5 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- 基础主题：无 ActionBar -->
     <style name="Theme.DevInfo" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- 启动屏主题（浅色） -->
+    <style name="Theme.DevInfo.Splash" parent="Theme.SplashScreen">
+        <!-- 启动屏结束后显示的主主题 -->
+        <item name="postSplashScreenTheme">@style/Theme.DevInfo</item>
+        <!-- 启动屏背景色 -->
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <!-- 启动屏图标（使用应用图标的 foreground 层） -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    </style>
+
+    <!-- 启动屏主题（深色） -->
+    <style name="Theme.DevInfo.Splash.Dark" parent="Theme.SplashScreen">
+        <item name="postSplashScreenTheme">@style/Theme.DevInfo</item>
+        <item name="windowSplashScreenBackground">@color/splash_background_dark</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    </style>
+
 </resources>
