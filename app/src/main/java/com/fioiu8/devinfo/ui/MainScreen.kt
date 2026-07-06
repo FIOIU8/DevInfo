@@ -33,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -95,11 +96,12 @@ fun MainScreen(
     var showExportSuccessDialog by remember { mutableStateOf(false) }
     var exportedFilePath by remember { mutableStateOf("") }
 
-    // Update
+    // Update — 使用 collectAsState 响应式订阅 StateFlow
     var showUpdateDialog by remember { mutableStateOf(false) }
-    var updateState by remember { mutableStateOf<UpdateState>(UpdateState.IDLE) }
-    var releaseInfo by remember { mutableStateOf<GitHubClient.ReleaseInfo?>(null) }
     var updateChecked by remember { mutableStateOf(false) }
+
+    val updateState by updateChecker.state.collectAsState()
+    val releaseInfo by updateChecker.releaseInfo.collectAsState()
 
     val themeOptions = ThemeMode.entries.map { it.displayName }
     val isDynamicMode = themeMode.isDynamic
@@ -116,9 +118,7 @@ fun MainScreen(
         }
     }
 
-    LaunchedEffect(updateChecker.state.value) {
-        updateState = updateChecker.state.value
-        releaseInfo = updateChecker.releaseInfo.value
+    LaunchedEffect(updateState) {
         when (updateState) {
             UpdateState.UP_TO_DATE -> {
                 Toast.makeText(context, "已是最新版本", Toast.LENGTH_SHORT).show()

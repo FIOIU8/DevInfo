@@ -68,10 +68,6 @@ android {
         buildConfig = true
     }
 
-    kotlin {
-        jvmToolchain(11)
-    }
-
     // ===== ABI 拆分配置 =====
     splits {
         abi {
@@ -88,6 +84,11 @@ android {
             isUniversalApk = true
         }
     }
+}
+
+// ✅ 放在 android 块外面，根级别
+kotlin {
+    jvmToolchain(11)
 }
 
 dependencies {
