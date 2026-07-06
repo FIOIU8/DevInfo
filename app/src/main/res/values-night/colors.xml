@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- SplashScreen background colors — dark values override -->
-    <color name="splash_background_light">@color/splash_background_dark</color>
+    <!-- SplashScreen 背景色覆盖为深色 -->
+    <color name="splash_background">@color/splash_background_dark</color>
     <color name="splash_background_dark">#FF1A1C1E</color>
 </resources>

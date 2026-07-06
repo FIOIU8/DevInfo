@@ -11,6 +11,7 @@ import java.text.SimpleDateFormat // 用于格式化日期和时间为指定的�
 import java.util.* // 导入 Java 工具类，如 Date, Locale, ZipEntry
 import java.util.zip.ZipEntry // 表示 ZIP 文件中的单个条目（文件或目录）
 import java.util.zip.ZipOutputStream // 用于创建 ZIP 文件的输出流
+import com.fioiu8.devinfo.model.ItemWithVisibility
 
 /**
  * 模块导出助手类，负责生成 Magisk/KernelSU 模块的 ZIP 包

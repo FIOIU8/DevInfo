@@ -3,10 +3,11 @@ package com.fioiu8.devinfo.ui
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,6 +37,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -135,11 +137,20 @@ fun MainScreen(
         }
     }
 
-    // 关于页面带动画覆盖
+    // 预测性返回手势（Android 14+ 自动显示系统返回动画预览）
+    if (showAboutPage) {
+        BackHandler(enabled = showAboutPage) {
+            showAboutPage = false
+        }
+    }
+
+    // 关于页面 — 从右往左滑入，返回时从左往右滑出
+    // fillMaxSize 确保动画过程中无空白闪烁
     AnimatedVisibility(
         visible = showAboutPage,
-        enter = fadeIn() + slideInVertically { it },
-        exit = fadeOut() + slideOutVertically { it }
+        modifier = Modifier.fillMaxSize(),
+        enter = slideInHorizontally { it } + fadeIn(animationSpec = tween(300)),
+        exit = slideOutHorizontally { it } + fadeOut(animationSpec = tween(300))
     ) {
         AboutPage(
             versionName = collector.getAppVersionName(),
@@ -147,7 +158,7 @@ fun MainScreen(
         )
     }
 
-    // 关于页面打开时仍渲染主界面（用于预测性返回）
+    // 关于页面打开时后台仍可见主界面（确保预测性返回预览能看到底层内容）
     if (!showAboutPage) {
         val tabs = listOf("信息", "设置")
         val selectedIcons = listOf(Icons.Filled.Description, Icons.Filled.Settings)

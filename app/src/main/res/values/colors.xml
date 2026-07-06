@@ -7,4 +7,10 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- SplashScreen 背景色 — 浅色模式 -->
+    <color name="splash_background">#FFF5F5F5</color>
+    <color name="splash_background_dark">#FF1A1C1E</color>
+    <!-- 自适应图标背景色 -->
+    <color name="ic_launcher_bg">#FF4A90D9</color>
 </resources>

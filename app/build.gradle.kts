@@ -99,11 +99,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation("androidx.compose.material:material-icons-extended")
 
-    implementation("top.yukonga.miuix.kmp:miuix-ui:0.9.0")
-    implementation("top.yukonga.miuix.kmp:miuix-preference:0.9.0")
-    implementation("top.yukonga.miuix.kmp:miuix-icons:0.9.0")
-    implementation("top.yukonga.miuix.kmp:miuix-shapes:0.9.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
