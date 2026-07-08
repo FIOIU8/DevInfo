@@ -2,12 +2,12 @@ package com.fioiu8.devinfo.ui
 
 import android.content.Intent
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -56,6 +56,7 @@ import com.fioiu8.devinfo.model.ThemeMode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * 主屏幕 — 双标签布局（设备信息 / 设置），协调更新检查、导出对话框和关于页面。
@@ -90,8 +91,30 @@ fun MainScreen(
     var isLoading by remember { mutableStateOf(true) }
     var refreshTrigger by remember { mutableIntStateOf(0) }
 
-    // 关于页面独立
+    // 关于页面 — 预测性返回动画状态
     var showAboutPage by remember { mutableStateOf(false) }
+    var isAboutVisible by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+    val aboutOffsetX = remember { Animatable(screenWidthPx) }
+
+    // 关于页面入场动画
+    LaunchedEffect(showAboutPage) {
+        if (showAboutPage) {
+            isAboutVisible = true
+            aboutOffsetX.snapTo(screenWidthPx)
+            aboutOffsetX.animateTo(0f, animationSpec = tween(300))
+        }
+    }
+
+    // 关于页面退场动画（返回按钮或预测返回提交后调用）
+    fun dismissAboutPage() {
+        scope.launch {
+            aboutOffsetX.animateTo(screenWidthPx, animationSpec = tween(300))
+            showAboutPage = false
+            isAboutVisible = false
+        }
+    }
 
     var showExportDialog by remember { mutableStateOf(false) }
     var showExportSuccessDialog by remember { mutableStateOf(false) }
@@ -228,18 +251,19 @@ fun MainScreen(
             }
         }
 
-        // 关于页面 — 覆盖在主界面之上的从右往左滑入动画
+        // 关于页面 — 覆盖在主界面之上，offset 由预测返回手势或入场动画驱动
         // 主界面始终在下层渲染，避免动画过程中出现白屏闪烁
-        AnimatedVisibility(
-            visible = showAboutPage,
-            modifier = Modifier.fillMaxSize(),
-            enter = slideInHorizontally { it } + fadeIn(animationSpec = tween(300)),
-            exit = slideOutHorizontally { it } + fadeOut(animationSpec = tween(300))
-        ) {
-            AboutPage(
-                versionName = collector.getAppVersionName(),
-                onBack = { showAboutPage = false }
-            )
+        if (isAboutVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .offset { IntOffset(aboutOffsetX.value.roundToInt(), 0) }
+            ) {
+                AboutPage(
+                    versionName = collector.getAppVersionName(),
+                    onBack = { dismissAboutPage() }
+                )
+            }
         }
     }
 
@@ -249,10 +273,21 @@ fun MainScreen(
         enabled = showAboutPage,
         onBack = { progress ->
             try {
-                progress.collect { /* 手势进度更新 */ }
-                showAboutPage = false
+                progress.collect { event ->
+                    // 手势进度驱动关于页面实时跟随手指滑动
+                    aboutOffsetX.snapTo(event.progress * screenWidthPx)
+                }
+                // 手势提交 → 继续动画到完全滑出
+                scope.launch {
+                    aboutOffsetX.animateTo(screenWidthPx, animationSpec = tween(200))
+                    showAboutPage = false
+                    isAboutVisible = false
+                }
             } catch (_: CancellationException) {
-                // 手势被取消（用户滑回）→ 不做任何操作
+                // 手势取消（用户滑回）→ 动画回到原位
+                scope.launch {
+                    aboutOffsetX.animateTo(0f, animationSpec = tween(200))
+                }
             }
         }
     )
