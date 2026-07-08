@@ -38,7 +38,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.activity.compose.BackHandler
+import androidx.activity.BackEventCompat
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -46,13 +47,13 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.fioiu8.devinfo.BuildConfig
 import com.fioiu8.devinfo.DeviceInfoCollector
-import com.fioiu8.devinfo.GitHubClient
 import com.fioiu8.devinfo.ModuleExportHelper
 import com.fioiu8.devinfo.UpdateChecker
 import com.fioiu8.devinfo.UpdateState
 import com.fioiu8.devinfo.model.ItemWithVisibility
 import com.fioiu8.devinfo.model.MountThemeColor
 import com.fioiu8.devinfo.model.ThemeMode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -137,33 +138,13 @@ fun MainScreen(
         }
     }
 
-    // 预测性返回手势（Android 14+ 自动显示系统返回动画预览）
-    if (showAboutPage) {
-        BackHandler(enabled = showAboutPage) {
-            showAboutPage = false
-        }
-    }
+    // 主界面内容（始终渲染，确保关于页面滑入时无白屏闪烁、
+    // 预测性返回预览时能看到底层内容）
+    val tabs = listOf("信息", "设置")
+    val selectedIcons = listOf(Icons.Filled.Description, Icons.Filled.Settings)
+    val unselectedIcons = listOf(Icons.Outlined.Description, Icons.Outlined.Settings)
 
-    // 关于页面 — 从右往左滑入，返回时从左往右滑出
-    // fillMaxSize 确保动画过程中无空白闪烁
-    AnimatedVisibility(
-        visible = showAboutPage,
-        modifier = Modifier.fillMaxSize(),
-        enter = slideInHorizontally { it } + fadeIn(animationSpec = tween(300)),
-        exit = slideOutHorizontally { it } + fadeOut(animationSpec = tween(300))
-    ) {
-        AboutPage(
-            versionName = collector.getAppVersionName(),
-            onBack = { showAboutPage = false }
-        )
-    }
-
-    // 关于页面打开时后台仍可见主界面（确保预测性返回预览能看到底层内容）
-    if (!showAboutPage) {
-        val tabs = listOf("信息", "设置")
-        val selectedIcons = listOf(Icons.Filled.Description, Icons.Filled.Settings)
-        val unselectedIcons = listOf(Icons.Outlined.Description, Icons.Outlined.Settings)
-
+    Box(Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
                 Column {
@@ -247,50 +228,78 @@ fun MainScreen(
             }
         }
 
-        // Dialogs
-        UpdateAvailableDialog(
-            show = showUpdateDialog,
-            info = releaseInfo,
-            isError = updateState == UpdateState.ERROR,
-            currentVersion = BuildConfig.VERSION_NAME,
-            onDownload = {
-                openUrl(context, releaseInfo?.htmlUrl ?: "https://github.com/FIOIU8/DevInfo/releases")
-                showUpdateDialog = false
-                updateChecker.reset()
-            },
-            onRetry = {
-                showUpdateDialog = false
-                scope.launch { updateChecker.check(BuildConfig.VERSION_NAME) }
-            },
-            onDismiss = {
-                showUpdateDialog = false
-                updateChecker.reset()
-            }
-        )
-
-        ExportConfirmDialog(
-            show = showExportDialog,
-            onConfirm = {
-                exportHelper.exportModule(
-                    deviceId = deviceId, itemsState = itemsState,
-                    onSuccess = { path ->
-                        exportedFilePath = path
-                        showExportSuccessDialog = true
-                    },
-                    onError = { error ->
-                        Toast.makeText(context, "导出失败: $error", Toast.LENGTH_SHORT).show()
-                    }
-                )
-            },
-            onDismiss = { showExportDialog = false }
-        )
-
-        ExportSuccessDialog(
-            show = showExportSuccessDialog,
-            filePath = exportedFilePath,
-            onDismiss = { showExportSuccessDialog = false }
-        )
+        // 关于页面 — 覆盖在主界面之上的从右往左滑入动画
+        // 主界面始终在下层渲染，避免动画过程中出现白屏闪烁
+        AnimatedVisibility(
+            visible = showAboutPage,
+            modifier = Modifier.fillMaxSize(),
+            enter = slideInHorizontally { it } + fadeIn(animationSpec = tween(300)),
+            exit = slideOutHorizontally { it } + fadeOut(animationSpec = tween(300))
+        ) {
+            AboutPage(
+                versionName = collector.getAppVersionName(),
+                onBack = { showAboutPage = false }
+            )
+        }
     }
+
+    // 预测性返回手势（Android 14+ 系统级预测性返回动画）
+    // PredictiveBackHandler 需无条件调用；enabled 参数控制是否拦截
+    PredictiveBackHandler(
+        enabled = showAboutPage,
+        onBack = { progress ->
+            try {
+                progress.collect { /* 手势进度更新 */ }
+                showAboutPage = false
+            } catch (_: CancellationException) {
+                // 手势被取消（用户滑回）→ 不做任何操作
+            }
+        }
+    )
+
+    // Dialogs
+    UpdateAvailableDialog(
+        show = showUpdateDialog,
+        info = releaseInfo,
+        isError = updateState == UpdateState.ERROR,
+        currentVersion = BuildConfig.VERSION_NAME,
+        onDownload = {
+            openUrl(context, releaseInfo?.htmlUrl ?: "https://github.com/FIOIU8/DevInfo/releases")
+            showUpdateDialog = false
+            updateChecker.reset()
+        },
+        onRetry = {
+            showUpdateDialog = false
+            scope.launch { updateChecker.check(BuildConfig.VERSION_NAME) }
+        },
+        onDismiss = {
+            showUpdateDialog = false
+            updateChecker.reset()
+        }
+    )
+
+    ExportConfirmDialog(
+        show = showExportDialog,
+        onConfirm = {
+            exportHelper.exportModule(
+                deviceId = deviceId, itemsState = itemsState,
+                onSuccess = { path ->
+                    exportedFilePath = path
+                    showExportSuccessDialog = true
+                },
+                onError = { error ->
+                    Toast.makeText(context, "导出失败: $error", Toast.LENGTH_SHORT).show()
+                }
+            )
+        },
+        onDismiss = { showExportDialog = false }
+    )
+
+    ExportSuccessDialog(
+        show = showExportSuccessDialog,
+        filePath = exportedFilePath,
+        onDismiss = { showExportSuccessDialog = false }
+    )
 }
 
 /** 从 DeviceInfoCollector 加载设备信息并执行逐项淡入动画 */
