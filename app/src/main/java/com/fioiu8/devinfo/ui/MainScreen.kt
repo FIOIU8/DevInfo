@@ -135,7 +135,7 @@ fun MainScreen(
     val updateState by updateChecker.state.collectAsState()
     val releaseInfo by updateChecker.releaseInfo.collectAsState()
 
-    val themeOptions = ThemeMode.entries.map { it.displayName }
+    val themeOptions = ThemeMode.entries.map { stringResource(it.displayNameResId) }
     val languageOptionsList = AppLanguage.entries.map { lang -> stringResource(lang.displayNameResId) }
     val isDynamicMode = themeMode.isDynamic
 
