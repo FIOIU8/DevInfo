@@ -1,4 +1,4 @@
-package com.fioiu8.devinfo.ui
+﻿package com.fioiu8.devinfo.ui
 
 import android.content.Intent
 import android.widget.Toast
@@ -170,12 +170,12 @@ fun AboutPage(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "版本 $versionName",
+                        text = stringResource(com.fioiu8.devinfo.R.string.version) + " $versionName",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "设备信息查看器",
+                        text = stringResource(com.fioiu8.devinfo.R.string.app_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -302,7 +302,7 @@ fun AboutPage(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        confirmTitle = "查看 ${c.login} 的主页"
+                                        confirmTitle = context.getString(com.fioiu8.devinfo.R.string.view_homepage, c.login)
                                         confirmUrl = c.htmlUrl
                                     }
                                     .padding(vertical = 6.dp),
@@ -436,15 +436,21 @@ fun AboutPage(
                     Spacer(Modifier.height(8.dp))
 
                     LinkRow(Icons.Outlined.Code, stringResource(com.fioiu8.devinfo.R.string.view_source)) {
-                        confirmTitle = "查看源代码"
+                        confirmTitle = context.getString(com.fioiu8.devinfo.R.string.view_source)
                         confirmUrl = "https://github.com/FIOIU8/DevInfo"
                     }
                     LinkRow(Icons.Outlined.BugReport, stringResource(com.fioiu8.devinfo.R.string.report_issues)) {
-                        confirmTitle = "反馈问题"
+                        confirmTitle = context.getString(com.fioiu8.devinfo.R.string.report_issues)
                         confirmUrl = "https://github.com/FIOIU8/DevInfo/issues"
                     }
                     LinkRow(Icons.Outlined.People, stringResource(com.fioiu8.devinfo.R.string.join_community)) {
-                        confirmTitle = "加入社区"
+                        confirmTitle = context.getString(com.fioiu8.devinfo.R.string.join_community)
+                        confirmUrl = "https://github.com/FIOIU8/DevInfo"
+                    }
+                    LinkRow(Icons.Outlined.BugReport, stringResource(com.fioiu8.devinfo.R.string.report_issues)) {
+                        confirmUrl = "https://github.com/FIOIU8/DevInfo/issues"
+                    }
+                    LinkRow(Icons.Outlined.People, stringResource(com.fioiu8.devinfo.R.string.join_community)) {
                         confirmUrl = "https://www.coolapk.com/u/32334444"
                     }
                 }
@@ -466,7 +472,7 @@ fun AboutPage(
                 try {
                     context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
                 } catch (_: Exception) {
-                    Toast.makeText(context, "无法打开链接", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(com.fioiu8.devinfo.R.string.cannot_open_link), Toast.LENGTH_SHORT).show()
                 }
             },
             onDismiss = { confirmUrl = null }

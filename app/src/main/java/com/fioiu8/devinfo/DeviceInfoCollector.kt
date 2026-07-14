@@ -12,8 +12,10 @@ import android.os.Environment
 import android.provider.Settings
 import android.telephony.TelephonyManager
 import com.fioiu8.devinfo.model.DeviceInfoItem
-import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ItemWithVisibility
+import com.fioiu8.devinfo.R
+import com.fioiu8.devinfo.ui.itemIcon
+import com.fioiu8.devinfo.model.InfoCategory
 import java.util.Locale
 import java.util.TimeZone
 
@@ -54,57 +56,57 @@ class DeviceInfoCollector(private val context: Context) {
     fun collectDeviceInfo(): List<DeviceInfoItem> {
         val list = mutableListOf<DeviceInfoItem>()
 
-        list += DeviceInfoItem("ANDROID_ID", getAndroidIdSafe(), InfoCategory.IDENTIFIERS)
-        list += DeviceInfoItem("序列号", getSerialNumberSafe(), InfoCategory.IDENTIFIERS)
-        list += DeviceInfoItem("品牌", Build.BRAND, InfoCategory.DEVICE)
-        list += DeviceInfoItem("制造商", Build.MANUFACTURER, InfoCategory.DEVICE)
-        list += DeviceInfoItem("型号", Build.MODEL, InfoCategory.DEVICE)
-        list += DeviceInfoItem("产品", Build.PRODUCT, InfoCategory.DEVICE)
-        list += DeviceInfoItem("设备", Build.DEVICE, InfoCategory.DEVICE)
-        list += DeviceInfoItem("主板", Build.BOARD, InfoCategory.DEVICE)
-        list += DeviceInfoItem("硬件", Build.HARDWARE, InfoCategory.DEVICE)
-        list += DeviceInfoItem("引导程序", Build.BOOTLOADER, InfoCategory.DEVICE)
-        list += DeviceInfoItem("构建ID", Build.ID, InfoCategory.DEVICE)
-        list += DeviceInfoItem("标签", Build.TAGS, InfoCategory.DEVICE)
-        list += DeviceInfoItem("时间", Build.TIME.toString(), InfoCategory.DEVICE)
-        list += DeviceInfoItem("类型", Build.TYPE, InfoCategory.DEVICE)
+        list += infoItem("ANDROID_ID", getAndroidIdSafe(), InfoCategory.IDENTIFIERS)
+        list += infoItem("序列号", getSerialNumberSafe(), InfoCategory.IDENTIFIERS)
+        list += infoItem("品牌", Build.BRAND, InfoCategory.DEVICE)
+        list += infoItem("制造商", Build.MANUFACTURER, InfoCategory.DEVICE)
+        list += infoItem("型号", Build.MODEL, InfoCategory.DEVICE)
+        list += infoItem("产品", Build.PRODUCT, InfoCategory.DEVICE)
+        list += infoItem("设备", Build.DEVICE, InfoCategory.DEVICE)
+        list += infoItem("主板", Build.BOARD, InfoCategory.DEVICE)
+        list += infoItem("硬件", Build.HARDWARE, InfoCategory.DEVICE)
+        list += infoItem("引导程序", Build.BOOTLOADER, InfoCategory.DEVICE)
+        list += infoItem("构建ID", Build.ID, InfoCategory.DEVICE)
+        list += infoItem("标签", Build.TAGS, InfoCategory.DEVICE)
+        list += infoItem("时间", Build.TIME.toString(), InfoCategory.DEVICE)
+        list += infoItem("类型", Build.TYPE, InfoCategory.DEVICE)
 
-        list += DeviceInfoItem("CPU架构", Build.SUPPORTED_ABIS.joinToString(), InfoCategory.SYSTEM)
-        list += DeviceInfoItem("CPU核心数", Runtime.getRuntime().availableProcessors().toString(), InfoCategory.SYSTEM)
-        list += DeviceInfoItem("SDK版本", Build.VERSION.SDK_INT.toString(), InfoCategory.SYSTEM)
-        list += DeviceInfoItem("Android版本", Build.VERSION.RELEASE, InfoCategory.SYSTEM)
-        list += DeviceInfoItem("安全补丁", safeGet { Build.VERSION.SECURITY_PATCH }, InfoCategory.SYSTEM)
-        list += DeviceInfoItem("基带版本", safeGet { Build.getRadioVersion() }, InfoCategory.SYSTEM)
+        list += infoItem("CPU架构", Build.SUPPORTED_ABIS.joinToString(), InfoCategory.SYSTEM)
+        list += infoItem("CPU核心数", Runtime.getRuntime().availableProcessors().toString(), InfoCategory.SYSTEM)
+        list += infoItem("SDK版本", Build.VERSION.SDK_INT.toString(), InfoCategory.SYSTEM)
+        list += infoItem("Android版本", Build.VERSION.RELEASE, InfoCategory.SYSTEM)
+        list += infoItem("安全补丁", safeGet { Build.VERSION.SECURITY_PATCH }, InfoCategory.SYSTEM)
+        list += infoItem("基带版本", safeGet { Build.getRadioVersion() }, InfoCategory.SYSTEM)
 
-        list += DeviceInfoItem("语言", Locale.getDefault().language, InfoCategory.LOCALE)
-        list += DeviceInfoItem("国家", Locale.getDefault().country, InfoCategory.LOCALE)
-        list += DeviceInfoItem("时区", TimeZone.getDefault().id, InfoCategory.LOCALE)
+        list += infoItem("语言", Locale.getDefault().language, InfoCategory.LOCALE)
+        list += infoItem("国家", Locale.getDefault().country, InfoCategory.LOCALE)
+        list += infoItem("时区", TimeZone.getDefault().id, InfoCategory.LOCALE)
 
         val dm = context.resources.displayMetrics
-        list += DeviceInfoItem("屏幕DPI", dm.densityDpi.toString(), InfoCategory.DISPLAY)
-        list += DeviceInfoItem("屏幕宽度", dm.widthPixels.toString(), InfoCategory.DISPLAY)
-        list += DeviceInfoItem("屏幕高度", dm.heightPixels.toString(), InfoCategory.DISPLAY)
-        list += DeviceInfoItem("刷新率", safeGet { context.display.refreshRate.toString() }, InfoCategory.DISPLAY)
-        list += DeviceInfoItem("字体缩放", safeGet { context.resources.configuration.fontScale.toString() }, InfoCategory.DISPLAY)
+        list += infoItem("屏幕DPI", dm.densityDpi.toString(), InfoCategory.DISPLAY)
+        list += infoItem("屏幕宽度", dm.widthPixels.toString(), InfoCategory.DISPLAY)
+        list += infoItem("屏幕高度", dm.heightPixels.toString(), InfoCategory.DISPLAY)
+        list += infoItem("刷新率", safeGet { context.display.refreshRate.toString() }, InfoCategory.DISPLAY)
+        list += infoItem("字体缩放", safeGet { context.resources.configuration.fontScale.toString() }, InfoCategory.DISPLAY)
 
-        list += DeviceInfoItem("总内存", getTotalMemory(), InfoCategory.STORAGE)
-        list += DeviceInfoItem("可用内存", getAvailMemory(), InfoCategory.STORAGE)
-        list += DeviceInfoItem("存储总量", getTotalStorage(), InfoCategory.STORAGE)
-        list += DeviceInfoItem("可用存储", getFreeStorage(), InfoCategory.STORAGE)
+        list += infoItem("总内存", getTotalMemory(), InfoCategory.STORAGE)
+        list += infoItem("可用内存", getAvailMemory(), InfoCategory.STORAGE)
+        list += infoItem("存储总量", getTotalStorage(), InfoCategory.STORAGE)
+        list += infoItem("可用存储", getFreeStorage(), InfoCategory.STORAGE)
 
-        list += DeviceInfoItem("电池电量", getBatteryLevel(), InfoCategory.BATTERY)
-        list += DeviceInfoItem("充电状态", getBatteryCharging(), InfoCategory.BATTERY)
+        list += infoItem("电池电量", getBatteryLevel(), InfoCategory.BATTERY)
+        list += infoItem("充电状态", getBatteryCharging(), InfoCategory.BATTERY)
 
-        list += DeviceInfoItem("NFC功能", if (NfcAdapter.getDefaultAdapter(context) != null) "支持" else "不支持", InfoCategory.NETWORK)
-        list += DeviceInfoItem("摄像头数量", getCameraCount(), InfoCategory.NETWORK)
-        list += DeviceInfoItem("蓝牙状态", getBluetoothState(), InfoCategory.NETWORK)
-        list += DeviceInfoItem("网络类型", getNetworkType(), InfoCategory.NETWORK)
-        list += DeviceInfoItem("运营商", getNetworkOperator(), InfoCategory.NETWORK)
-        list += DeviceInfoItem("SIM卡状态", getSimState(), InfoCategory.NETWORK)
+        list += infoItem("NFC功能", if (NfcAdapter.getDefaultAdapter(context) != null) "支持" else "不支持", InfoCategory.NETWORK)
+        list += infoItem("摄像头数量", getCameraCount(), InfoCategory.NETWORK)
+        list += infoItem("蓝牙状态", getBluetoothState(), InfoCategory.NETWORK)
+        list += infoItem("网络类型", getNetworkType(), InfoCategory.NETWORK)
+        list += infoItem("运营商", getNetworkOperator(), InfoCategory.NETWORK)
+        list += infoItem("SIM卡状态", getSimState(), InfoCategory.NETWORK)
 
-        list += DeviceInfoItem("包名", context.packageName, InfoCategory.APP)
-        list += DeviceInfoItem("应用版本名", getAppVersionName(), InfoCategory.APP)
-        list += DeviceInfoItem("应用版本码", getAppVersionCode().toString(), InfoCategory.APP)
+        list += infoItem("包名", context.packageName, InfoCategory.APP)
+        list += infoItem("应用版本名", getAppVersionName(), InfoCategory.APP)
+        list += infoItem("应用版本码", getAppVersionCode().toString(), InfoCategory.APP)
 
         return list
     }
@@ -217,4 +219,61 @@ class DeviceInfoCollector(private val context: Context) {
             else -> "未知状态"
         }
     }
+
+    private fun infoItem(key: String, value: String, category: InfoCategory): DeviceInfoItem {
+        return DeviceInfoItem(
+            key = key,
+            keyResId = keyToResourceId(key),
+            value = value,
+            category = category,
+            icon = itemIcon(key)
+        )
+    }
+
+    private fun keyToResourceId(key: String): Int = when (key) {
+        "ANDROID_ID", "序列号" -> com.fioiu8.devinfo.R.string.device_serial
+        "品牌" -> com.fioiu8.devinfo.R.string.device_brand
+        "制造商" -> com.fioiu8.devinfo.R.string.device_manufacturer
+        "型号" -> com.fioiu8.devinfo.R.string.device_model
+        "产品" -> com.fioiu8.devinfo.R.string.device_product
+        "设备" -> com.fioiu8.devinfo.R.string.device_device
+        "主板" -> com.fioiu8.devinfo.R.string.device_board
+        "硬件" -> com.fioiu8.devinfo.R.string.device_hardware
+        "引导程序" -> com.fioiu8.devinfo.R.string.device_bootloader
+        "构建ID" -> com.fioiu8.devinfo.R.string.device_build_id
+        "标签" -> com.fioiu8.devinfo.R.string.device_tags
+        "时间" -> com.fioiu8.devinfo.R.string.device_time
+        "类型" -> com.fioiu8.devinfo.R.string.device_type
+        "CPU架构" -> com.fioiu8.devinfo.R.string.system_cpu_arch
+        "CPU核心数" -> com.fioiu8.devinfo.R.string.system_cpu_cores
+        "SDK版本" -> com.fioiu8.devinfo.R.string.system_sdk_version
+        "Android版本" -> com.fioiu8.devinfo.R.string.system_android_version
+        "安全补丁" -> com.fioiu8.devinfo.R.string.system_security_patch
+        "基带版本" -> com.fioiu8.devinfo.R.string.system_baseband
+        "语言" -> com.fioiu8.devinfo.R.string.locale_language
+        "国家" -> com.fioiu8.devinfo.R.string.locale_country
+        "时区" -> com.fioiu8.devinfo.R.string.locale_timezone
+        "屏幕DPI" -> com.fioiu8.devinfo.R.string.display_dpi
+        "屏幕宽度" -> com.fioiu8.devinfo.R.string.display_width
+        "屏幕高度" -> com.fioiu8.devinfo.R.string.display_height
+        "刷新率" -> com.fioiu8.devinfo.R.string.display_refresh_rate
+        "字体缩放" -> com.fioiu8.devinfo.R.string.display_font_scale
+        "总内存" -> com.fioiu8.devinfo.R.string.storage_total_ram
+        "可用内存" -> com.fioiu8.devinfo.R.string.storage_available_ram
+        "存储总量" -> com.fioiu8.devinfo.R.string.storage_total
+        "可用存储" -> com.fioiu8.devinfo.R.string.storage_available
+        "电池电量" -> com.fioiu8.devinfo.R.string.battery_level_label
+        "充电状态" -> com.fioiu8.devinfo.R.string.battery_charging_state
+        "NFC功能" -> com.fioiu8.devinfo.R.string.network_nfc
+        "摄像头数量" -> com.fioiu8.devinfo.R.string.network_camera_count
+        "蓝牙状态" -> com.fioiu8.devinfo.R.string.network_bluetooth_state
+        "网络类型" -> com.fioiu8.devinfo.R.string.network_type
+        "运营商" -> com.fioiu8.devinfo.R.string.network_operator
+        "SIM卡状态" -> com.fioiu8.devinfo.R.string.network_sim_state
+        "包名" -> com.fioiu8.devinfo.R.string.app_package
+        "应用版本名" -> com.fioiu8.devinfo.R.string.app_version_name
+        "应用版本码" -> com.fioiu8.devinfo.R.string.app_version_code
+        else -> 0
+    }
+
 }
