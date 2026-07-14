@@ -19,7 +19,8 @@ class MainActivity : ComponentActivity() {
 
 
     /** Apply the selected app language locale to the activity configuration */
-    private fun applyAppLanguage() {
+    @Suppress("DEPRECATION")
+    private fun applyAppLanguage(languagePrefs: LanguagePreferences) {
         val tag = languagePrefs.getEffectiveLocaleTag() ?: return
         val locale = java.util.Locale.forLanguageTag(tag)
         java.util.Locale.setDefault(locale)
@@ -32,7 +33,7 @@ class MainActivity : ComponentActivity() {
         val themePrefs = ThemePreferences(this)
         val languagePrefs = LanguagePreferences(this)
         // 鏍规嵁淇濆瓨鐨勮瑷�璁剧疆搴旂敤locale
-        applyAppLanguage()
+        applyAppLanguage(languagePrefs)
 
         val savedTheme = themePrefs.getThemeModeSnapshot()
         when (savedTheme) {

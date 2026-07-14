@@ -78,7 +78,7 @@ fun SettingsPage(
     isDynamicMode: Boolean,
     useMountTheme: Boolean,
     onExportClick: () -> Unit,
-    onAboutClick: () -> Unit
+    onAboutClick: () -> Unit,
     appLanguage: AppLanguage = AppLanguage.SYSTEM,
     languageOptions: List<String> = emptyList(),
     onLanguageChange: (Int) -> Unit = {},
