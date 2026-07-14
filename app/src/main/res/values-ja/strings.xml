@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DevInfo</string>
+    <string name="language_system">システムに従う</string>
+    <string name="language_chinese">简体中文</string>
+    <string name="language_english">English</string>
+    <string name="language_japanese">日本語</string>
+    <string name="language_custom">カスタム言語</string>
+    <string name="nav_info">情報</string>
+    <string name="nav_settings">設定</string>
+    <string name="title_device_info">デバイス情報</string>
+    <string name="title_settings">設定</string>
+    <string name="category_appearance">外観</string>
+    <string name="category_language">言語</string>
+    <string name="category_tools">ツール</string>
+    <string name="category_about">バージョン情報</string>
+    <string name="theme_mode">テーマモード</string>
+    <string name="theme_color">テーマカラー</string>
+    <string name="language_setting">言語設定</string>
+    <string name="language_summary">表示言語を選択</string>
+    <string name="custom_locale_title">カスタム言語</string>
+    <string name="cancel">キャンセル</string>
+    <string name="custom_locale_apply">適用</string>
+    <string name="confirm">OK</string>
+    <string name="close">閉じる</string>
+    <string name="about_title">バージョン情報</string>
+    <string name="back">戻る</string>
+    <string name="app_description">デバイス情報ビューワー</string>
+    <string name="version">バージョン</string>
+    <string name="open_source_license">オープンソースライセンス</string>
+    <string name="copyright">© 2026 OIU0</string>
+    <string name="export_tool">モジュールをエクスポート</string>
+    <string name="about_app">DevInfo について</string>
+    <string name="export_title">モジュールをエクスポート</string>
+    <string name="export_success">エクスポート成功</string>
+    <string name="lang_system_display">システムに従う</string>
+    <string name="lang_zh_display">简体中文</string>
+    <string name="lang_en_display">English</string>
+    <string name="lang_ja_display">日本語</string>
+    <string name="lang_custom_display">カスタム</string>
+</resources>

@@ -1,4 +1,4 @@
-package com.fioiu8.devinfo.ui
+﻿package com.fioiu8.devinfo.ui
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
@@ -282,7 +282,8 @@ private fun CategoryCard(
                     )
                 ) {
                     Text(
-                        text = "stringResource(com.fioiu8.devinfo.R.string.items_count, items.size)",
+                        
+                        text = stringResource(com.fioiu8.devinfo.R.string.items_count, items.size),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,

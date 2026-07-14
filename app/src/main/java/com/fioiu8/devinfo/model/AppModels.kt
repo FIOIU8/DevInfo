@@ -115,5 +115,6 @@ enum class AppLanguage(
     SYSTEM(com.fioiu8.devinfo.R.string.language_system, null),
     SIMPLIFIED_CHINESE(com.fioiu8.devinfo.R.string.language_chinese, "zh"),
     ENGLISH(com.fioiu8.devinfo.R.string.language_english, "en"),
+    JAPANESE(com.fioiu8.devinfo.R.string.language_japanese, "ja"),
     CUSTOM(com.fioiu8.devinfo.R.string.language_custom, "_custom", isCustom = true);
 }
