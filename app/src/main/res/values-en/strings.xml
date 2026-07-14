@@ -1,41 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">DevInfo</string>
+
+    <!-- Language settings -->
     <string name="language_system">Follow System</string>
     <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
     <string name="language_japanese">日本語</string>
     <string name="language_custom">Custom Locale</string>
+
+    <!-- Navigation -->
     <string name="nav_info">Info</string>
     <string name="nav_settings">Settings</string>
     <string name="title_device_info">Device Info</string>
     <string name="title_settings">Settings</string>
+
+    <!-- Settings categories -->
     <string name="category_appearance">Appearance</string>
     <string name="category_tools">Tools</string>
     <string name="category_about">About</string>
     <string name="category_language">Language</string>
+
+    <!-- Theme settings -->
     <string name="theme_mode">Theme Mode</string>
     <string name="theme_color">Theme Color</string>
     <string name="theme_mode_summary">Follow System</string>
     <string name="theme_color_enabled">Custom color enabled</string>
     <string name="theme_color_disabled">Switch to dynamic color mode first</string>
     <string name="theme_color_select">Select a theme color</string>
+
+    <!-- Language settings -->
     <string name="language_setting">Language</string>
     <string name="language_summary">Choose app display language</string>
     <string name="custom_locale_hint">Enter locale tag (e.g. ja, ko, de)</string>
     <string name="custom_locale_apply">Apply</string>
     <string name="custom_locale_title">Custom Language</string>
     <string name="custom_locale_placeholder">Enter locale code…</string>
+
+    <!-- Language names (displayed in dropdown) -->
     <string name="lang_system_display">Follow System</string>
     <string name="lang_zh_display">中文</string>
     <string name="lang_en_display">English</string>
     <string name="lang_custom_display">Custom</string>
+    <string name="lang_ja_display">日本語</string>
+
+    <!-- Language display names for enum -->
     <string name="theme_mode_system">Follow System</string>
     <string name="theme_mode_light">Light Mode</string>
     <string name="theme_mode_dark">Dark Mode</string>
     <string name="theme_mode_dynamic_system">Dynamic · System</string>
     <string name="theme_mode_dynamic_light">Dynamic · Light</string>
     <string name="theme_mode_dynamic_dark">Dynamic · Dark</string>
+
+    <!-- Mount theme color names -->
     <string name="mount_color_default">Default</string>
     <string name="mount_color_red">Red</string>
     <string name="mount_color_orange">Orange</string>
@@ -52,6 +69,8 @@
     <string name="mount_color_desc_purple">Elegant Purple</string>
     <string name="mount_color_desc_pink">Sweet Pink</string>
     <string name="mount_color_desc_dark">Steady Dark</string>
+
+    <!-- InfoCategory display names -->
     <string name="category_device">Device</string>
     <string name="category_identifiers">Identifiers</string>
     <string name="category_system">System</string>
@@ -61,6 +80,8 @@
     <string name="category_battery">Battery</string>
     <string name="category_network">Network</string>
     <string name="category_app">App</string>
+
+    <!-- InfoCategory descriptions -->
     <string name="category_desc_device">Device hardware &amp; build info</string>
     <string name="category_desc_identifiers">Device unique identifiers</string>
     <string name="category_desc_system">OS &amp; CPU info</string>
@@ -70,6 +91,8 @@
     <string name="category_desc_battery">Battery status</string>
     <string name="category_desc_network">Network &amp; carrier</string>
     <string name="category_desc_app">App info</string>
+
+    <!-- Export dialog -->
     <string name="export_title">Export Module</string>
     <string name="export_confirm_text">Export current device info as a Magisk module</string>
     <string name="export_format_label">Format</string>
@@ -83,22 +106,30 @@
     <string name="cancel">Cancel</string>
     <string name="confirm_export">Confirm Export</string>
     <string name="confirm">OK</string>
+
+    <!-- External link dialog -->
     <string name="external_link_open_browser">An external browser will be opened</string>
     <string name="open">Open</string>
-    <string name="update_check_failed">Check for Update Failed</string>
+
+    <!-- Update dialog -->
+    <string name="update_check_failed">Update check failed</string>
     <string name="update_found">New Version Available</string>
-    <string name="update_network_error">Cannot connect to GitHub, please check your network</string>
+    <string name="update_network_error">Cannot connect to GitHub. Please check your network.</string>
     <string name="current_version">Current version</string>
     <string name="retry">Retry</string>
     <string name="manual_go">Manual</string>
     <string name="later">Later</string>
     <string name="close">Close</string>
     <string name="go_to_download">Go to Download</string>
+
+    <!-- Toast messages -->
     <string name="already_latest">Already up-to-date</string>
     <string name="export_failed">Export failed</string>
     <string name="cannot_open_link">Cannot open link</string>
     <string name="copied">Copied</string>
     <string name="path_copied">Path copied</string>
+
+    <!-- About page -->
     <string name="about_title">About</string>
     <string name="back">Back</string>
     <string name="app_description">Device Info Viewer</string>
@@ -120,6 +151,8 @@
     <string name="contributor_commits">commits</string>
     <string name="contributor_commits_count">%d commits</string>
     <string name="view_homepage">View %s\'s homepage</string>
+
+    <!-- Device info page -->
     <string name="storage_usage">Storage Usage</string>
     <string name="memory_usage">Memory Usage</string>
     <string name="battery_level_charging">Battery (Charging)</string>
@@ -131,14 +164,20 @@
     <string name="copied_to_clipboard">%s copied</string>
     <string name="storage_usage_desc">Storage &amp; memory usage</string>
     <string name="battery_desc">Battery level</string>
+
+    <!-- Tool settings -->
     <string name="export_tool">Export Module</string>
     <string name="export_summary">Export device info as a Magisk module</string>
     <string name="about_app">About DevInfo</string>
     <string name="about_summary">View app info, contributors &amp; license</string>
     <string name="footer_tag">Device Info Viewer</string>
+
+    <!-- Test version warning -->
     <string name="test_version_warning">Test Version</string>
     <string name="test_version_desc">This is a development build, not recommended for daily use</string>
     <string name="warning_icon_desc">Warning</string>
+
+    <!-- Device data labels (from DeviceInfoCollector) -->
     <string name="device_serial">Serial Number</string>
     <string name="device_brand">Brand</string>
     <string name="device_manufacturer">Manufacturer</string>
@@ -181,8 +220,12 @@
     <string name="app_package">Package</string>
     <string name="app_version_name">App Version</string>
     <string name="app_version_code">Version Code</string>
+
+    <!-- Unit strings -->
     <string name="unit_mb">MB</string>
     <string name="unit_gb">GB</string>
+
+    <!-- Status strings from collector -->
     <string name="status_charging">Charging</string>
     <string name="status_not_charging">Not Charging</string>
     <string name="status_supported">Supported</string>
@@ -204,5 +247,7 @@
     <string name="status_cellular">Cellular</string>
     <string name="status_ethernet">Ethernet</string>
     <string name="status_bluetooth">Bluetooth</string>
+
+    <!-- Copyright -->
     <string name="copyright">© 2026 OIU0</string>
 </resources>

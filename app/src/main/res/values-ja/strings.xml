@@ -1,67 +1,253 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">DevInfo</string>
+
+    <!-- Language settings -->
     <string name="language_system">システムに従う</string>
     <string name="language_chinese">简体中文</string>
     <string name="language_english">English</string>
     <string name="language_japanese">日本語</string>
-    <string name="language_custom">カスタム言語</string>
+    <string name="language_custom">カスタムロケール</string>
+
+    <!-- Navigation -->
     <string name="nav_info">情報</string>
     <string name="nav_settings">設定</string>
     <string name="title_device_info">デバイス情報</string>
     <string name="title_settings">設定</string>
+
+    <!-- Settings categories -->
     <string name="category_appearance">外観</string>
-    <string name="category_language">言語</string>
     <string name="category_tools">ツール</string>
     <string name="category_about">バージョン情報</string>
+    <string name="category_language">言語</string>
+
+    <!-- Theme settings -->
     <string name="theme_mode">テーマモード</string>
     <string name="theme_color">テーマカラー</string>
+    <string name="theme_mode_summary">システムに従う</string>
+    <string name="theme_color_enabled">カスタムカラー有効</string>
+    <string name="theme_color_disabled">先にダイナミックカラーモードに切り替えてください</string>
+    <string name="theme_color_select">テーマカラーを選択</string>
+
+    <!-- Language settings -->
     <string name="language_setting">言語設定</string>
     <string name="language_summary">表示言語を選択</string>
-    <string name="custom_locale_title">カスタム言語</string>
-    <string name="cancel">キャンセル</string>
+    <string name="custom_locale_hint">ロケールタグを入力（例: ja, ko, de）</string>
     <string name="custom_locale_apply">適用</string>
+    <string name="custom_locale_title">カスタム言語</string>
+    <string name="custom_locale_placeholder">ロケールコードを入力…</string>
+
+    <!-- Language names (displayed in dropdown) -->
+    <string name="lang_system_display">システムに従う</string>
+    <string name="lang_zh_display">中文</string>
+    <string name="lang_en_display">English</string>
+    <string name="lang_custom_display">カスタム</string>
+    <string name="lang_ja_display">日本語</string>
+
+    <!-- Language display names for enum -->
+    <string name="theme_mode_system">システムに従う</string>
+    <string name="theme_mode_light">ライトモード</string>
+    <string name="theme_mode_dark">ダークモード</string>
+    <string name="theme_mode_dynamic_system">ダイナミック · システム</string>
+    <string name="theme_mode_dynamic_light">ダイナミック · ライト</string>
+    <string name="theme_mode_dynamic_dark">ダイナミック · ダーク</string>
+
+    <!-- Mount theme color names -->
+    <string name="mount_color_default">デフォルト</string>
+    <string name="mount_color_red">赤</string>
+    <string name="mount_color_orange">オレンジ</string>
+    <string name="mount_color_green">緑</string>
+    <string name="mount_color_teal">ティール</string>
+    <string name="mount_color_purple">紫</string>
+    <string name="mount_color_pink">ピンク</string>
+    <string name="mount_color_dark">ダーク</string>
+    <string name="mount_color_desc_default">さわやかな青</string>
+    <string name="mount_color_desc_red">情熱の赤</string>
+    <string name="mount_color_desc_orange">活力あふれるオレンジ</string>
+    <string name="mount_color_desc_green">自然な緑</string>
+    <string name="mount_color_desc_teal">さわやかなティール</string>
+    <string name="mount_color_desc_purple">優雅な紫</string>
+    <string name="mount_color_desc_pink">甘美なピンク</string>
+    <string name="mount_color_desc_dark">落ち着いたダーク</string>
+
+    <!-- InfoCategory display names -->
+    <string name="category_device">デバイス</string>
+    <string name="category_identifiers">識別子</string>
+    <string name="category_system">システム</string>
+    <string name="category_locale">地域</string>
+    <string name="category_display">ディスプレイ</string>
+    <string name="category_storage">ストレージ</string>
+    <string name="category_battery">バッテリー</string>
+    <string name="category_network">ネットワーク</string>
+    <string name="category_app">アプリ</string>
+
+    <!-- InfoCategory descriptions -->
+    <string name="category_desc_device">デバイスのハードウェアとビルド情報</string>
+    <string name="category_desc_identifiers">デバイスの一意識別情報</string>
+    <string name="category_desc_system">OSとCPU情報</string>
+    <string name="category_desc_locale">言語、国、タイムゾーン</string>
+    <string name="category_desc_display">画面に関するパラメータ</string>
+    <string name="category_desc_storage">RAMとストレージ容量</string>
+    <string name="category_desc_battery">バッテリーの状態</string>
+    <string name="category_desc_network">ネットワークと通信事業者</string>
+    <string name="category_desc_app">アプリ情報</string>
+
+    <!-- Export dialog -->
+    <string name="export_title">モジュールをエクスポート</string>
+    <string name="export_confirm_text">現在のデバイス情報をMagiskモジュールとしてエクスポートします</string>
+    <string name="export_format_label">フォーマット</string>
+    <string name="export_format_value">ZIPアーカイブ</string>
+    <string name="export_save_location">保存場所</string>
+    <string name="export_filename">ファイル名</string>
+    <string name="export_confirm">エクスポートを確認しますか？</string>
+    <string name="export_success">エクスポート成功</string>
+    <string name="export_saved_to">ファイルの保存先:</string>
+    <string name="export_long_press_hint">長押しでパスをコピー</string>
+    <string name="cancel">キャンセル</string>
+    <string name="confirm_export">エクスポート確認</string>
     <string name="confirm">OK</string>
+
+    <!-- External link dialog -->
+    <string name="external_link_open_browser">外部ブラウザが開きます</string>
+    <string name="open">開く</string>
+
+    <!-- Update dialog -->
+    <string name="update_check_failed">アップデートの確認に失敗しました</string>
+    <string name="update_found">新しいバージョンが見つかりました</string>
+    <string name="update_network_error">GitHubに接続できません。ネットワークを確認してください</string>
+    <string name="current_version">現在のバージョン</string>
+    <string name="retry">再試行</string>
+    <string name="manual_go">手動で移動</string>
+    <string name="later">後で</string>
     <string name="close">閉じる</string>
+    <string name="go_to_download">ダウンロードへ</string>
+
+    <!-- Toast messages -->
+    <string name="already_latest">最新バージョンです</string>
+    <string name="export_failed">エクスポートに失敗しました</string>
+    <string name="cannot_open_link">リンクを開けません</string>
+    <string name="copied">コピーしました</string>
+    <string name="path_copied">パスをコピーしました</string>
+
+    <!-- About page -->
     <string name="about_title">バージョン情報</string>
     <string name="back">戻る</string>
     <string name="app_description">デバイス情報ビューワー</string>
     <string name="version">バージョン</string>
     <string name="open_source_license">オープンソースライセンス</string>
-    <string name="export_tool">モジュールをエクスポート</string>
-    <string name="about_app">DevInfo について</string>
-    <string name="export_title">モジュールをエクスポート</string>
-    <string name="export_success">エクスポート成功</string>
-    <string name="lang_system_display">システムに従う</string>
-    <string name="lang_zh_display">简体中文</string>
-    <string name="lang_en_display">English</string>
-    <string name="lang_ja_display">日本語</string>
-    <string name="lang_custom_display">カスタム</string>
-    <string name="view_homepage">%s のホームページを見る</string>
+    <string name="mit_license_desc">本プロジェクトはMITライセンスの下でオープンソースです</string>
+    <string name="mit_allow_free">自由に使用、改変、再配布できます</string>
+    <string name="mit_require_notice">原著作者の著作権表示を保持する必要があります</string>
+    <string name="contributors">コントリビューター</string>
+    <string name="contributors_count">%d 人のコントリビューター</string>
+    <string name="no_data">データなし</string>
+    <string name="project_languages">使用言語</string>
+    <string name="project_links">プロジェクトリンク</string>
     <string name="view_source">ソースコードを見る</string>
     <string name="report_issues">問題を報告</string>
     <string name="join_community">コミュニティに参加</string>
-    <string name="export_summary">デバイス情報をMagiskモジュールとしてエクスポート</string>
-    <string name="test_version_warning">テストバージョン</string>
-    <string name="test_version_desc">これは開発テスト版です。本番環境での使用は推奨しません</string>
-    <string name="mount_color_desc_default">フレッシュブルー</string>
-    <string name="mount_color_desc_red">パッションレッド</string>
-    <string name="mount_color_desc_orange">エナジェティックオレンジ</string>
-    <string name="mount_color_desc_green">ナチュラルグリーン</string>
-    <string name="mount_color_desc_teal">フレッシュティール</string>
-    <string name="mount_color_desc_purple">エレガントパープル</string>
-    <string name="mount_color_desc_pink">スイートピンク</string>
-    <string name="mount_color_desc_dark">ステディダーク</string>
-    <string name="items_count">%d 項目</string>
-    <string name="page_info">%1$d / %2$d ページ</string>
-    <string name="copied_to_clipboard">%s をコピー</string>
-    <string name="contributors_count">%d 人のコントリビューター</string>
+    <string name="will_open_browser">外部ブラウザを開きます</string>
+    <string name="app_icon_label">アイコン</string>
+    <string name="contributor_commits">コミット</string>
     <string name="contributor_commits_count">%d コミット</string>
-    <string name="theme_mode_system">システムに従う</string>
-    <string name="theme_mode_light">ライトモード</string>
-    <string name="theme_mode_dark">ダークモード</string>
-    <string name="theme_mode_dynamic_system">ダイナミック・システム</string>
-    <string name="theme_mode_dynamic_light">ダイナミック・ライト</string>
-    <string name="theme_mode_dynamic_dark">ダイナミック・ダーク</string>
+    <string name="view_homepage">%s のホームページを見る</string>
+
+    <!-- Device info page -->
+    <string name="storage_usage">ストレージ使用量</string>
+    <string name="memory_usage">メモリ使用量</string>
+    <string name="battery_level_charging">バッテリー（充電中）</string>
+    <string name="battery_level">バッテリーレベル</string>
+    <string name="previous_page">前のページ</string>
+    <string name="next_page">次のページ</string>
+    <string name="page_info">%1$d / %2$d ページ</string>
+    <string name="items_count">%d 項目</string>
+    <string name="copied_to_clipboard">%s をコピーしました</string>
+    <string name="storage_usage_desc">ストレージとメモリの使用率</string>
+    <string name="battery_desc">バッテリー残量</string>
+
+    <!-- Tool settings -->
+    <string name="export_tool">モジュールをエクスポート</string>
+    <string name="export_summary">デバイス情報をMagiskモジュールとしてエクスポート</string>
+    <string name="about_app">DevInfo について</string>
+    <string name="about_summary">アプリ情報、コントリビューター、ライセンスを表示</string>
+    <string name="footer_tag">デバイス情報ビューワー</string>
+
+    <!-- Test version warning -->
+    <string name="test_version_warning">テストバージョン</string>
+    <string name="test_version_desc">これは開発テスト版です。日常的な使用には推奨しません</string>
+    <string name="warning_icon_desc">警告</string>
+
+    <!-- Device data labels (from DeviceInfoCollector) -->
+    <string name="device_serial">シリアル番号</string>
+    <string name="device_brand">ブランド</string>
+    <string name="device_manufacturer">メーカー</string>
+    <string name="device_model">モデル</string>
+    <string name="device_product">製品名</string>
+    <string name="device_device">デバイス名</string>
+    <string name="device_board">ボード</string>
+    <string name="device_hardware">ハードウェア</string>
+    <string name="device_bootloader">ブートローダー</string>
+    <string name="device_build_id">ビルドID</string>
+    <string name="device_tags">タグ</string>
+    <string name="device_time">時刻</string>
+    <string name="device_type">タイプ</string>
+    <string name="system_cpu_arch">CPUアーキテクチャ</string>
+    <string name="system_cpu_cores">CPUコア数</string>
+    <string name="system_sdk_version">SDKバージョン</string>
+    <string name="system_android_version">Androidバージョン</string>
+    <string name="system_security_patch">セキュリティパッチ</string>
+    <string name="system_baseband">ベースバンドバージョン</string>
+    <string name="locale_language">言語</string>
+    <string name="locale_country">国</string>
+    <string name="locale_timezone">タイムゾーン</string>
+    <string name="display_dpi">画面DPI</string>
+    <string name="display_width">画面幅</string>
+    <string name="display_height">画面高さ</string>
+    <string name="display_refresh_rate">リフレッシュレート</string>
+    <string name="display_font_scale">フォントスケール</string>
+    <string name="storage_total_ram">総RAM</string>
+    <string name="storage_available_ram">利用可能RAM</string>
+    <string name="storage_total">総ストレージ</string>
+    <string name="storage_available">利用可能ストレージ</string>
+    <string name="battery_level_label">バッテリーレベル</string>
+    <string name="battery_charging_state">充電状態</string>
+    <string name="network_nfc">NFC</string>
+    <string name="network_camera_count">カメラ数</string>
+    <string name="network_bluetooth_state">Bluetooth状態</string>
+    <string name="network_type">ネットワークタイプ</string>
+    <string name="network_operator">通信事業者</string>
+    <string name="network_sim_state">SIM状態</string>
+    <string name="app_package">パッケージ名</string>
+    <string name="app_version_name">アプリバージョン</string>
+    <string name="app_version_code">バージョンコード</string>
+
+    <!-- Unit strings -->
+    <string name="unit_mb">MB</string>
+    <string name="unit_gb">GB</string>
+
+    <!-- Status strings from collector -->
+    <string name="status_charging">充電中</string>
+    <string name="status_not_charging">充電していません</string>
+    <string name="status_supported">対応</string>
+    <string name="status_not_supported">非対応</string>
+    <string name="status_enabled">有効</string>
+    <string name="status_disabled">無効</string>
+    <string name="status_unknown">不明</string>
+    <string name="status_sim_ready">準備完了</string>
+    <string name="status_sim_absent">SIMなし</string>
+    <string name="status_sim_network_locked">ネットワークロック</string>
+    <string name="status_sim_pin_required">PINが必要</string>
+    <string name="status_sim_puk_required">PUKが必要</string>
+    <string name="status_sim_not_ready">準備未完了</string>
+    <string name="status_sim_permanently_disabled">永久的に無効</string>
+    <string name="status_sim_io_error">カードI/Oエラー</string>
+    <string name="status_sim_restricted">カード制限</string>
+    <string name="status_unknown_state">不明な状態</string>
+    <string name="status_wifi">Wi-Fi</string>
+    <string name="status_cellular">モバイルネットワーク</string>
+    <string name="status_ethernet">イーサネット</string>
+    <string name="status_bluetooth">Bluetooth</string>
+
+    <!-- Copyright -->
     <string name="copyright">© 2026 OIU0</string>
 </resources>
