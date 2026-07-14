@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.model.MountThemeColor
 import com.fioiu8.devinfo.model.AppLanguage
+import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.ThemeMode
 
 /**
@@ -94,17 +95,17 @@ fun SettingsPage(
         AlertDialog(
             onDismissRequest = { showCustomLocaleDialog = false },
             title = {
-                Text("自定义语言", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.custom_locale_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             },
             text = {
                 Column {
-                    Text("输入语言标签代码", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.custom_locale_hint), style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = customLocaleInput,
                         onValueChange = { customLocaleInput = it },
-                        label = { Text("语言标签") },
-                        placeholder = { Text("输入区域代码") },
+                        label = { Text(stringResource(R.string.custom_locale_title)) },
+                        placeholder = { Text(stringResource(R.string.custom_locale_placeholder)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -112,7 +113,7 @@ fun SettingsPage(
             },
             dismissButton = {
                 TextButton(onClick = { showCustomLocaleDialog = false }) {
-                    Text("取消")
+                    Text(stringResource(R.string.cancel))
                 }
             },
             confirmButton = {
@@ -120,7 +121,7 @@ fun SettingsPage(
                     onCustomLocaleTagChange(customLocaleInput.trim())
                     showCustomLocaleDialog = false
                 }) {
-                    Text("应用")
+                    Text(stringResource(R.string.custom_locale_apply))
                 }
             }
         )
@@ -133,12 +134,12 @@ fun SettingsPage(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // ── 外观 ──
-        item { CategoryHeader(title = "外观") }
+        item { CategoryHeader(title = stringResource(R.string.category_appearance)) }
 
         item {
             DropdownPreferenceCard(
                 icon = Icons.Outlined.DarkMode,
-                title = "主题模式",
+                title = stringResource(R.string.theme_mode),
                 summary = themeOptions[ThemeMode.entries.indexOf(themeMode)],
                 items = themeOptions,
                 selectedIndex = ThemeMode.entries.indexOf(themeMode),
@@ -150,7 +151,7 @@ fun SettingsPage(
             item {
                 MountColorPreferenceCard(
                     icon = Icons.Outlined.Palette,
-                    title = "主题颜色",
+                    title = stringResource(R.string.theme_color),
                     summary = if (useMountTheme) "已启用自定义颜色" else "选择应用的主题颜色",
                     colors = mountColorOptions,
                     selectedIndex = selectedMountColorIndex,
@@ -162,19 +163,19 @@ fun SettingsPage(
                 DisabledPreferenceCard(
                     icon = Icons.Outlined.Palette,
                     title = "主题颜色",
-                    summary = "请先切换到动态颜色模式"
+                    summary = stringResource(R.string.theme_color_disabled)
                 )
             }
         }
 
         // -- Language --
-        item { Spacer(modifier = Modifier.height(8.dp)); CategoryHeader(title = "语言") }
+        item { Spacer(modifier = Modifier.height(8.dp)); CategoryHeader(title = stringResource(R.string.category_language)) }
 
         item {
             DropdownPreferenceCard(
                 icon = Icons.Outlined.Translate,
-                title = "语言设置",
-                summary = languageOptions.getOrElse(AppLanguage.entries.indexOf(appLanguage)) { "跟随系统" },
+                title = stringResource(R.string.language_setting),
+                summary = languageOptions.getOrElse(AppLanguage.entries.indexOf(appLanguage)) { stringResource(R.string.language_system) },
                 items = languageOptions,
                 selectedIndex = AppLanguage.entries.indexOf(appLanguage),
                 onSelectedIndexChange = { index ->
@@ -190,25 +191,25 @@ fun SettingsPage(
         }
 
         // ── 工具 ──
-        item { Spacer(modifier = Modifier.height(8.dp)); CategoryHeader(title = "工具") }
+        item { Spacer(modifier = Modifier.height(8.dp)); CategoryHeader(title = stringResource(R.string.category_tools)) }
 
         item {
             ActionPreferenceCard(
                 icon = Icons.Outlined.FileDownload,
-                title = "导出模块",
-                summary = "导出当前设备信息为改机型模块",
+                title = stringResource(R.string.export_tool),
+                summary = stringResource(R.string.export_summary),
                 onClick = onExportClick
             )
         }
 
         // ── 关于 ──
-        item { Spacer(modifier = Modifier.height(8.dp)); CategoryHeader(title = "关于") }
+        item { Spacer(modifier = Modifier.height(8.dp)); CategoryHeader(title = stringResource(R.string.category_about)) }
 
         item {
             ActionPreferenceCard(
                 icon = Icons.Outlined.Info,
-                title = "关于 DevInfo",
-                summary = "查看应用信息、贡献者与开源协议",
+                title = stringResource(R.string.about_app),
+                summary = stringResource(R.string.about_summary),
                 onClick = onAboutClick
             )
         }
@@ -222,18 +223,18 @@ fun SettingsPage(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "设备信息查看器",
+                        text = stringResource(R.string.footer_tag),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "版本 $versionName ($versionCode)",
+                        text = stringResource(R.string.version) + " $versionName ($versionCode)",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "© 2026 OIU0",
+                        text = stringResource(R.string.copyright),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -75,7 +76,7 @@ fun ExportConfirmDialog(
         },
         title = {
             Text(
-                text = "导出模块",
+                text = stringResource(com.fioiu8.devinfo.R.string.export_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -83,7 +84,7 @@ fun ExportConfirmDialog(
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "即将导出当前设备信息为改机型模块",
+                    text = stringResource(com.fioiu8.devinfo.R.string.export_confirm_text),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -97,17 +98,17 @@ fun ExportConfirmDialog(
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         InfoRow(
-                            label = "导出格式",
-                            value = "ZIP 压缩包"
+                            label = stringResource(com.fioiu8.devinfo.R.string.export_format_label),
+                            value = stringResource(com.fioiu8.devinfo.R.string.export_format_value)
                         )
                         InfoRow(
-                            label = "保存位置",
+                            label = stringResource(com.fioiu8.devinfo.R.string.export_save_location),
                             value = Environment.getExternalStoragePublicDirectory(
                                 Environment.DIRECTORY_DOWNLOADS
                             ).absolutePath
                         )
                         InfoRow(
-                            label = "文件名",
+                            label = stringResource(com.fioiu8.devinfo.R.string.export_filename),
                             value = "${android.os.Build.MODEL}.zip"
                         )
                     }
@@ -116,7 +117,7 @@ fun ExportConfirmDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "确认导出吗？",
+                    text = stringResource(com.fioiu8.devinfo.R.string.export_confirm),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
@@ -124,12 +125,12 @@ fun ExportConfirmDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text(stringResource(com.fioiu8.devinfo.R.string.cancel))
             }
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("确认导出")
+                Text(stringResource(com.fioiu8.devinfo.R.string.confirm_export))
             }
         }
     )
@@ -166,7 +167,7 @@ fun ExportSuccessDialog(
         },
         title = {
             Text(
-                text = "导出成功",
+                text = stringResource(com.fioiu8.devinfo.R.string.export_success),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -177,7 +178,7 @@ fun ExportSuccessDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "文件已保存至：",
+                    text = stringResource(com.fioiu8.devinfo.R.string.export_saved_to),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
@@ -191,7 +192,7 @@ fun ExportSuccessDialog(
                             onClick = {},
                             onLongClick = {
                                 clipboardManager.setText(AnnotatedString(filePath))
-                                Toast.makeText(context, "路径已复制", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(com.fioiu8.devinfo.R.string.path_copied), Toast.LENGTH_SHORT).show()
                             }
                         ),
                     shape = RoundedCornerShape(8.dp),
@@ -212,7 +213,7 @@ fun ExportSuccessDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "长按路径可复制",
+                    text = stringResource(com.fioiu8.devinfo.R.string.export_long_press_hint),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -220,7 +221,7 @@ fun ExportSuccessDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("确定")
+                Text(stringResource(com.fioiu8.devinfo.R.string.confirm))
             }
         }
     )
@@ -270,7 +271,7 @@ fun ExternalLinkConfirmDialog(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "将会打开外部浏览器",
+                    text = stringResource(com.fioiu8.devinfo.R.string.external_link_open_browser),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -283,7 +284,7 @@ fun ExternalLinkConfirmDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("打开")
+                Text(stringResource(com.fioiu8.devinfo.R.string.open))
             }
         }
     )
@@ -333,12 +334,12 @@ fun UpdateAvailableDialog(
             Column(modifier = Modifier.fillMaxWidth()) {
                 if (isError) {
                     Text(
-                        text = "无法连接到 GitHub，请检查网络后重试",
+                        text = stringResource(com.fioiu8.devinfo.R.string.update_network_error),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "当前版本: $currentVersion",
+                        text = stringResource(com.fioiu8.devinfo.R.string.current_version) + ": $currentVersion",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -383,7 +384,7 @@ fun UpdateAvailableDialog(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("重试")
+                    Text(stringResource(com.fioiu8.devinfo.R.string.retry))
                 }
                 TextButton(onClick = onDownload) {
                     Icon(
@@ -392,18 +393,18 @@ fun UpdateAvailableDialog(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("手动前往")
+                    Text(stringResource(com.fioiu8.devinfo.R.string.manual_go))
                 }
             } else {
                 TextButton(onClick = onDismiss) {
-                    Text("稍后")
+                    Text(stringResource(com.fioiu8.devinfo.R.string.later))
                 }
             }
         },
         confirmButton = {
             if (isError) {
                 TextButton(onClick = onDismiss) {
-                    Text("关闭")
+                    Text(stringResource(com.fioiu8.devinfo.R.string.close))
                 }
             } else {
                 TextButton(onClick = onDownload) {
@@ -413,7 +414,7 @@ fun UpdateAvailableDialog(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("前往下载")
+                    Text(stringResource(com.fioiu8.devinfo.R.string.go_to_download))
                 }
             }
         }

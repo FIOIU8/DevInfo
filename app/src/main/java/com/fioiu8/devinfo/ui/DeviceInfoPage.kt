@@ -57,6 +57,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.BatteryObserver
@@ -168,7 +169,7 @@ fun DeviceInfoPage(
                             onPageChange = { currentPage = it },
                             onItemCopy = { item ->
                                 clipboardManager.setText(AnnotatedString(item.item.value))
-                                Toast.makeText(ctx, "${item.item.key} 已复制", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(ctx, "stringResource(com.fioiu8.devinfo.R.string.copied_to_clipboard, item.item.key)", Toast.LENGTH_SHORT).show()
                             },
                             storagePercent = storagePercent,
                             memoryPercent = memoryPercent,
@@ -200,7 +201,7 @@ private fun CategoryTabRow(
                 selected = selected,
                 onClick = { onCategorySelected(index) },
                 label = {
-                    Text(text = category.displayName, style = MaterialTheme.typography.labelMedium)
+                    Text(text = stringResource(category.displayNameResId), style = MaterialTheme.typography.labelMedium)
                 },
                 leadingIcon = {
                     Icon(
@@ -269,7 +270,7 @@ private fun CategoryCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = category.description,
+                        text = stringResource(category.descriptionResId),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -281,7 +282,7 @@ private fun CategoryCard(
                     )
                 ) {
                     Text(
-                        text = "${items.size} 项",
+                        text = "stringResource(com.fioiu8.devinfo.R.string.items_count, items.size)",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,

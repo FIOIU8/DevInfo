@@ -99,6 +99,7 @@
     <string name="mit_allow_free">Free to use, modify and distribute</string>
     <string name="mit_require_notice">Must retain original copyright notice</string>
     <string name="contributors">Contributors</string>
+    <string name="contributors_count">%d contributors</string>
     <string name="no_data">No data</string>
     <string name="project_languages">Languages Used</string>
     <string name="project_links">Project Links</string>
@@ -108,6 +109,7 @@
     <string name="will_open_browser">Opening external browser</string>
     <string name="app_icon_label">Icon</string>
     <string name="contributor_commits">commits</string>
+    <string name="contributor_commits_count">%d commits</string>
     <string name="view_homepage">View %s\'s homepage</string>
     <string name="storage_usage">Storage Usage</string>
     <string name="memory_usage">Memory Usage</string>
