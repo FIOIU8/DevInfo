@@ -53,6 +53,7 @@ import com.fioiu8.devinfo.UpdateChecker
 import com.fioiu8.devinfo.UpdateState
 import com.fioiu8.devinfo.model.ItemWithVisibility
 import com.fioiu8.devinfo.model.MountThemeColor
+import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.AppLanguage
 import com.fioiu8.devinfo.model.ThemeMode
 import kotlinx.coroutines.CancellationException
@@ -153,7 +154,7 @@ fun MainScreen(
     LaunchedEffect(updateState) {
         when (updateState) {
             UpdateState.UP_TO_DATE -> {
-                Toast.makeText(context, "已是最新版本", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.already_latest), Toast.LENGTH_SHORT).show()
                 updateChecker.reset()
             }
             UpdateState.NEW_VERSION_AVAILABLE -> showUpdateDialog = true
@@ -171,7 +172,7 @@ fun MainScreen(
 
     // 主界面内容（始终渲染，确保关于页面滑入时无白屏闪烁、
     // 预测性返回预览时能看到底层内容）
-    val tabs = listOf("信息", "设置")
+    val tabs = listOf(stringResource(R.string.nav_info), stringResource(R.string.nav_settings))
     val selectedIcons = listOf(Icons.Filled.Description, Icons.Filled.Settings)
     val unselectedIcons = listOf(Icons.Outlined.Description, Icons.Outlined.Settings)
 
@@ -182,7 +183,7 @@ fun MainScreen(
                     TopAppBar(
                         title = {
                             Text(
-                                text = if (selectedIndex == 1) "设置" else "设备信息",
+                                text = if (selectedIndex == 1) stringResource(R.string.title_settings) else stringResource(R.string.title_device_info),
                                 fontWeight = FontWeight.SemiBold
                             )
                         },
@@ -336,7 +337,7 @@ fun MainScreen(
                     showExportSuccessDialog = true
                 },
                 onError = { error ->
-                    Toast.makeText(context, "导出失败: $error", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.export_failed) + ": $error", Toast.LENGTH_SHORT).show()
                 }
             )
         },
@@ -363,5 +364,5 @@ private suspend fun loadDeviceInfo(
 /** 通过 Intent 打开外部链接，失败时弹出 Toast 提示 */
 private fun openUrl(context: android.content.Context, url: String) {
     try { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
-    catch (_: Exception) { Toast.makeText(context, "无法打开链接", Toast.LENGTH_SHORT).show() }
+    catch (_: Exception) { Toast.makeText(context, context.getString(R.string.cannot_open_link), Toast.LENGTH_SHORT).show() }
 }

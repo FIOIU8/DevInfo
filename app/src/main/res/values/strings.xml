@@ -128,6 +128,7 @@
     <string name="mit_allow_free">允许自由使用、修改和分发</string>
     <string name="mit_require_notice">需保留原作者版权声明</string>
     <string name="contributors">贡献者</string>
+    <string name="contributors_count">%d 位贡献者</string>
     <string name="no_data">暂无数据</string>
     <string name="project_languages">项目使用语言</string>
     <string name="project_links">项目链接</string>
@@ -137,6 +138,7 @@
     <string name="will_open_browser">即将跳转到外部浏览器</string>
     <string name="app_icon_label">图标</string>
     <string name="contributor_commits">次提交</string>
+    <string name="contributor_commits_count">%d 次提交</string>
     <string name="view_homepage">查看 %s 的主页</string>
 
     <!-- Device info page -->

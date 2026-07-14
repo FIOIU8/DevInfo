@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -114,7 +115,7 @@ fun AboutPage(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回",
+                            contentDescription = stringResource(com.fioiu8.devinfo.R.string.back),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -157,7 +158,7 @@ fun AboutPage(
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Image(
                                 painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                                contentDescription = "图标",
+                                contentDescription = stringResource(com.fioiu8.devinfo.R.string.app_icon_label),
                                 modifier = Modifier.fillMaxSize().padding(14.dp)
                             )
                         }
@@ -199,7 +200,7 @@ fun AboutPage(
                         )
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            "开源协议",
+                            stringResource(com.fioiu8.devinfo.R.string.open_source_license),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -210,7 +211,7 @@ fun AboutPage(
                     )
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        "本项目基于 MIT 协议开源",
+                        stringResource(com.fioiu8.devinfo.R.string.mit_license_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium
                     )
@@ -224,7 +225,7 @@ fun AboutPage(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            "允许自由使用、修改和分发",
+                            stringResource(com.fioiu8.devinfo.R.string.mit_allow_free),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -239,7 +240,7 @@ fun AboutPage(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            "需保留原作者的版权声明",
+                            stringResource(com.fioiu8.devinfo.R.string.mit_require_notice),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -266,13 +267,13 @@ fun AboutPage(
                         Spacer(Modifier.width(12.dp))
                         Column {
                             Text(
-                                "贡献者",
+                                stringResource(com.fioiu8.devinfo.R.string.contributors),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
                             if (!isLoadingContributors && contributors.isNotEmpty()) {
                                 Text(
-                                    "${contributors.size} 位贡献者",
+                                    stringResource(com.fioiu8.devinfo.R.string.contributors_count, contributors.size),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -291,7 +292,7 @@ fun AboutPage(
                         }
                     } else if (contributors.isEmpty()) {
                         Text(
-                            "暂无数据",
+                            stringResource(com.fioiu8.devinfo.R.string.no_data),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -332,7 +333,7 @@ fun AboutPage(
                                     )
                                 ) {
                                     Text(
-                                        "${c.contributions} 次提交",
+                                        stringResource(com.fioiu8.devinfo.R.string.contributor_commits_count, c.contributions),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -362,7 +363,7 @@ fun AboutPage(
                         )
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            "项目使用语言",
+                            stringResource(com.fioiu8.devinfo.R.string.project_languages),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -423,7 +424,7 @@ fun AboutPage(
                         )
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            "项目链接",
+                            stringResource(com.fioiu8.devinfo.R.string.project_links),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -434,15 +435,15 @@ fun AboutPage(
                     )
                     Spacer(Modifier.height(8.dp))
 
-                    LinkRow(Icons.Outlined.Code, "查看源代码") {
+                    LinkRow(Icons.Outlined.Code, stringResource(com.fioiu8.devinfo.R.string.view_source)) {
                         confirmTitle = "查看源代码"
                         confirmUrl = "https://github.com/FIOIU8/DevInfo"
                     }
-                    LinkRow(Icons.Outlined.BugReport, "反馈问题") {
+                    LinkRow(Icons.Outlined.BugReport, stringResource(com.fioiu8.devinfo.R.string.report_issues)) {
                         confirmTitle = "反馈问题"
                         confirmUrl = "https://github.com/FIOIU8/DevInfo/issues"
                     }
-                    LinkRow(Icons.Outlined.People, "加入社区") {
+                    LinkRow(Icons.Outlined.People, stringResource(com.fioiu8.devinfo.R.string.join_community)) {
                         confirmTitle = "加入社区"
                         confirmUrl = "https://www.coolapk.com/u/32334444"
                     }
@@ -458,7 +459,7 @@ fun AboutPage(
         ExternalLinkConfirmDialog(
             show = true,
             title = confirmTitle,
-            description = "即将跳转到外部浏览器",
+            description = stringResource(com.fioiu8.devinfo.R.string.will_open_browser),
             onConfirm = {
                 val url = confirmUrl ?: return@ExternalLinkConfirmDialog
                 confirmUrl = null
