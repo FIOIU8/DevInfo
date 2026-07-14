@@ -162,7 +162,7 @@ fun SettingsPage(
             item {
                 DisabledPreferenceCard(
                     icon = Icons.Outlined.Palette,
-                    title = "主题颜色",
+                    title = stringResource(com.fioiu8.devinfo.R.string.theme_color),
                     summary = stringResource(R.string.theme_color_disabled)
                 )
             }

@@ -1,7 +1,10 @@
 package com.fioiu8.devinfo.model
 
 import androidx.compose.runtime.MutableState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
  * 设备信息分类
@@ -60,11 +63,18 @@ enum class MountThemeColor(
 /**
  * 设备信息单项数据。
  *
- * @property key 信息项名称（中文，如“品牌”、“型号”）
+ * @property key 信息项名称（中文回退）
+ * @property keyResId 信息项名称对应的字符串资源ID，0=使用key
  * @property value 信息项值
  * @property category 所属分类
  */
-data class DeviceInfoItem(val key: String, val value: String, val category: InfoCategory)
+data class DeviceInfoItem(
+    val key: String,
+    val keyResId: Int = 0,
+    val value: String,
+    val category: InfoCategory,
+    val icon: ImageVector = Icons.Outlined.Info
+)
 
 /**
  * 带可见性状态的设备信息项，用于列表交错动画。
