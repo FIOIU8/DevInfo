@@ -12,15 +12,15 @@ enum class InfoCategory(
     val description: String,
     val descriptionResId: Int
 ) {
-    DEVICE("设备", R.string.category_device, "设备硬件与构建信息", R.string.category_desc_device),
-    IDENTIFIERS("标识符", R.string.category_identifiers, "设备唯一标识信息", R.string.category_desc_identifiers),
-    SYSTEM("系统", R.string.category_system, "操作系统与CPU信息", R.string.category_desc_system),
-    LOCALE("区域", R.string.category_locale, "语言、国家与时区", R.string.category_desc_locale),
-    DISPLAY("显示", R.string.category_display, "屏幕相关参数", R.string.category_desc_display),
-    STORAGE("存储", R.string.category_storage, "内存与存储空间", R.string.category_desc_storage),
-    BATTERY("电池", R.string.category_battery, "电池状态信息", R.string.category_desc_battery),
-    NETWORK("网络", R.string.category_network, "网络连接与运营商", R.string.category_desc_network),
-    APP("应用", R.string.category_app, "应用自身信息", R.string.category_desc_app)
+    DEVICE("设备", com.fioiu8.devinfo.R.string.category_device, "设备硬件与构建信息", com.fioiu8.devinfo.R.string.category_desc_device),
+    IDENTIFIERS("标识符", com.fioiu8.devinfo.R.string.category_identifiers, "设备唯一标识信息", com.fioiu8.devinfo.R.string.category_desc_identifiers),
+    SYSTEM("系统", com.fioiu8.devinfo.R.string.category_system, "操作系统与CPU信息", com.fioiu8.devinfo.R.string.category_desc_system),
+    LOCALE("区域", com.fioiu8.devinfo.R.string.category_locale, "语言、国家与时区", com.fioiu8.devinfo.R.string.category_desc_locale),
+    DISPLAY("显示", com.fioiu8.devinfo.R.string.category_display, "屏幕相关参数", com.fioiu8.devinfo.R.string.category_desc_display),
+    STORAGE("存储", com.fioiu8.devinfo.R.string.category_storage, "内存与存储空间", com.fioiu8.devinfo.R.string.category_desc_storage),
+    BATTERY("电池", com.fioiu8.devinfo.R.string.category_battery, "电池状态信息", com.fioiu8.devinfo.R.string.category_desc_battery),
+    NETWORK("网络", com.fioiu8.devinfo.R.string.category_network, "网络连接与运营商", com.fioiu8.devinfo.R.string.category_desc_network),
+    APP("应用", com.fioiu8.devinfo.R.string.category_app, "应用自身信息", com.fioiu8.devinfo.R.string.category_desc_app)
 }
 
 /**
