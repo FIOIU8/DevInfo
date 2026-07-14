@@ -21,24 +21,30 @@ import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.model.MountThemeColor
+import com.fioiu8.devinfo.model.AppLanguage
 import com.fioiu8.devinfo.model.ThemeMode
 
 /**
@@ -73,7 +79,53 @@ fun SettingsPage(
     useMountTheme: Boolean,
     onExportClick: () -> Unit,
     onAboutClick: () -> Unit
+    appLanguage: AppLanguage = AppLanguage.SYSTEM,
+    languageOptions: List<String> = emptyList(),
+    onLanguageChange: (Int) -> Unit = {},
+    customLocaleTag: String = "",
+    onCustomLocaleTagChange: (String) -> Unit = {}
 ) {
+
+    var showCustomLocaleDialog by remember { mutableStateOf(false) }
+    var customLocaleInput by remember { mutableStateOf(customLocaleTag) }
+
+    // Custom locale dialog
+    if (showCustomLocaleDialog) {
+        AlertDialog(
+            onDismissRequest = { showCustomLocaleDialog = false },
+            title = {
+                Text("自定义语言", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column {
+                    Text("输入语言标签代码", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = customLocaleInput,
+                        onValueChange = { customLocaleInput = it },
+                        label = { Text("语言标签") },
+                        placeholder = { Text("输入区域代码") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomLocaleDialog = false }) {
+                    Text("取消")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onCustomLocaleTagChange(customLocaleInput.trim())
+                    showCustomLocaleDialog = false
+                }) {
+                    Text("应用")
+                }
+            }
+        )
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -113,6 +165,28 @@ fun SettingsPage(
                     summary = "请先切换到动态颜色模式"
                 )
             }
+        }
+
+        // -- Language --
+        item { Spacer(modifier = Modifier.height(8.dp)); CategoryHeader(title = "语言") }
+
+        item {
+            DropdownPreferenceCard(
+                icon = Icons.Outlined.Translate,
+                title = "语言设置",
+                summary = languageOptions.getOrElse(AppLanguage.entries.indexOf(appLanguage)) { "跟随系统" },
+                items = languageOptions,
+                selectedIndex = AppLanguage.entries.indexOf(appLanguage),
+                onSelectedIndexChange = { index ->
+                    val selected = AppLanguage.entries[index]
+                    if (selected.isCustom) {
+                        customLocaleInput = customLocaleTag
+                        showCustomLocaleDialog = true
+                    } else {
+                        onLanguageChange(index)
+                    }
+                }
+            )
         }
 
         // ── 工具 ──

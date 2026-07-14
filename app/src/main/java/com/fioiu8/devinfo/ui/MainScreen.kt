@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.activity.BackEventCompat
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.ui.Modifier
@@ -52,6 +53,7 @@ import com.fioiu8.devinfo.UpdateChecker
 import com.fioiu8.devinfo.UpdateState
 import com.fioiu8.devinfo.model.ItemWithVisibility
 import com.fioiu8.devinfo.model.MountThemeColor
+import com.fioiu8.devinfo.model.AppLanguage
 import com.fioiu8.devinfo.model.ThemeMode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -80,7 +82,12 @@ fun MainScreen(
     onMountThemeColorChange: (MountThemeColor) -> Unit,
     useMountTheme: Boolean,
     onUseMountThemeChange: (Boolean) -> Unit,
-    exportHelper: ModuleExportHelper
+    exportHelper: ModuleExportHelper,
+    appLanguage: AppLanguage = AppLanguage.SYSTEM,
+    languageOptions: List<String> = emptyList(),
+    onLanguageChange: (Int) -> Unit = {},
+    customLocaleTag: String = "",
+    onCustomLocaleTagChange: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val collector = remember { DeviceInfoCollector(context) }
@@ -128,6 +135,7 @@ fun MainScreen(
     val releaseInfo by updateChecker.releaseInfo.collectAsState()
 
     val themeOptions = ThemeMode.entries.map { it.displayName }
+    val languageOptionsList = AppLanguage.entries.map { lang -> stringResource(lang.displayNameResId) }
     val isDynamicMode = themeMode.isDynamic
 
     LaunchedEffect(Unit) {
@@ -245,7 +253,12 @@ fun MainScreen(
                         isDynamicMode = isDynamicMode,
                         useMountTheme = useMountTheme,
                         onExportClick = { showExportDialog = true },
-                        onAboutClick = { showAboutPage = true }
+                        onAboutClick = { showAboutPage = true },
+                        appLanguage = appLanguage,
+                        languageOptions = languageOptionsList,
+                        onLanguageChange = { index -> onLanguageChange(index) },
+                        customLocaleTag = customLocaleTag,
+                        onCustomLocaleTagChange = { tag -> onCustomLocaleTagChange(tag) }
                     )
                 }
             }
