@@ -9,3 +9,6 @@
 .cxx
 local.properties
 /NEXT_AI
+*.log
+replay_*
+
