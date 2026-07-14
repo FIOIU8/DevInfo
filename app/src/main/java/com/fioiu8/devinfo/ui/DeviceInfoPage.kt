@@ -169,7 +169,8 @@ fun DeviceInfoPage(
                             onPageChange = { currentPage = it },
                             onItemCopy = { item ->
                                 clipboardManager.setText(AnnotatedString(item.item.value))
-                                Toast.makeText(ctx, "stringResource(com.fioiu8.devinfo.R.string.copied_to_clipboard, item.item.key)", Toast.LENGTH_SHORT).show()
+                                val itemLabel = ctx.getString(item.item.keyResId)
+                                Toast.makeText(ctx, ctx.getString(com.fioiu8.devinfo.R.string.copied_to_clipboard, itemLabel), Toast.LENGTH_SHORT).show()
                             },
                             storagePercent = storagePercent,
                             memoryPercent = memoryPercent,
@@ -264,7 +265,7 @@ private fun CategoryCard(
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = category.displayName,
+                        text = stringResource(category.displayNameResId),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -348,9 +349,9 @@ private fun CategoryCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             InfoRow(
-                                label = "${item.item.key}:",
+                                label = stringResource(item.item.keyResId) + ":",
                                 value = item.item.value,
-                                icon = itemIcon(item.item.key)
+                                icon = item.item.icon
                             )
                         }
                     }
