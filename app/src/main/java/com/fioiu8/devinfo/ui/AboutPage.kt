@@ -440,14 +440,6 @@ fun AboutPage(
                         confirmUrl = "https://github.com/FIOIU8/DevInfo"
                     }
                     LinkRow(Icons.Outlined.BugReport, stringResource(com.fioiu8.devinfo.R.string.report_issues)) {
-                        confirmTitle = context.getString(com.fioiu8.devinfo.R.string.report_issues)
-                        confirmUrl = "https://github.com/FIOIU8/DevInfo/issues"
-                    }
-                    LinkRow(Icons.Outlined.People, stringResource(com.fioiu8.devinfo.R.string.join_community)) {
-                        confirmTitle = context.getString(com.fioiu8.devinfo.R.string.join_community)
-                        confirmUrl = "https://github.com/FIOIU8/DevInfo"
-                    }
-                    LinkRow(Icons.Outlined.BugReport, stringResource(com.fioiu8.devinfo.R.string.report_issues)) {
                         confirmUrl = "https://github.com/FIOIU8/DevInfo/issues"
                     }
                     LinkRow(Icons.Outlined.People, stringResource(com.fioiu8.devinfo.R.string.join_community)) {
