@@ -8,17 +8,19 @@ import androidx.compose.ui.graphics.Color
  */
 enum class InfoCategory(
     val displayName: String,
-    val description: String
+    val displayNameResId: Int,
+    val description: String,
+    val descriptionResId: Int
 ) {
-    DEVICE("设备", "设备硬件与构建信息"),
-    IDENTIFIERS("标识符", "设备唯一标识信息"),
-    SYSTEM("系统", "操作系统与CPU信息"),
-    LOCALE("区域", "语言、国家与时区"),
-    DISPLAY("显示", "屏幕相关参数"),
-    STORAGE("存储", "内存与存储空间"),
-    BATTERY("电池", "电池状态信息"),
-    NETWORK("网络", "网络连接与运营商"),
-    APP("应用", "应用自身信息")
+    DEVICE("设备", R.string.category_device, "设备硬件与构建信息", R.string.category_desc_device),
+    IDENTIFIERS("标识符", R.string.category_identifiers, "设备唯一标识信息", R.string.category_desc_identifiers),
+    SYSTEM("系统", R.string.category_system, "操作系统与CPU信息", R.string.category_desc_system),
+    LOCALE("区域", R.string.category_locale, "语言、国家与时区", R.string.category_desc_locale),
+    DISPLAY("显示", R.string.category_display, "屏幕相关参数", R.string.category_desc_display),
+    STORAGE("存储", R.string.category_storage, "内存与存储空间", R.string.category_desc_storage),
+    BATTERY("电池", R.string.category_battery, "电池状态信息", R.string.category_desc_battery),
+    NETWORK("网络", R.string.category_network, "网络连接与运营商", R.string.category_desc_network),
+    APP("应用", R.string.category_app, "应用自身信息", R.string.category_desc_app)
 }
 
 /**
@@ -97,6 +99,21 @@ data class MenuInfo(
     val versionSdk: String,
     val securityPatch: String,
     val supportedAbis: List<String>,
-    val supported32BitAbis: List<String>,
-    val supported64BitAbis: List<String>
+ val supported32BitAbis: List<String>,
+ val supported64BitAbis: List<String>
 )
+
+/**
+ * App language selection mode.
+ * SYSTEM — follow device locale; CUSTOM — user inputs a custom locale tag.
+ */
+enum class AppLanguage(
+    val displayNameResId: Int,
+    val localeTag: String?,
+    val isCustom: Boolean = false
+) {
+    SYSTEM(com.fioiu8.devinfo.R.string.language_system, null),
+    SIMPLIFIED_CHINESE(com.fioiu8.devinfo.R.string.language_chinese, "zh"),
+    ENGLISH(com.fioiu8.devinfo.R.string.language_english, "en"),
+    CUSTOM(com.fioiu8.devinfo.R.string.language_custom, "_custom", isCustom = true);
+}
