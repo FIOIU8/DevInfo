@@ -1,4 +1,4 @@
-package com.fioiu8.devinfo
+﻿package com.fioiu8.devinfo
 
 import android.app.ActivityManager
 import android.content.Context
@@ -14,12 +14,12 @@ import android.telephony.TelephonyManager
 import com.fioiu8.devinfo.model.DeviceInfoItem
 import com.fioiu8.devinfo.model.ItemWithVisibility
 import com.fioiu8.devinfo.R
-import com.fioiu8.devinfo.ui.itemIcon
+import com.fioiu8.devinfo.ui.itemIconByResId
 import com.fioiu8.devinfo.model.InfoCategory
 import java.util.Locale
 import java.util.TimeZone
 
-private inline fun safeGet(default: String = "未知", block: () -> String): String {
+private inline fun safeGet(default: String, block: () -> String): String {
     return try {
         block()
     } catch (_: Exception) {
@@ -56,72 +56,72 @@ class DeviceInfoCollector(private val context: Context) {
     fun collectDeviceInfo(): List<DeviceInfoItem> {
         val list = mutableListOf<DeviceInfoItem>()
 
-        list += infoItem("ANDROID_ID", getAndroidIdSafe(), InfoCategory.IDENTIFIERS)
-        list += infoItem("序列号", getSerialNumberSafe(), InfoCategory.IDENTIFIERS)
-        list += infoItem("品牌", Build.BRAND, InfoCategory.DEVICE)
-        list += infoItem("制造商", Build.MANUFACTURER, InfoCategory.DEVICE)
-        list += infoItem("型号", Build.MODEL, InfoCategory.DEVICE)
-        list += infoItem("产品", Build.PRODUCT, InfoCategory.DEVICE)
-        list += infoItem("设备", Build.DEVICE, InfoCategory.DEVICE)
-        list += infoItem("主板", Build.BOARD, InfoCategory.DEVICE)
-        list += infoItem("硬件", Build.HARDWARE, InfoCategory.DEVICE)
-        list += infoItem("引导程序", Build.BOOTLOADER, InfoCategory.DEVICE)
-        list += infoItem("构建ID", Build.ID, InfoCategory.DEVICE)
-        list += infoItem("标签", Build.TAGS, InfoCategory.DEVICE)
-        list += infoItem("时间", Build.TIME.toString(), InfoCategory.DEVICE)
-        list += infoItem("类型", Build.TYPE, InfoCategory.DEVICE)
+        list += infoItem(R.string.device_serial, getAndroidIdSafe(), InfoCategory.IDENTIFIERS)
+        list += infoItem(R.string.device_serial, getSerialNumberSafe(), InfoCategory.IDENTIFIERS)
+        list += infoItem(R.string.device_brand, Build.BRAND, InfoCategory.DEVICE)
+        list += infoItem(R.string.device_manufacturer, Build.MANUFACTURER, InfoCategory.DEVICE)
+        list += infoItem(R.string.device_model, Build.MODEL, InfoCategory.DEVICE)
+        list += infoItem(R.string.device_product, Build.PRODUCT, InfoCategory.DEVICE)
+        list += infoItem(R.string.device_device, Build.DEVICE, InfoCategory.DEVICE)
+        list += infoItem(R.string.device_board, Build.BOARD, InfoCategory.DEVICE)
+        list += infoItem(R.string.device_hardware, Build.HARDWARE, InfoCategory.DEVICE)
+        list += infoItem(R.string.device_bootloader, Build.BOOTLOADER, InfoCategory.DEVICE)
+        list += infoItem(R.string.device_build_id, Build.ID, InfoCategory.DEVICE)
+        list += infoItem(R.string.device_tags, Build.TAGS, InfoCategory.DEVICE)
+        list += infoItem(R.string.device_time, Build.TIME.toString(), InfoCategory.DEVICE)
+        list += infoItem(R.string.device_type, Build.TYPE, InfoCategory.DEVICE)
 
-        list += infoItem("CPU架构", Build.SUPPORTED_ABIS.joinToString(), InfoCategory.SYSTEM)
-        list += infoItem("CPU核心数", Runtime.getRuntime().availableProcessors().toString(), InfoCategory.SYSTEM)
-        list += infoItem("SDK版本", Build.VERSION.SDK_INT.toString(), InfoCategory.SYSTEM)
-        list += infoItem("Android版本", Build.VERSION.RELEASE, InfoCategory.SYSTEM)
-        list += infoItem("安全补丁", safeGet { Build.VERSION.SECURITY_PATCH }, InfoCategory.SYSTEM)
-        list += infoItem("基带版本", safeGet { Build.getRadioVersion() }, InfoCategory.SYSTEM)
+        list += infoItem(R.string.system_cpu_arch, Build.SUPPORTED_ABIS.joinToString(), InfoCategory.SYSTEM)
+        list += infoItem(R.string.system_cpu_cores, Runtime.getRuntime().availableProcessors().toString(), InfoCategory.SYSTEM)
+        list += infoItem(R.string.system_sdk_version, Build.VERSION.SDK_INT.toString(), InfoCategory.SYSTEM)
+        list += infoItem(R.string.system_android_version, Build.VERSION.RELEASE, InfoCategory.SYSTEM)
+        list += infoItem(R.string.system_security_patch, safeGet(context.getString(R.string.status_unknown)) { Build.VERSION.SECURITY_PATCH }, InfoCategory.SYSTEM)
+        list += infoItem(R.string.system_baseband, safeGet(context.getString(R.string.status_unknown)) { Build.getRadioVersion() }, InfoCategory.SYSTEM)
 
-        list += infoItem("语言", Locale.getDefault().language, InfoCategory.LOCALE)
-        list += infoItem("国家", Locale.getDefault().country, InfoCategory.LOCALE)
-        list += infoItem("时区", TimeZone.getDefault().id, InfoCategory.LOCALE)
+        list += infoItem(R.string.locale_language, Locale.getDefault().language, InfoCategory.LOCALE)
+        list += infoItem(R.string.locale_country, Locale.getDefault().country, InfoCategory.LOCALE)
+        list += infoItem(R.string.locale_timezone, TimeZone.getDefault().id, InfoCategory.LOCALE)
 
         val dm = context.resources.displayMetrics
-        list += infoItem("屏幕DPI", dm.densityDpi.toString(), InfoCategory.DISPLAY)
-        list += infoItem("屏幕宽度", dm.widthPixels.toString(), InfoCategory.DISPLAY)
-        list += infoItem("屏幕高度", dm.heightPixels.toString(), InfoCategory.DISPLAY)
-        list += infoItem("刷新率", safeGet { context.display.refreshRate.toString() }, InfoCategory.DISPLAY)
-        list += infoItem("字体缩放", safeGet { context.resources.configuration.fontScale.toString() }, InfoCategory.DISPLAY)
+        list += infoItem(R.string.display_dpi, dm.densityDpi.toString(), InfoCategory.DISPLAY)
+        list += infoItem(R.string.display_width, dm.widthPixels.toString(), InfoCategory.DISPLAY)
+        list += infoItem(R.string.display_height, dm.heightPixels.toString(), InfoCategory.DISPLAY)
+        list += infoItem(R.string.display_refresh_rate, safeGet(context.getString(R.string.status_unknown)) { context.display.refreshRate.toString() }, InfoCategory.DISPLAY)
+        list += infoItem(R.string.display_font_scale, safeGet(context.getString(R.string.status_unknown)) { context.resources.configuration.fontScale.toString() }, InfoCategory.DISPLAY)
 
-        list += infoItem("总内存", getTotalMemory(), InfoCategory.STORAGE)
-        list += infoItem("可用内存", getAvailMemory(), InfoCategory.STORAGE)
-        list += infoItem("存储总量", getTotalStorage(), InfoCategory.STORAGE)
-        list += infoItem("可用存储", getFreeStorage(), InfoCategory.STORAGE)
+        list += infoItem(R.string.storage_total_ram, getTotalMemory(), InfoCategory.STORAGE)
+        list += infoItem(R.string.storage_available_ram, getAvailMemory(), InfoCategory.STORAGE)
+        list += infoItem(R.string.storage_total, getTotalStorage(), InfoCategory.STORAGE)
+        list += infoItem(R.string.storage_available, getFreeStorage(), InfoCategory.STORAGE)
 
-        list += infoItem("电池电量", getBatteryLevel(), InfoCategory.BATTERY)
-        list += infoItem("充电状态", getBatteryCharging(), InfoCategory.BATTERY)
+        list += infoItem(R.string.battery_level_label, getBatteryLevel(), InfoCategory.BATTERY)
+        list += infoItem(R.string.battery_charging_state, getBatteryCharging(), InfoCategory.BATTERY)
 
-        list += infoItem("NFC功能", if (NfcAdapter.getDefaultAdapter(context) != null) "支持" else "不支持", InfoCategory.NETWORK)
-        list += infoItem("摄像头数量", getCameraCount(), InfoCategory.NETWORK)
-        list += infoItem("蓝牙状态", getBluetoothState(), InfoCategory.NETWORK)
-        list += infoItem("网络类型", getNetworkType(), InfoCategory.NETWORK)
-        list += infoItem("运营商", getNetworkOperator(), InfoCategory.NETWORK)
-        list += infoItem("SIM卡状态", getSimState(), InfoCategory.NETWORK)
+        list += infoItem(R.string.network_nfc, if (NfcAdapter.getDefaultAdapter(context) != null) context.getString(R.string.status_supported) else context.getString(R.string.status_not_supported), InfoCategory.NETWORK)
+        list += infoItem(R.string.network_camera_count, getCameraCount(), InfoCategory.NETWORK)
+        list += infoItem(R.string.network_bluetooth_state, getBluetoothState(), InfoCategory.NETWORK)
+        list += infoItem(R.string.network_type, getNetworkType(), InfoCategory.NETWORK)
+        list += infoItem(R.string.network_operator, getNetworkOperator(), InfoCategory.NETWORK)
+        list += infoItem(R.string.network_sim_state, getSimState(), InfoCategory.NETWORK)
 
-        list += infoItem("包名", context.packageName, InfoCategory.APP)
-        list += infoItem("应用版本名", getAppVersionName(), InfoCategory.APP)
-        list += infoItem("应用版本码", getAppVersionCode().toString(), InfoCategory.APP)
+        list += infoItem(R.string.app_package, context.packageName, InfoCategory.APP)
+        list += infoItem(R.string.app_version_name, getAppVersionName(), InfoCategory.APP)
+        list += infoItem(R.string.app_version_code, getAppVersionCode().toString(), InfoCategory.APP)
 
         return list
     }
 
-    private fun getAndroidIdSafe(): String = safeGet {
+    private fun getAndroidIdSafe(): String = safeGet(context.getString(R.string.status_unknown)) {
         @Suppress("HardwareIds")
-        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "未知"
+        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: context.getString(R.string.status_unknown)
     }
 
     @Suppress("MissingPermission", "HardwareIds")
-    private fun getSerialNumberSafe(): String = safeGet { Build.getSerial() }
+    private fun getSerialNumberSafe(): String = safeGet(context.getString(R.string.status_unknown)) { Build.getSerial() }
 
-    private fun getBluetoothState(): String = safeGet {
+    private fun getBluetoothState(): String = safeGet(context.getString(R.string.status_unknown)) {
         val bm = context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager
-        if (bm?.adapter?.isEnabled == true) "开启" else "关闭"
+        if (bm?.adapter?.isEnabled == true) context.getString(R.string.status_enabled) else context.getString(R.string.status_disabled)
     }
 
     private fun getTotalMemory(): String {
@@ -151,11 +151,11 @@ class DeviceInfoCollector(private val context: Context) {
         return mi
     }
 
-    private fun getTotalStorage() = safeGet {
+    private fun getTotalStorage() = safeGet(context.getString(R.string.status_unknown)) {
         "${Environment.getExternalStorageDirectory().totalSpace / 1024 / 1024 / 1024} GB"
     }
 
-    private fun getFreeStorage() = safeGet {
+    private fun getFreeStorage() = safeGet(context.getString(R.string.status_unknown)) {
         "${Environment.getExternalStorageDirectory().freeSpace / 1024 / 1024 / 1024} GB"
     }
 
@@ -170,110 +170,63 @@ class DeviceInfoCollector(private val context: Context) {
         }
     }
 
-    private fun getBatteryLevel() = safeGet {
+    private fun getBatteryLevel() = safeGet(context.getString(R.string.status_unknown)) {
         val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
         "${bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)}%"
     }
 
-    private fun getBatteryCharging() = safeGet {
+    private fun getBatteryCharging() = safeGet(context.getString(R.string.status_unknown)) {
         val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-        if (bm.isCharging) "充电中" else "未充电"
+        if (bm.isCharging) context.getString(R.string.status_charging) else context.getString(R.string.status_not_charging)
     }
 
-    private fun getCameraCount() = safeGet {
+    private fun getCameraCount() = safeGet(context.getString(R.string.status_unknown)) {
         val cam = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
         cam.cameraIdList.size.toString()
     }
 
     private fun getNetworkType(): String {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val nc = cm.getNetworkCapabilities(cm.activeNetwork) ?: return "未知"
+        val nc = cm.getNetworkCapabilities(cm.activeNetwork) ?: return context.getString(R.string.status_unknown)
         return when {
-            nc.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
-            nc.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "移动网络"
-            nc.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "以太网"
-            nc.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) -> "蓝牙"
-            else -> "未知"
+            nc.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> context.getString(R.string.status_wifi)
+            nc.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> context.getString(R.string.status_cellular)
+            nc.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> context.getString(R.string.status_ethernet)
+            nc.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) -> context.getString(R.string.status_bluetooth)
+            else -> context.getString(R.string.status_unknown)
         }
     }
 
-    private fun getNetworkOperator() = safeGet {
+    private fun getNetworkOperator() = safeGet(context.getString(R.string.status_unknown)) {
         val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-        tm.networkOperatorName ?: "未知"
+        tm.networkOperatorName ?: context.getString(R.string.status_unknown)
     }
 
     @Suppress("DEPRECATION")
-    private fun getSimState() = safeGet {
+    private fun getSimState() = safeGet(context.getString(R.string.status_unknown)) {
         val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
         when (tm.simState) {
-            TelephonyManager.SIM_STATE_READY -> "就绪"
-            TelephonyManager.SIM_STATE_ABSENT -> "无SIM卡"
-            TelephonyManager.SIM_STATE_NETWORK_LOCKED -> "网络锁定"
-            TelephonyManager.SIM_STATE_PIN_REQUIRED -> "需要PIN"
-            TelephonyManager.SIM_STATE_PUK_REQUIRED -> "需要PUK"
-            TelephonyManager.SIM_STATE_UNKNOWN -> "未知"
-            TelephonyManager.SIM_STATE_NOT_READY -> "未就绪"
-            TelephonyManager.SIM_STATE_PERM_DISABLED -> "永久禁用"
-            TelephonyManager.SIM_STATE_CARD_IO_ERROR -> "卡IO错误"
-            TelephonyManager.SIM_STATE_CARD_RESTRICTED -> "卡受限"
-            else -> "未知状态"
+            TelephonyManager.SIM_STATE_READY -> context.getString(R.string.status_sim_ready)
+            TelephonyManager.SIM_STATE_ABSENT -> context.getString(R.string.status_sim_absent)
+            TelephonyManager.SIM_STATE_NETWORK_LOCKED -> context.getString(R.string.status_sim_network_locked)
+            TelephonyManager.SIM_STATE_PIN_REQUIRED -> context.getString(R.string.status_sim_pin_required)
+            TelephonyManager.SIM_STATE_PUK_REQUIRED -> context.getString(R.string.status_sim_puk_required)
+            TelephonyManager.SIM_STATE_UNKNOWN -> context.getString(R.string.status_unknown)
+            TelephonyManager.SIM_STATE_NOT_READY -> context.getString(R.string.status_sim_not_ready)
+            TelephonyManager.SIM_STATE_PERM_DISABLED -> context.getString(R.string.status_sim_permanently_disabled)
+            TelephonyManager.SIM_STATE_CARD_IO_ERROR -> context.getString(R.string.status_sim_io_error)
+            TelephonyManager.SIM_STATE_CARD_RESTRICTED -> context.getString(R.string.status_sim_restricted)
+            else -> context.getString(R.string.status_unknown_state)
         }
     }
 
-    private fun infoItem(key: String, value: String, category: InfoCategory): DeviceInfoItem {
+    private fun infoItem(keyResId: Int, value: String, category: InfoCategory): DeviceInfoItem {
         return DeviceInfoItem(
-            key = key,
-            keyResId = keyToResourceId(key),
+            key = context.resources.getResourceEntryName(keyResId),
+            keyResId = keyResId,
             value = value,
             category = category,
-            icon = itemIcon(key)
+            icon = itemIconByResId(keyResId)
         )
     }
-
-    private fun keyToResourceId(key: String): Int = when (key) {
-        "ANDROID_ID", "序列号" -> com.fioiu8.devinfo.R.string.device_serial
-        "品牌" -> com.fioiu8.devinfo.R.string.device_brand
-        "制造商" -> com.fioiu8.devinfo.R.string.device_manufacturer
-        "型号" -> com.fioiu8.devinfo.R.string.device_model
-        "产品" -> com.fioiu8.devinfo.R.string.device_product
-        "设备" -> com.fioiu8.devinfo.R.string.device_device
-        "主板" -> com.fioiu8.devinfo.R.string.device_board
-        "硬件" -> com.fioiu8.devinfo.R.string.device_hardware
-        "引导程序" -> com.fioiu8.devinfo.R.string.device_bootloader
-        "构建ID" -> com.fioiu8.devinfo.R.string.device_build_id
-        "标签" -> com.fioiu8.devinfo.R.string.device_tags
-        "时间" -> com.fioiu8.devinfo.R.string.device_time
-        "类型" -> com.fioiu8.devinfo.R.string.device_type
-        "CPU架构" -> com.fioiu8.devinfo.R.string.system_cpu_arch
-        "CPU核心数" -> com.fioiu8.devinfo.R.string.system_cpu_cores
-        "SDK版本" -> com.fioiu8.devinfo.R.string.system_sdk_version
-        "Android版本" -> com.fioiu8.devinfo.R.string.system_android_version
-        "安全补丁" -> com.fioiu8.devinfo.R.string.system_security_patch
-        "基带版本" -> com.fioiu8.devinfo.R.string.system_baseband
-        "语言" -> com.fioiu8.devinfo.R.string.locale_language
-        "国家" -> com.fioiu8.devinfo.R.string.locale_country
-        "时区" -> com.fioiu8.devinfo.R.string.locale_timezone
-        "屏幕DPI" -> com.fioiu8.devinfo.R.string.display_dpi
-        "屏幕宽度" -> com.fioiu8.devinfo.R.string.display_width
-        "屏幕高度" -> com.fioiu8.devinfo.R.string.display_height
-        "刷新率" -> com.fioiu8.devinfo.R.string.display_refresh_rate
-        "字体缩放" -> com.fioiu8.devinfo.R.string.display_font_scale
-        "总内存" -> com.fioiu8.devinfo.R.string.storage_total_ram
-        "可用内存" -> com.fioiu8.devinfo.R.string.storage_available_ram
-        "存储总量" -> com.fioiu8.devinfo.R.string.storage_total
-        "可用存储" -> com.fioiu8.devinfo.R.string.storage_available
-        "电池电量" -> com.fioiu8.devinfo.R.string.battery_level_label
-        "充电状态" -> com.fioiu8.devinfo.R.string.battery_charging_state
-        "NFC功能" -> com.fioiu8.devinfo.R.string.network_nfc
-        "摄像头数量" -> com.fioiu8.devinfo.R.string.network_camera_count
-        "蓝牙状态" -> com.fioiu8.devinfo.R.string.network_bluetooth_state
-        "网络类型" -> com.fioiu8.devinfo.R.string.network_type
-        "运营商" -> com.fioiu8.devinfo.R.string.network_operator
-        "SIM卡状态" -> com.fioiu8.devinfo.R.string.network_sim_state
-        "包名" -> com.fioiu8.devinfo.R.string.app_package
-        "应用版本名" -> com.fioiu8.devinfo.R.string.app_version_name
-        "应用版本码" -> com.fioiu8.devinfo.R.string.app_version_code
-        else -> 0
-    }
-
 }

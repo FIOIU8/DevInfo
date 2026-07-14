@@ -10,32 +10,30 @@ import androidx.compose.ui.graphics.vector.ImageVector
  * 设备信息分类
  */
 enum class InfoCategory(
-    val displayName: String,
     val displayNameResId: Int,
-    val description: String,
     val descriptionResId: Int
 ) {
-    DEVICE("设备", com.fioiu8.devinfo.R.string.category_device, "设备硬件与构建信息", com.fioiu8.devinfo.R.string.category_desc_device),
-    IDENTIFIERS("标识符", com.fioiu8.devinfo.R.string.category_identifiers, "设备唯一标识信息", com.fioiu8.devinfo.R.string.category_desc_identifiers),
-    SYSTEM("系统", com.fioiu8.devinfo.R.string.category_system, "操作系统与CPU信息", com.fioiu8.devinfo.R.string.category_desc_system),
-    LOCALE("区域", com.fioiu8.devinfo.R.string.category_locale, "语言、国家与时区", com.fioiu8.devinfo.R.string.category_desc_locale),
-    DISPLAY("显示", com.fioiu8.devinfo.R.string.category_display, "屏幕相关参数", com.fioiu8.devinfo.R.string.category_desc_display),
-    STORAGE("存储", com.fioiu8.devinfo.R.string.category_storage, "内存与存储空间", com.fioiu8.devinfo.R.string.category_desc_storage),
-    BATTERY("电池", com.fioiu8.devinfo.R.string.category_battery, "电池状态信息", com.fioiu8.devinfo.R.string.category_desc_battery),
-    NETWORK("网络", com.fioiu8.devinfo.R.string.category_network, "网络连接与运营商", com.fioiu8.devinfo.R.string.category_desc_network),
-    APP("应用", com.fioiu8.devinfo.R.string.category_app, "应用自身信息", com.fioiu8.devinfo.R.string.category_desc_app)
+    DEVICE(com.fioiu8.devinfo.R.string.category_device, com.fioiu8.devinfo.R.string.category_desc_device),
+    IDENTIFIERS(com.fioiu8.devinfo.R.string.category_identifiers, com.fioiu8.devinfo.R.string.category_desc_identifiers),
+    SYSTEM(com.fioiu8.devinfo.R.string.category_system, com.fioiu8.devinfo.R.string.category_desc_system),
+    LOCALE(com.fioiu8.devinfo.R.string.category_locale, com.fioiu8.devinfo.R.string.category_desc_locale),
+    DISPLAY(com.fioiu8.devinfo.R.string.category_display, com.fioiu8.devinfo.R.string.category_desc_display),
+    STORAGE(com.fioiu8.devinfo.R.string.category_storage, com.fioiu8.devinfo.R.string.category_desc_storage),
+    BATTERY(com.fioiu8.devinfo.R.string.category_battery, com.fioiu8.devinfo.R.string.category_desc_battery),
+    NETWORK(com.fioiu8.devinfo.R.string.category_network, com.fioiu8.devinfo.R.string.category_desc_network),
+    APP(com.fioiu8.devinfo.R.string.category_app, com.fioiu8.devinfo.R.string.category_desc_app)
 }
 
 /**
  * MD3 主题模式
  */
-enum class ThemeMode(val displayName: String, val displayNameResId: Int) {
-    SYSTEM("跟随系统", com.fioiu8.devinfo.R.string.theme_mode_system),
-    LIGHT("浅色模式", com.fioiu8.devinfo.R.string.theme_mode_light),
-    DARK("深色模式", com.fioiu8.devinfo.R.string.theme_mode_dark),
-    DYNAMIC_SYSTEM("动态颜色·跟随系统", com.fioiu8.devinfo.R.string.theme_mode_dynamic_system),
-    DYNAMIC_LIGHT("动态颜色·浅色", com.fioiu8.devinfo.R.string.theme_mode_dynamic_light),
-    DYNAMIC_DARK("动态颜色·深色", com.fioiu8.devinfo.R.string.theme_mode_dynamic_dark);
+enum class ThemeMode(val displayNameResId: Int) {
+    SYSTEM(com.fioiu8.devinfo.R.string.theme_mode_system),
+    LIGHT(com.fioiu8.devinfo.R.string.theme_mode_light),
+    DARK(com.fioiu8.devinfo.R.string.theme_mode_dark),
+    DYNAMIC_SYSTEM(com.fioiu8.devinfo.R.string.theme_mode_dynamic_system),
+    DYNAMIC_LIGHT(com.fioiu8.devinfo.R.string.theme_mode_dynamic_light),
+    DYNAMIC_DARK(com.fioiu8.devinfo.R.string.theme_mode_dynamic_dark);
 
     val isDynamic: Boolean get() = name.startsWith("DYNAMIC")
 }
@@ -44,20 +42,18 @@ enum class ThemeMode(val displayName: String, val displayNameResId: Int) {
  * 自定义主题色选项
  */
 enum class MountThemeColor(
-    val displayName: String,
     val displayNameResId: Int,
     val color: Color,
-    val description: String,
     val descriptionResId: Int
 ) {
-    DEFAULT("默认", com.fioiu8.devinfo.R.string.mount_color_default, Color(0xFF4A90D9), "清新蓝色", com.fioiu8.devinfo.R.string.mount_color_desc_default),
-    RED("红色", com.fioiu8.devinfo.R.string.mount_color_red, Color(0xFFE74C3C), "热情红色", com.fioiu8.devinfo.R.string.mount_color_desc_red),
-    ORANGE("橙色", com.fioiu8.devinfo.R.string.mount_color_orange, Color(0xFFE67E22), "活力橙色", com.fioiu8.devinfo.R.string.mount_color_desc_orange),
-    GREEN("绿色", com.fioiu8.devinfo.R.string.mount_color_green, Color(0xFF2ECC71), "自然绿色", com.fioiu8.devinfo.R.string.mount_color_desc_green),
-    TEAL("青色", com.fioiu8.devinfo.R.string.mount_color_teal, Color(0xFF1ABC9C), "清新青色", com.fioiu8.devinfo.R.string.mount_color_desc_teal),
-    PURPLE("紫色", com.fioiu8.devinfo.R.string.mount_color_purple, Color(0xFF9B59B6), "优雅紫色", com.fioiu8.devinfo.R.string.mount_color_desc_purple),
-    PINK("粉色", com.fioiu8.devinfo.R.string.mount_color_pink, Color(0xFFE91E63), "甜美粉色", com.fioiu8.devinfo.R.string.mount_color_desc_pink),
-    DARK("深色", com.fioiu8.devinfo.R.string.mount_color_dark, Color(0xFF34495E), "沉稳深色", com.fioiu8.devinfo.R.string.mount_color_desc_dark)
+    DEFAULT(com.fioiu8.devinfo.R.string.mount_color_default, Color(0xFF4A90D9), com.fioiu8.devinfo.R.string.mount_color_desc_default),
+    RED(com.fioiu8.devinfo.R.string.mount_color_red, Color(0xFFE74C3C), com.fioiu8.devinfo.R.string.mount_color_desc_red),
+    ORANGE(com.fioiu8.devinfo.R.string.mount_color_orange, Color(0xFFE67E22), com.fioiu8.devinfo.R.string.mount_color_desc_orange),
+    GREEN(com.fioiu8.devinfo.R.string.mount_color_green, Color(0xFF2ECC71), com.fioiu8.devinfo.R.string.mount_color_desc_green),
+    TEAL(com.fioiu8.devinfo.R.string.mount_color_teal, Color(0xFF1ABC9C), com.fioiu8.devinfo.R.string.mount_color_desc_teal),
+    PURPLE(com.fioiu8.devinfo.R.string.mount_color_purple, Color(0xFF9B59B6), com.fioiu8.devinfo.R.string.mount_color_desc_purple),
+    PINK(com.fioiu8.devinfo.R.string.mount_color_pink, Color(0xFFE91E63), com.fioiu8.devinfo.R.string.mount_color_desc_pink),
+    DARK(com.fioiu8.devinfo.R.string.mount_color_dark, Color(0xFF34495E), com.fioiu8.devinfo.R.string.mount_color_desc_dark)
 }
 
 /**
@@ -70,7 +66,7 @@ enum class MountThemeColor(
  */
 data class DeviceInfoItem(
     val key: String,
-    val keyResId: Int = 0,
+    val keyResId: Int,
     val value: String,
     val category: InfoCategory,
     val icon: ImageVector = Icons.Outlined.Info
