@@ -1,4 +1,4 @@
-package com.fioiu8.devinfo.ui
+﻿package com.fioiu8.devinfo.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -511,12 +511,12 @@ private fun MountColorPreferenceCard(
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = entry.displayName,
+                                        text = stringResource(entry.displayNameResId),
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = if (index == selectedIndex) FontWeight.Bold else FontWeight.Normal
                                     )
                                     Text(
-                                        text = entry.description,
+                                        text = stringResource(entry.descriptionResId),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

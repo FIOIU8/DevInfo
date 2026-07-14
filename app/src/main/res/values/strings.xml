@@ -60,6 +60,14 @@
     <string name="mount_color_purple">紫色</string>
     <string name="mount_color_pink">粉色</string>
     <string name="mount_color_dark">深色</string>
+    <string name="mount_color_desc_default">清新蓝色</string>
+    <string name="mount_color_desc_red">热情红色</string>
+    <string name="mount_color_desc_orange">活力橙色</string>
+    <string name="mount_color_desc_green">自然绿色</string>
+    <string name="mount_color_desc_teal">清新青色</string>
+    <string name="mount_color_desc_purple">优雅紫色</string>
+    <string name="mount_color_desc_pink">甜美粉色</string>
+    <string name="mount_color_desc_dark">沉稳深色</string>
 
     <!-- InfoCategory display names -->
     <string name="category_device">设备</string>

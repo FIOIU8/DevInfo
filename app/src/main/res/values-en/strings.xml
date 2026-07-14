@@ -44,6 +44,14 @@
     <string name="mount_color_purple">Purple</string>
     <string name="mount_color_pink">Pink</string>
     <string name="mount_color_dark">Dark</string>
+    <string name="mount_color_desc_default">Fresh Blue</string>
+    <string name="mount_color_desc_red">Passionate Red</string>
+    <string name="mount_color_desc_orange">Energetic Orange</string>
+    <string name="mount_color_desc_green">Natural Green</string>
+    <string name="mount_color_desc_teal">Fresh Teal</string>
+    <string name="mount_color_desc_purple">Elegant Purple</string>
+    <string name="mount_color_desc_pink">Sweet Pink</string>
+    <string name="mount_color_desc_dark">Steady Dark</string>
     <string name="category_device">Device</string>
     <string name="category_identifiers">Identifiers</string>
     <string name="category_system">System</string>

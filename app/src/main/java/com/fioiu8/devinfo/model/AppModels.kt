@@ -26,13 +26,13 @@ enum class InfoCategory(
 /**
  * MD3 主题模式
  */
-enum class ThemeMode(val displayName: String) {
-    SYSTEM("跟随系统"),
-    LIGHT("浅色模式"),
-    DARK("深色模式"),
-    DYNAMIC_SYSTEM("动态颜色·跟随系统"),
-    DYNAMIC_LIGHT("动态颜色·浅色"),
-    DYNAMIC_DARK("动态颜色·深色");
+enum class ThemeMode(val displayName: String, val displayNameResId: Int) {
+    SYSTEM("跟随系统", com.fioiu8.devinfo.R.string.theme_mode_system),
+    LIGHT("浅色模式", com.fioiu8.devinfo.R.string.theme_mode_light),
+    DARK("深色模式", com.fioiu8.devinfo.R.string.theme_mode_dark),
+    DYNAMIC_SYSTEM("动态颜色·跟随系统", com.fioiu8.devinfo.R.string.theme_mode_dynamic_system),
+    DYNAMIC_LIGHT("动态颜色·浅色", com.fioiu8.devinfo.R.string.theme_mode_dynamic_light),
+    DYNAMIC_DARK("动态颜色·深色", com.fioiu8.devinfo.R.string.theme_mode_dynamic_dark);
 
     val isDynamic: Boolean get() = name.startsWith("DYNAMIC")
 }
@@ -42,17 +42,19 @@ enum class ThemeMode(val displayName: String) {
  */
 enum class MountThemeColor(
     val displayName: String,
+    val displayNameResId: Int,
     val color: Color,
-    val description: String
+    val description: String,
+    val descriptionResId: Int
 ) {
-    DEFAULT("默认", Color(0xFF4A90D9), "清新蓝色"),
-    RED("红色", Color(0xFFE74C3C), "热情红色"),
-    ORANGE("橙色", Color(0xFFE67E22), "活力橙色"),
-    GREEN("绿色", Color(0xFF2ECC71), "自然绿色"),
-    TEAL("青色", Color(0xFF1ABC9C), "清新青色"),
-    PURPLE("紫色", Color(0xFF9B59B6), "优雅紫色"),
-    PINK("粉色", Color(0xFFE91E63), "甜美粉色"),
-    DARK("深色", Color(0xFF34495E), "沉稳深色")
+    DEFAULT("默认", com.fioiu8.devinfo.R.string.mount_color_default, Color(0xFF4A90D9), "清新蓝色", com.fioiu8.devinfo.R.string.mount_color_desc_default),
+    RED("红色", com.fioiu8.devinfo.R.string.mount_color_red, Color(0xFFE74C3C), "热情红色", com.fioiu8.devinfo.R.string.mount_color_desc_red),
+    ORANGE("橙色", com.fioiu8.devinfo.R.string.mount_color_orange, Color(0xFFE67E22), "活力橙色", com.fioiu8.devinfo.R.string.mount_color_desc_orange),
+    GREEN("绿色", com.fioiu8.devinfo.R.string.mount_color_green, Color(0xFF2ECC71), "自然绿色", com.fioiu8.devinfo.R.string.mount_color_desc_green),
+    TEAL("青色", com.fioiu8.devinfo.R.string.mount_color_teal, Color(0xFF1ABC9C), "清新青色", com.fioiu8.devinfo.R.string.mount_color_desc_teal),
+    PURPLE("紫色", com.fioiu8.devinfo.R.string.mount_color_purple, Color(0xFF9B59B6), "优雅紫色", com.fioiu8.devinfo.R.string.mount_color_desc_purple),
+    PINK("粉色", com.fioiu8.devinfo.R.string.mount_color_pink, Color(0xFFE91E63), "甜美粉色", com.fioiu8.devinfo.R.string.mount_color_desc_pink),
+    DARK("深色", com.fioiu8.devinfo.R.string.mount_color_dark, Color(0xFF34495E), "沉稳深色", com.fioiu8.devinfo.R.string.mount_color_desc_dark)
 }
 
 /**
