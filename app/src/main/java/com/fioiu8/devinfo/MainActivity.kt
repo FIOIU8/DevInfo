@@ -1,5 +1,6 @@
 package com.fioiu8.devinfo
 
+import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
 import java.util.Locale
@@ -18,22 +19,23 @@ import com.fioiu8.devinfo.ui.theme.DevInfoTheme
 class MainActivity : ComponentActivity() {
 
 
-    /** Apply the selected app language locale to the activity configuration */
-    @Suppress("DEPRECATION")
-    private fun applyAppLanguage(languagePrefs: LanguagePreferences) {
-        val tag = languagePrefs.getEffectiveLocaleTag() ?: return
-        val locale = java.util.Locale.forLanguageTag(tag)
-        java.util.Locale.setDefault(locale)
-        val config = android.content.res.Configuration(resources.configuration)
-        config.setLocale(locale)
-        resources.updateConfiguration(config, resources.displayMetrics)
+    override fun attachBaseContext(base: Context) {
+        val languagePrefs = LanguagePreferences(base)
+        val tag = languagePrefs.getEffectiveLocaleTag()
+        val newBase = if (tag != null) {
+            val locale = java.util.Locale.forLanguageTag(tag)
+            java.util.Locale.setDefault(locale)
+            val config = android.content.res.Configuration(base.resources.configuration)
+            config.setLocale(locale)
+            base.createConfigurationContext(config)
+        } else {
+            base
+        }
+        super.attachBaseContext(newBase)
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         // 根据保存的主题模式选择浅色/深色启动屏主题
         val themePrefs = ThemePreferences(this)
-        val languagePrefs = LanguagePreferences(this)
-        // 鏍规嵁淇濆瓨鐨勮瑷�璁剧疆搴旂敤locale
-        applyAppLanguage(languagePrefs)
 
         val savedTheme = themePrefs.getThemeModeSnapshot()
         when (savedTheme) {
@@ -60,6 +62,7 @@ class MainActivity : ComponentActivity() {
 
         // 模块导出助手
         val exportHelper = ModuleExportHelper(this)
+        val languagePrefs = LanguagePreferences(this)
 
         setContent {
             val themeMode by themePrefs.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
