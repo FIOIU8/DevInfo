@@ -23,6 +23,10 @@
 
     <!-- Theme settings -->
     <string name="theme_mode">Theme Mode</string>
+    <string name="theme_follow_system">Follow system</string>
+    <string name="theme_follow_system_summary">Use the system light or dark appearance</string>
+    <string name="theme_dynamic_color">Dynamic color</string>
+    <string name="theme_dynamic_color_summary">Use the system dynamic theme colors</string>
     <string name="theme_color">Theme Color</string>
     <string name="theme_mode_summary">Follow System</string>
     <string name="theme_color_enabled">Custom color enabled</string>

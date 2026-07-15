@@ -1,8 +1,13 @@
 ﻿package com.fioiu8.devinfo.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
@@ -33,6 +39,11 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,7 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -141,12 +152,9 @@ fun SettingsPage(
         item { CategoryHeader(title = stringResource(R.string.category_appearance)) }
 
         item {
-            ThemeModeSegmentedCard(
-                icon = Icons.Outlined.DarkMode,
-                title = stringResource(R.string.theme_mode),
-                items = themeOptions,
-                selectedIndex = ThemeMode.entries.indexOf(themeMode),
-                onSelectedIndexChange = onThemeChange
+            ThemeSettingsCard(
+                themeMode = themeMode,
+                onThemeChange = onThemeChange
             )
         }
 
@@ -253,22 +261,106 @@ fun SettingsPage(
 
 // ── Reusable MD3 Preference Components ──
 
-/** Compact segmented selector with a theme-independent outline. */
+/** Theme controls: system-follow, official light/dark button group, and dynamic color. */
 @Composable
-private fun ThemeModeSegmentedCard(
-    icon: ImageVector,
-    title: String,
-    items: List<String>,
-    selectedIndex: Int,
-    onSelectedIndexChange: (Int) -> Unit
+private fun ThemeSettingsCard(
+    themeMode: ThemeMode,
+    onThemeChange: (Int) -> Unit
 ) {
+    val followsSystem = themeMode == ThemeMode.SYSTEM || themeMode == ThemeMode.DYNAMIC_SYSTEM
+    val usesDynamicColor = themeMode.isDynamic
+    val systemIsDark = isSystemInDarkTheme()
+    val isDark = when (themeMode) {
+        ThemeMode.DARK, ThemeMode.DYNAMIC_DARK -> true
+        ThemeMode.LIGHT, ThemeMode.DYNAMIC_LIGHT -> false
+        else -> systemIsDark
+    }
+
+    fun updateTheme(
+        followSystem: Boolean = followsSystem,
+        dark: Boolean = isDark,
+        dynamic: Boolean = usesDynamicColor
+    ) {
+        val nextMode = when {
+            followSystem && dynamic -> ThemeMode.DYNAMIC_SYSTEM
+            followSystem -> ThemeMode.SYSTEM
+            dark && dynamic -> ThemeMode.DYNAMIC_DARK
+            dark -> ThemeMode.DARK
+            dynamic -> ThemeMode.DYNAMIC_LIGHT
+            else -> ThemeMode.LIGHT
+        }
+        onThemeChange(ThemeMode.entries.indexOf(nextMode))
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            PreferenceSwitchRow(
+                icon = Icons.Outlined.DarkMode,
+                title = stringResource(R.string.theme_follow_system),
+                summary = stringResource(R.string.theme_follow_system_summary),
+                checked = followsSystem,
+                checkedIcon = Icons.Filled.Check,
+                uncheckedIcon = Icons.Filled.Close,
+                onCheckedChange = { updateTheme(followSystem = it) }
+            )
+
+            AnimatedVisibility(
+                visible = !followsSystem,
+                enter = fadeIn() + expandVertically() + slideInVertically { -it / 2 },
+                exit = fadeOut() + shrinkVertically() + slideOutVertically { -it / 2 }
+            ) {
+                Column(modifier = Modifier.padding(top = 10.dp)) {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        listOf(
+                            stringResource(R.string.theme_mode_light),
+                            stringResource(R.string.theme_mode_dark)
+                        ).forEachIndexed { index, label ->
+                            val buttonIsDark = index == 1
+                            SegmentedButton(
+                                selected = isDark == buttonIsDark,
+                                onClick = { updateTheme(dark = buttonIsDark) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
+                                icon = { SegmentedButtonDefaults.Icon(isDark == buttonIsDark) },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            PreferenceSwitchRow(
+                icon = Icons.Outlined.Palette,
+                title = stringResource(R.string.theme_dynamic_color),
+                summary = stringResource(R.string.theme_dynamic_color_summary),
+                checked = usesDynamicColor,
+                checkedIcon = Icons.Filled.Check,
+                uncheckedIcon = Icons.Filled.Close,
+                onCheckedChange = { updateTheme(dynamic = it) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun PreferenceSwitchRow(
+    icon: ImageVector,
+    title: String,
+    summary: String,
+    checked: Boolean,
+    checkedIcon: ImageVector,
+    uncheckedIcon: ImageVector,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
@@ -276,7 +368,7 @@ private fun ThemeModeSegmentedCard(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(16.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.bodyLarge,
@@ -284,56 +376,29 @@ private fun ThemeModeSegmentedCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = items.getOrNull(selectedIndex).orEmpty(),
+                        text = summary,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.outline,
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                    .horizontalScroll(rememberScrollState())
-                    .padding(2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                items.forEachIndexed { index, item ->
-                    Surface(
-                        modifier = Modifier
-                            .height(34.dp)
-                            .clickable { onSelectedIndexChange(index) },
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (selectedIndex == index) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.surface
-                        }
-                    ) {
-                        Box(
-                            modifier = Modifier.padding(horizontal = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = item,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (selectedIndex == index) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                },
-                                maxLines = 1
-                            )
-                        }
-                    }
-                }
-            }
-        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            thumbContent = {
+                Icon(
+                    imageVector = if (checked) checkedIcon else uncheckedIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+            },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        )
     }
 }
 

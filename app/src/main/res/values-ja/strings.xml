@@ -23,6 +23,10 @@
 
     <!-- Theme settings -->
     <string name="theme_mode">テーマモード</string>
+    <string name="theme_follow_system">システムに従う</string>
+    <string name="theme_follow_system_summary">システムのライトまたはダーク外観を使用</string>
+    <string name="theme_dynamic_color">ダイナミックカラー</string>
+    <string name="theme_dynamic_color_summary">システムのダイナミックカラーを使用</string>
     <string name="theme_color">テーマカラー</string>
     <string name="theme_mode_summary">システムに従う</string>
     <string name="theme_color_enabled">カスタムカラー有効</string>
