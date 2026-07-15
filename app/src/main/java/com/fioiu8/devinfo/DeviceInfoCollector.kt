@@ -11,11 +11,10 @@ import android.os.Build
 import android.os.Environment
 import android.provider.Settings
 import android.telephony.TelephonyManager
-import com.fioiu8.devinfo.model.DeviceInfoItem
-import com.fioiu8.devinfo.model.ItemWithVisibility
 import com.fioiu8.devinfo.R
-import com.fioiu8.devinfo.ui.itemIconByResId
+import com.fioiu8.devinfo.model.DeviceInfoItem
 import com.fioiu8.devinfo.model.InfoCategory
+import com.fioiu8.devinfo.ui.itemIconByResId
 import java.util.Locale
 import java.util.TimeZone
 
@@ -56,7 +55,8 @@ class DeviceInfoCollector(private val context: Context) {
     fun collectDeviceInfo(): List<DeviceInfoItem> {
         val list = mutableListOf<DeviceInfoItem>()
 
-        list += infoItem(R.string.device_serial, getAndroidIdSafe(), InfoCategory.IDENTIFIERS)
+        // Android ID and the hardware serial number are different identifiers.
+        list += infoItem(R.string.device_android_id, getAndroidIdSafe(), InfoCategory.IDENTIFIERS)
         list += infoItem(R.string.device_serial, getSerialNumberSafe(), InfoCategory.IDENTIFIERS)
         list += infoItem(R.string.device_brand, Build.BRAND, InfoCategory.DEVICE)
         list += infoItem(R.string.device_manufacturer, Build.MANUFACTURER, InfoCategory.DEVICE)
@@ -75,8 +75,16 @@ class DeviceInfoCollector(private val context: Context) {
         list += infoItem(R.string.system_cpu_cores, Runtime.getRuntime().availableProcessors().toString(), InfoCategory.SYSTEM)
         list += infoItem(R.string.system_sdk_version, Build.VERSION.SDK_INT.toString(), InfoCategory.SYSTEM)
         list += infoItem(R.string.system_android_version, Build.VERSION.RELEASE, InfoCategory.SYSTEM)
-        list += infoItem(R.string.system_security_patch, safeGet(context.getString(R.string.status_unknown)) { Build.VERSION.SECURITY_PATCH }, InfoCategory.SYSTEM)
-        list += infoItem(R.string.system_baseband, safeGet(context.getString(R.string.status_unknown)) { Build.getRadioVersion() }, InfoCategory.SYSTEM)
+        list += infoItem(
+            R.string.system_security_patch,
+            safeGet(context.getString(R.string.status_unknown)) { Build.VERSION.SECURITY_PATCH },
+            InfoCategory.SYSTEM
+        )
+        list += infoItem(
+            R.string.system_baseband,
+            safeGet(context.getString(R.string.status_unknown)) { Build.getRadioVersion() },
+            InfoCategory.SYSTEM
+        )
 
         list += infoItem(R.string.locale_language, Locale.getDefault().language, InfoCategory.LOCALE)
         list += infoItem(R.string.locale_country, Locale.getDefault().country, InfoCategory.LOCALE)
@@ -86,8 +94,18 @@ class DeviceInfoCollector(private val context: Context) {
         list += infoItem(R.string.display_dpi, dm.densityDpi.toString(), InfoCategory.DISPLAY)
         list += infoItem(R.string.display_width, dm.widthPixels.toString(), InfoCategory.DISPLAY)
         list += infoItem(R.string.display_height, dm.heightPixels.toString(), InfoCategory.DISPLAY)
-        list += infoItem(R.string.display_refresh_rate, safeGet(context.getString(R.string.status_unknown)) { context.display.refreshRate.toString() }, InfoCategory.DISPLAY)
-        list += infoItem(R.string.display_font_scale, safeGet(context.getString(R.string.status_unknown)) { context.resources.configuration.fontScale.toString() }, InfoCategory.DISPLAY)
+        list += infoItem(
+            R.string.display_refresh_rate,
+            safeGet(context.getString(R.string.status_unknown)) { context.display.refreshRate.toString() },
+            InfoCategory.DISPLAY
+        )
+        list += infoItem(
+            R.string.display_font_scale,
+            safeGet(context.getString(R.string.status_unknown)) {
+                context.resources.configuration.fontScale.toString()
+            },
+            InfoCategory.DISPLAY
+        )
 
         list += infoItem(R.string.storage_total_ram, getTotalMemory(), InfoCategory.STORAGE)
         list += infoItem(R.string.storage_available_ram, getAvailMemory(), InfoCategory.STORAGE)
@@ -97,7 +115,15 @@ class DeviceInfoCollector(private val context: Context) {
         list += infoItem(R.string.battery_level_label, getBatteryLevel(), InfoCategory.BATTERY)
         list += infoItem(R.string.battery_charging_state, getBatteryCharging(), InfoCategory.BATTERY)
 
-        list += infoItem(R.string.network_nfc, if (NfcAdapter.getDefaultAdapter(context) != null) context.getString(R.string.status_supported) else context.getString(R.string.status_not_supported), InfoCategory.NETWORK)
+        list += infoItem(
+            R.string.network_nfc,
+            if (NfcAdapter.getDefaultAdapter(context) != null) {
+                context.getString(R.string.status_supported)
+            } else {
+                context.getString(R.string.status_not_supported)
+            },
+            InfoCategory.NETWORK
+        )
         list += infoItem(R.string.network_camera_count, getCameraCount(), InfoCategory.NETWORK)
         list += infoItem(R.string.network_bluetooth_state, getBluetoothState(), InfoCategory.NETWORK)
         list += infoItem(R.string.network_type, getNetworkType(), InfoCategory.NETWORK)
@@ -185,10 +211,12 @@ class DeviceInfoCollector(private val context: Context) {
         cam.cameraIdList.size.toString()
     }
 
-    private fun getNetworkType(): String {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val nc = cm.getNetworkCapabilities(cm.activeNetwork) ?: return context.getString(R.string.status_unknown)
-        return when {
+    private fun getNetworkType(): String = safeGet(context.getString(R.string.status_unknown)) {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return@safeGet context.getString(R.string.status_unknown)
+        val nc = cm.getNetworkCapabilities(cm.activeNetwork)
+            ?: return@safeGet context.getString(R.string.status_unknown)
+        when {
             nc.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> context.getString(R.string.status_wifi)
             nc.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> context.getString(R.string.status_cellular)
             nc.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> context.getString(R.string.status_ethernet)

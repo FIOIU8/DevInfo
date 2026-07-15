@@ -2,7 +2,43 @@ package com.fioiu8.devinfo.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.outlined.Android
+import androidx.compose.material.icons.outlined.Api
+import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.AspectRatio
+import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.BatteryChargingFull
+import androidx.compose.material.icons.outlined.BatteryStd
+import androidx.compose.material.icons.outlined.Bluetooth
+import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.DeveloperBoard
+import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.Fingerprint
+import androidx.compose.material.icons.outlined.FormatSize
+import androidx.compose.material.icons.outlined.GridOn
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Nfc
+import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.Pin
+import androidx.compose.material.icons.outlined.PrecisionManufacturing
+import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Screenshot
+import androidx.compose.material.icons.outlined.SdStorage
+import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.SettingsInputAntenna
+import androidx.compose.material.icons.outlined.SimCard
+import androidx.compose.material.icons.outlined.SignalCellularAlt
+import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.InfoCategory
@@ -29,6 +65,7 @@ fun categoryIcon(category: InfoCategory): ImageVector {
  */
 fun itemIconByResId(keyResId: Int): ImageVector {
     return when (keyResId) {
+        R.string.device_android_id -> Icons.Outlined.Fingerprint
         R.string.device_serial -> Icons.Outlined.Fingerprint
         R.string.device_brand -> Icons.Outlined.Badge
         R.string.device_manufacturer -> Icons.Outlined.PrecisionManufacturing
