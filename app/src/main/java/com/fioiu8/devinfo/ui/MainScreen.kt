@@ -447,9 +447,13 @@ fun MainScreen(
             } catch (_: CancellationException) {
                 if (dismissAbout) {
                     // 手势取消（用户滑回）→ 动画回到原位
-                    aboutOffsetX.animateTo(0f, animationSpec = tween(200))
+                    scope.launch {
+                        aboutOffsetX.animateTo(0f, animationSpec = tween(200))
+                    }
                 } else if (dismissDetails) {
-                    detailOffsetX.animateTo(0f, animationSpec = tween(200))
+                    scope.launch {
+                        detailOffsetX.animateTo(0f, animationSpec = tween(200))
+                    }
                 }
             }
         }
