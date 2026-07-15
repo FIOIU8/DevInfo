@@ -153,7 +153,10 @@ fun DeviceInfoOverviewPage(
 private fun buildOverviewMetrics(
     snapshot: OverviewSnapshot
 ): List<OverviewMetric> = buildList {
-    if (snapshot.cpuCoreMetrics.isNotEmpty()) {
+    val availableCoreMetrics = snapshot.cpuCoreMetrics.filter {
+        it.frequency != null || it.usagePercent != null
+    }
+    if (availableCoreMetrics.isNotEmpty()) {
         add(
             OverviewMetric(
                 title = "CPU",
@@ -161,7 +164,7 @@ private fun buildOverviewMetrics(
                 icon = itemIconByResId(R.string.system_cpu_arch),
                 size = OverviewCardSize.LARGE,
                 supportingText = snapshot.cpuFrequency?.let { stringResourceValue(R.string.overview_cpu_frequency) + ": $it" },
-                coreMetrics = snapshot.cpuCoreMetrics
+                coreMetrics = availableCoreMetrics
             )
         )
     } else {
@@ -320,21 +323,23 @@ private fun CoreMetricItem(metric: CpuCoreMetric, modifier: Modifier = Modifier)
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(44.dp)) {
-            CircularProgressIndicator(
-                progress = { animatedUsage / 100f },
-                modifier = Modifier.fillMaxSize(),
-                strokeWidth = 5.dp,
-                color = coreUsageColor(animatedUsage),
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-            Text(
-                text = usage?.let { "${animatedUsage.toInt()}%" } ?: "-",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold
-            )
+        if (usage != null) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(44.dp)) {
+                CircularProgressIndicator(
+                    progress = { animatedUsage / 100f },
+                    modifier = Modifier.fillMaxSize(),
+                    strokeWidth = 5.dp,
+                    color = coreUsageColor(animatedUsage),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+                Text(
+                    text = "${animatedUsage.toInt()}%",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(Modifier.width(8.dp))
         }
-        Spacer(Modifier.width(8.dp))
         Column {
             Text("CPU${metric.index}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
             metric.frequency?.let {

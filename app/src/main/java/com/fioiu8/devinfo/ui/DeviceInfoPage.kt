@@ -103,8 +103,8 @@ fun DeviceInfoPage(
     var currentPage by remember(selectedCategoryIndex) { mutableIntStateOf(0) }
     val pullToRefreshState = rememberPullToRefreshState()
 
-    val storagePercent = overviewSnapshot.storagePercent ?: 0f
-    val memoryPercent = overviewSnapshot.memoryPercent ?: 0f
+    val storagePercent = overviewSnapshot.storagePercent
+    val memoryPercent = overviewSnapshot.memoryPercent
 
     LaunchedEffect(isRefreshing) {
         if (isRefreshing) {
@@ -340,8 +340,8 @@ private fun CategoryCard(
     totalPages: Int,
     onPageChange: (Int) -> Unit,
     onItemCopy: (ItemWithVisibility) -> Unit,
-    storagePercent: Float = 0f,
-    memoryPercent: Float = 0f,
+    storagePercent: Float? = null,
+    memoryPercent: Float? = null,
     batteryLevel: Int? = null,
     batteryCharging: Boolean = false
 ) {
@@ -407,7 +407,7 @@ private fun CategoryCard(
 
             // ── Progress bars for STORAGE & BATTERY ──
             when (category) {
-                InfoCategory.STORAGE -> {
+                InfoCategory.STORAGE -> if (storagePercent != null || memoryPercent != null) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -549,69 +549,71 @@ private fun PageNavigationRow(
 // ── Storage Progress Section ──
 /** 存储与内存使用百分比进度条 */
 @Composable
-private fun StorageProgressSection(storagePct: Float, memoryPct: Float) {
-    val animatedStoragePct by animateFloatAsState(storagePct.coerceIn(0f, 100f), tween(700), label = "storageProgress")
-    val animatedMemoryPct by animateFloatAsState(memoryPct.coerceIn(0f, 100f), tween(700), label = "memoryProgress")
+private fun StorageProgressSection(storagePct: Float?, memoryPct: Float?) {
+    val animatedStoragePct by animateFloatAsState(storagePct?.coerceIn(0f, 100f) ?: 0f, tween(700), label = "storageProgress")
+    val animatedMemoryPct by animateFloatAsState(memoryPct?.coerceIn(0f, 100f) ?: 0f, tween(700), label = "memoryProgress")
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        // 存储使用进度条
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = stringResource(com.fioiu8.devinfo.R.string.overview_storage),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "%.1f%%".format(animatedStoragePct),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = progressColor(animatedStoragePct)
+        storagePct?.let {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = stringResource(com.fioiu8.devinfo.R.string.overview_storage),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "%.1f%%".format(animatedStoragePct),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = progressColor(animatedStoragePct)
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = { animatedStoragePct / 100f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp),
+                    color = progressColor(animatedStoragePct),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    strokeCap = StrokeCap.Round,
                 )
             }
-            Spacer(modifier = Modifier.height(6.dp))
-            LinearProgressIndicator(
-                progress = { animatedStoragePct / 100f },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp),
-                color = progressColor(animatedStoragePct),
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                strokeCap = StrokeCap.Round,
-            )
         }
-        // 内存使用进度条
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = stringResource(com.fioiu8.devinfo.R.string.overview_memory),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "%.1f%%".format(animatedMemoryPct),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = progressColor(animatedMemoryPct)
+        memoryPct?.let {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = stringResource(com.fioiu8.devinfo.R.string.overview_memory),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "%.1f%%".format(animatedMemoryPct),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = progressColor(animatedMemoryPct)
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = { animatedMemoryPct / 100f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp),
+                    color = progressColor(animatedMemoryPct),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    strokeCap = StrokeCap.Round,
                 )
             }
-            Spacer(modifier = Modifier.height(6.dp))
-            LinearProgressIndicator(
-                progress = { animatedMemoryPct / 100f },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp),
-                color = progressColor(animatedMemoryPct),
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                strokeCap = StrokeCap.Round,
-            )
         }
     }
 }
