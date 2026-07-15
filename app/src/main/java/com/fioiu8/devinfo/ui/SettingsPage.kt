@@ -152,7 +152,11 @@ fun SettingsPage(
                 MountColorPreferenceCard(
                     icon = Icons.Outlined.Palette,
                     title = stringResource(R.string.theme_color),
-                    summary = if (useMountTheme) "已启用自定义颜色" else "选择应用的主题颜色",
+                    summary = if (useMountTheme) {
+                        stringResource(R.string.theme_color_enabled)
+                    } else {
+                        stringResource(R.string.theme_color_select)
+                    },
                     colors = mountColorOptions,
                     selectedIndex = selectedMountColorIndex,
                     onSelectedIndexChange = onMountColorChange
