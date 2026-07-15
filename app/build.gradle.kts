@@ -100,6 +100,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    // LoadingIndicator is part of the Material 3 expressive alpha API.
+    implementation("androidx.compose.material3:material3:1.5.0-alpha23")
     implementation("androidx.compose.material:material-icons-extended")
 
     implementation("androidx.core:core-splashscreen:1.0.1")

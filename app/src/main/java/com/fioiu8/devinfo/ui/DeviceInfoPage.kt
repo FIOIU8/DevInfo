@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -40,6 +41,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.Icons
@@ -81,7 +84,7 @@ private const val ITEMS_PER_PAGE = 8
  * @param isLoading 是否正在首次加载
  * @param onRefresh 下拉刷新回调
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DeviceInfoPage(
     deviceId: String,
@@ -102,6 +105,7 @@ fun DeviceInfoPage(
     var selectedCategoryIndex by remember { mutableIntStateOf(0) }
     var previousCategoryIndex by remember { mutableIntStateOf(0) }
     var currentPage by remember(selectedCategoryIndex) { mutableIntStateOf(0) }
+    val pullToRefreshState = rememberPullToRefreshState()
     val categories = InfoCategory.entries
 
     // Read these on recomposition so a refresh reflects the current device state.
@@ -125,6 +129,14 @@ fun DeviceInfoPage(
         PullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = { isRefreshing = true },
+            state = pullToRefreshState,
+            indicator = {
+                PullToRefreshDefaults.LoadingIndicator(
+                    state = pullToRefreshState,
+                    isRefreshing = isRefreshing,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+            },
             modifier = Modifier.fillMaxSize()
         ) {
             LazyColumn(
