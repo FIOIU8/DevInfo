@@ -3,6 +3,8 @@
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -59,13 +61,14 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.BatteryObserver
 import com.fioiu8.devinfo.DeviceInfoCollector
+import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ItemWithVisibility
-import kotlinx.coroutines.delay
 
 /** 分类卡片每页显示的最大条目数 */
 private const val ITEMS_PER_PAGE = 8
@@ -84,7 +87,7 @@ fun DeviceInfoPage(
     deviceId: String,
     itemsState: List<ItemWithVisibility>,
     isLoading: Boolean,
-    onRefresh: () -> Unit
+    onRefresh: suspend () -> Unit
 ) {
     val ctx = LocalContext.current
     val resources = LocalResources.current
@@ -108,12 +111,11 @@ fun DeviceInfoPage(
     LaunchedEffect(isRefreshing) {
         if (isRefreshing) {
             onRefresh()
-            delay(500)
             isRefreshing = false
         }
     }
 
-    if (isLoading) {
+    if (isLoading && itemsState.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
@@ -134,6 +136,17 @@ fun DeviceInfoPage(
                     top = 12.dp, bottom = 12.dp, start = 0.dp, end = 0.dp
                 )
             ) {
+                item {
+                    OverviewCard(
+                        items = itemsState,
+                        storagePercent = storagePercent,
+                        memoryPercent = memoryPercent,
+                        batteryLevel = batteryState.level,
+                        batteryCharging = batteryState.isCharging,
+                        isLoading = isLoading
+                    )
+                }
+
                 // Category Tab Row
                 item {
                     CategoryTabRow(
@@ -163,11 +176,13 @@ fun DeviceInfoPage(
                         },
                         label = "categoryPageSwitch"
                     ) { (category, page) ->
+                        val visibleCategoryItems = itemsState.filter { it.item.category == category }
+                        val visibleTotalPages = ((visibleCategoryItems.size + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE).coerceAtLeast(1)
                         CategoryCard(
                             category = category,
-                            items = categoryItems,
+                            items = visibleCategoryItems,
                             currentPage = page,
-                            totalPages = totalPages,
+                            totalPages = visibleTotalPages,
                             onPageChange = { currentPage = it },
                             onItemCopy = { item ->
                                 clipboardManager.setText(AnnotatedString(item.item.value))
@@ -194,6 +209,107 @@ fun DeviceInfoPage(
         }
     }
 }
+
+@Composable
+private fun OverviewCard(
+    items: List<ItemWithVisibility>,
+    storagePercent: Float,
+    memoryPercent: Float,
+    batteryLevel: Int,
+    batteryCharging: Boolean,
+    isLoading: Boolean
+) {
+    val manufacturer = items.valueFor(R.string.device_manufacturer)
+    val model = items.valueFor(R.string.device_model)
+    val deviceName = listOfNotNull(manufacturer, model).joinToString(" ")
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f))
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = categoryIcon(InfoCategory.DEVICE),
+                    contentDescription = null,
+                    modifier = Modifier.size(30.dp),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.overview_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = deviceName.ifBlank { stringResource(R.string.overview_loading) },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            OverviewMetric(stringResource(R.string.overview_storage), storagePercent, progressColor(storagePercent))
+            Spacer(modifier = Modifier.height(10.dp))
+            OverviewMetric(stringResource(R.string.overview_memory), memoryPercent, progressColor(memoryPercent))
+            Spacer(modifier = Modifier.height(10.dp))
+            OverviewMetric(stringResource(R.string.overview_battery), batteryLevel.toFloat(), batteryColor(batteryLevel), batteryCharging)
+        }
+    }
+}
+
+@Composable
+private fun OverviewMetric(
+    label: String,
+    percent: Float,
+    color: Color,
+    charging: Boolean = false
+) {
+    val animatedPercent by animateFloatAsState(
+        targetValue = percent.coerceIn(0f, 100f),
+        animationSpec = tween(700),
+        label = "overviewProgress"
+    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.width(76.dp)
+        )
+        LinearProgressIndicator(
+            progress = { animatedPercent / 100f },
+            modifier = Modifier
+                .weight(1f)
+                .height(7.dp),
+            color = color,
+            trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.16f)
+        )
+        Text(
+            text = if (charging) "${animatedPercent.toInt()}%" else "${animatedPercent.toInt()}%",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.width(48.dp),
+            textAlign = TextAlign.End
+        )
+    }
+}
+
+private fun List<ItemWithVisibility>.valueFor(keyResId: Int): String? =
+    firstOrNull { it.item.keyResId == keyResId }?.item?.value
 
 // ── Category Tab Row ──
 /** 水平滚动的分类标签行 */
@@ -342,10 +458,11 @@ private fun CategoryCard(
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                pagedItems.forEach { item ->
+                pagedItems.forEachIndexed { index, item ->
                     AnimatedVisibility(
                         visible = item.visible.value,
-                        enter = fadeIn() + slideInHorizontally()
+                        enter = fadeIn(tween(220, delayMillis = index * 40)) +
+                            slideInHorizontally(tween(220, delayMillis = index * 40))
                     ) {
                         Row(
                             modifier = Modifier
@@ -365,6 +482,15 @@ private fun CategoryCard(
                         }
                     }
                 }
+            }
+
+            if (pagedItems.isEmpty()) {
+                Text(
+                    text = stringResource(com.fioiu8.devinfo.R.string.no_data),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                )
             }
 
             // Page navigation
@@ -442,6 +568,8 @@ private fun PageNavigationRow(
 /** 存储与内存使用百分比进度条 */
 @Composable
 private fun StorageProgressSection(storagePct: Float, memoryPct: Float) {
+    val animatedStoragePct by animateFloatAsState(storagePct.coerceIn(0f, 100f), tween(700), label = "storageProgress")
+    val animatedMemoryPct by animateFloatAsState(memoryPct.coerceIn(0f, 100f), tween(700), label = "memoryProgress")
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         // 存储使用进度条
         Column {
@@ -450,25 +578,25 @@ private fun StorageProgressSection(storagePct: Float, memoryPct: Float) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "存储使用",
+                    text = stringResource(com.fioiu8.devinfo.R.string.overview_storage),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "%.1f%%".format(storagePct),
+                    text = "%.1f%%".format(animatedStoragePct),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = progressColor(storagePct)
+                    color = progressColor(animatedStoragePct)
                 )
             }
             Spacer(modifier = Modifier.height(6.dp))
             LinearProgressIndicator(
-                progress = { storagePct / 100f },
+                progress = { animatedStoragePct / 100f },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp),
-                color = progressColor(storagePct),
+                color = progressColor(animatedStoragePct),
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 strokeCap = StrokeCap.Round,
             )
@@ -480,25 +608,25 @@ private fun StorageProgressSection(storagePct: Float, memoryPct: Float) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "内存使用",
+                    text = stringResource(com.fioiu8.devinfo.R.string.overview_memory),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "%.1f%%".format(memoryPct),
+                    text = "%.1f%%".format(animatedMemoryPct),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = progressColor(memoryPct)
+                    color = progressColor(animatedMemoryPct)
                 )
             }
             Spacer(modifier = Modifier.height(6.dp))
             LinearProgressIndicator(
-                progress = { memoryPct / 100f },
+                progress = { animatedMemoryPct / 100f },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp),
-                color = progressColor(memoryPct),
+                color = progressColor(animatedMemoryPct),
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 strokeCap = StrokeCap.Round,
             )
@@ -510,6 +638,7 @@ private fun StorageProgressSection(storagePct: Float, memoryPct: Float) {
 /** 电池电量进度条 */
 @Composable
 private fun BatteryProgressSection(level: Int, isCharging: Boolean) {
+    val animatedLevel by animateFloatAsState(level.coerceIn(0, 100).toFloat(), tween(700), label = "batteryProgress")
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -517,25 +646,26 @@ private fun BatteryProgressSection(level: Int, isCharging: Boolean) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = if (isCharging) "电池电量（充电中）" else "电池电量",
+                text = stringResource(com.fioiu8.devinfo.R.string.overview_battery) +
+                    if (isCharging) " (${stringResource(com.fioiu8.devinfo.R.string.status_charging)})" else "",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "$level%",
+                text = "${animatedLevel.toInt()}%",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = batteryColor(level)
+                color = batteryColor(animatedLevel.toInt())
             )
         }
         Spacer(modifier = Modifier.height(6.dp))
         LinearProgressIndicator(
-            progress = { level / 100f },
+            progress = { animatedLevel / 100f },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(8.dp),
-            color = batteryColor(level),
+            color = batteryColor(animatedLevel.toInt()),
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
             strokeCap = StrokeCap.Round,
         )

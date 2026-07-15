@@ -1,6 +1,8 @@
 ﻿package com.fioiu8.devinfo.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -37,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -137,10 +141,9 @@ fun SettingsPage(
         item { CategoryHeader(title = stringResource(R.string.category_appearance)) }
 
         item {
-            DropdownPreferenceCard(
+            ThemeModeSegmentedCard(
                 icon = Icons.Outlined.DarkMode,
                 title = stringResource(R.string.theme_mode),
-                summary = themeOptions[ThemeMode.entries.indexOf(themeMode)],
                 items = themeOptions,
                 selectedIndex = ThemeMode.entries.indexOf(themeMode),
                 onSelectedIndexChange = onThemeChange
@@ -249,6 +252,90 @@ fun SettingsPage(
 }
 
 // ── Reusable MD3 Preference Components ──
+
+/** Compact segmented selector with a theme-independent outline. */
+@Composable
+private fun ThemeModeSegmentedCard(
+    icon: ImageVector,
+    title: String,
+    items: List<String>,
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = items.getOrNull(selectedIndex).orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.outline,
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                    .horizontalScroll(rememberScrollState())
+                    .padding(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                items.forEachIndexed { index, item ->
+                    Surface(
+                        modifier = Modifier
+                            .height(34.dp)
+                            .clickable { onSelectedIndexChange(index) },
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (selectedIndex == index) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surface
+                        }
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(horizontal = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = item,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (selectedIndex == index) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 /** 点击后触发操作的首选项卡片 */
 @Composable

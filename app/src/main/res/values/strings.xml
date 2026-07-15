@@ -152,6 +152,11 @@
     <string name="view_homepage">查看 %s 的主页</string>
 
     <!-- Device info page -->
+    <string name="overview_title">设备概览</string>
+    <string name="overview_loading">正在读取设备信息</string>
+    <string name="overview_storage">存储使用</string>
+    <string name="overview_memory">内存使用</string>
+    <string name="overview_battery">电池电量</string>
     <string name="storage_usage">存储使用</string>
     <string name="memory_usage">内存使用</string>
     <string name="battery_level_charging">电池电量（充电中）</string>
@@ -197,12 +202,19 @@
     <string name="system_android_version">Android版本</string>
     <string name="system_security_patch">安全补丁</string>
     <string name="system_baseband">基带版本</string>
+    <string name="system_uptime">运行时间</string>
+    <string name="system_kernel">内核版本</string>
+    <string name="system_abis_32">32 位 ABI</string>
+    <string name="system_abis_64">64 位 ABI</string>
+    <string name="system_features">设备特性</string>
     <string name="locale_language">语言</string>
     <string name="locale_country">国家</string>
     <string name="locale_timezone">时区</string>
     <string name="display_dpi">屏幕DPI</string>
+    <string name="display_density">屏幕密度</string>
     <string name="display_width">屏幕宽度</string>
     <string name="display_height">屏幕高度</string>
+    <string name="display_size">屏幕 dp 尺寸</string>
     <string name="display_refresh_rate">刷新率</string>
     <string name="display_font_scale">字体缩放</string>
     <string name="storage_total_ram">总内存</string>
@@ -211,6 +223,10 @@
     <string name="storage_available">可用存储</string>
     <string name="battery_level_label">电池电量</string>
     <string name="battery_charging_state">充电状态</string>
+    <string name="battery_temperature">电池温度</string>
+    <string name="battery_health">电池健康</string>
+    <string name="battery_voltage">电池电压</string>
+    <string name="battery_technology">电池技术</string>
     <string name="network_nfc">NFC功能</string>
     <string name="network_camera_count">摄像头数量</string>
     <string name="network_bluetooth_state">蓝牙状态</string>
@@ -227,6 +243,12 @@
 
     <!-- Status strings from collector -->
     <string name="status_charging">充电中</string>
+    <string name="status_health_good">良好</string>
+    <string name="status_health_overheat">过热</string>
+    <string name="status_health_dead">故障</string>
+    <string name="status_health_over_voltage">过压</string>
+    <string name="status_health_failure">未知故障</string>
+    <string name="status_health_cold">过冷</string>
     <string name="status_not_charging">未充电</string>
     <string name="status_supported">支持</string>
     <string name="status_not_supported">不支持</string>

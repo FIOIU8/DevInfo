@@ -85,17 +85,27 @@ fun itemIconByResId(keyResId: Int): ImageVector {
         R.string.system_android_version -> Icons.Outlined.Android
         R.string.system_security_patch -> Icons.Outlined.Security
         R.string.system_baseband -> Icons.Outlined.SettingsInputAntenna
+        R.string.system_uptime -> Icons.Outlined.Schedule
+        R.string.system_kernel -> Icons.Outlined.Build
+        R.string.system_abis_32, R.string.system_abis_64 -> Icons.Outlined.Api
+        R.string.system_features -> Icons.Outlined.Devices
         R.string.locale_language -> Icons.Outlined.Language
         R.string.locale_country -> Icons.Outlined.Public
         R.string.locale_timezone -> Icons.Outlined.Schedule
         R.string.display_dpi -> Icons.Outlined.GridOn
+        R.string.display_density -> Icons.Outlined.GridOn
         R.string.display_width, R.string.display_height -> Icons.Outlined.AspectRatio
+        R.string.display_size -> Icons.Outlined.AspectRatio
         R.string.display_refresh_rate -> Icons.Outlined.Refresh
         R.string.display_font_scale -> Icons.Outlined.FormatSize
         R.string.storage_total_ram, R.string.storage_available_ram -> Icons.Outlined.Memory
         R.string.storage_total, R.string.storage_available -> Icons.Outlined.Storage
         R.string.battery_level_label -> Icons.Outlined.BatteryStd
         R.string.battery_charging_state -> Icons.Outlined.Bolt
+        R.string.battery_temperature -> Icons.Outlined.BatteryStd
+        R.string.battery_health -> Icons.Outlined.Security
+        R.string.battery_voltage -> Icons.Outlined.Bolt
+        R.string.battery_technology -> Icons.Outlined.BatteryStd
         R.string.network_nfc -> Icons.Outlined.Nfc
         R.string.network_camera_count -> Icons.Outlined.CameraAlt
         R.string.network_bluetooth_state -> Icons.Outlined.Bluetooth
