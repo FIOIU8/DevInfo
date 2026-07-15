@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -37,12 +38,18 @@ class BatteryObserver(context: Context) {
             }
         }
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        appContext.registerReceiver(receiver, filter)
+        // Battery updates are sent by the system, so the receiver must be exported.
+        ContextCompat.registerReceiver(
+            appContext,
+            receiver,
+            filter,
+            ContextCompat.RECEIVER_EXPORTED
+        )
 
         // 立即发送一次当前值（sticky broadcast 在 registerReceiver 时就能拿到）
         // 但 callbackFlow 需要 emit；registerReceiver 的回调在 register 时就会触发 sticky intent
         // 所以不需要手动 emit
 
-        awaitClose { appContext.unregisterReceiver(receiver) }
+        awaitClose { runCatching { appContext.unregisterReceiver(receiver) } }
     }.distinctUntilChanged()
 }

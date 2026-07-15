@@ -7,8 +7,7 @@ import java.util.UUID
 
 class DeviceIdManager(private val context: Context) {
 
-    private val prefs: SharedPreferences = context.getSharedPreferences("device_prefs", Context.MODE_PRIVATE)
-    private val KEY_DEVICE_ID = "device_unique_id"
+    private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     /**
      * 获取或创建设备唯一标识
@@ -28,7 +27,7 @@ class DeviceIdManager(private val context: Context) {
         }
 
         // 3. 如果 ANDROID_ID 有效且不是已知的无效值，则使用它
-        val deviceId = if (!androidId.isNullOrEmpty() && androidId != "9774d56d682e549c") {
+        val deviceId = if (!androidId.isNullOrEmpty() && androidId != INVALID_ANDROID_ID) {
             androidId
         } else {
             // 4. 否则生成一个 UUID 作为备选
@@ -61,5 +60,11 @@ class DeviceIdManager(private val context: Context) {
      */
     fun resetDeviceId() {
         prefs.edit().remove(KEY_DEVICE_ID).apply()
+    }
+
+    private companion object {
+        const val PREFS_NAME = "device_prefs"
+        const val KEY_DEVICE_ID = "device_unique_id"
+        const val INVALID_ANDROID_ID = "9774d56d682e549c"
     }
 }
