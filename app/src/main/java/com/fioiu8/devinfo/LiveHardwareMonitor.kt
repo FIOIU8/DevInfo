@@ -1,0 +1,138 @@
+package com.fioiu8.devinfo
+
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.net.wifi.WifiManager
+import android.os.SystemClock
+import android.provider.Settings
+import java.io.File
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
+
+data class LiveHardwareSnapshot(
+    val motionAvailable: Boolean = false,
+    val moving: Boolean = false,
+    val brightnessPercent: Int? = null,
+    val storageReadSpeedMbps: Int? = null,
+    val storageAverageReadSpeedMbps: Int? = null,
+    val wifiRssiDbm: Int? = null
+)
+
+/** Collects short-lived hardware signals while the overview is visible. */
+class LiveHardwareMonitor(context: Context) : SensorEventListener {
+    private val appContext = context.applicationContext
+    private val sensorManager = appContext.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+    private val motionSensors = listOfNotNull(
+        sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
+        sensorManager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
+    )
+    private val wifiManager = appContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+
+    @Volatile
+    private var movingUntil = 0L
+    private var lastSectorsRead: Long? = null
+    private var lastStorageSampleAt = 0L
+    private val recentReadSpeeds = ArrayDeque<Int>()
+
+    fun start() {
+        motionSensors.forEach { sensor ->
+            sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL)
+        }
+    }
+
+    fun stop() {
+        sensorManager?.unregisterListener(this)
+    }
+
+    @Synchronized
+    fun snapshot(): LiveHardwareSnapshot {
+        val (instantSpeed, averageSpeed) = readStorageSpeed()
+        return LiveHardwareSnapshot(
+            motionAvailable = motionSensors.isNotEmpty(),
+            moving = SystemClock.elapsedRealtime() < movingUntil,
+            brightnessPercent = readBrightnessPercent(),
+            storageReadSpeedMbps = instantSpeed,
+            storageAverageReadSpeedMbps = averageSpeed,
+            wifiRssiDbm = readWifiRssi()
+        )
+    }
+
+    override fun onSensorChanged(event: SensorEvent) {
+        val magnitude = sqrt(
+            event.values[0] * event.values[0] +
+                event.values[1] * event.values[1] +
+                event.values[2] * event.values[2]
+        )
+        val motionThreshold = if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) 1.25f else 0.35f
+        if ((event.sensor.type == Sensor.TYPE_ACCELEROMETER && kotlin.math.abs(magnitude - SensorManager.GRAVITY_EARTH) > motionThreshold) ||
+            (event.sensor.type == Sensor.TYPE_GYROSCOPE && magnitude > motionThreshold)
+        ) {
+            movingUntil = SystemClock.elapsedRealtime() + MOTION_HOLD_MS
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+
+    private fun readBrightnessPercent(): Int? = runCatching {
+        val raw = Settings.System.getInt(
+            appContext.contentResolver,
+            Settings.System.SCREEN_BRIGHTNESS,
+            -1
+        )
+        raw.takeIf { it >= 0 }?.let { (it / 255f * 100f).roundToInt().coerceIn(0, 100) }
+    }.getOrNull()
+
+    @Suppress("DEPRECATION")
+    private fun readWifiRssi(): Int? = runCatching {
+        wifiManager?.connectionInfo?.rssi?.takeIf { it in -126..0 }
+    }.getOrNull()
+
+    private fun readStorageSpeed(): Pair<Int?, Int?> {
+        val now = SystemClock.elapsedRealtime()
+        val sectors = readSectors()
+        if (sectors == null || lastSectorsRead == null || lastStorageSampleAt == 0L) {
+            lastSectorsRead = sectors
+            lastStorageSampleAt = now
+            return null to recentReadSpeeds.averageOrNull()
+        }
+
+        val elapsed = now - lastStorageSampleAt
+        val delta = sectors - lastSectorsRead!!
+        lastSectorsRead = sectors
+        lastStorageSampleAt = now
+        if (elapsed <= 0L || delta < 0L) return null to recentReadSpeeds.averageOrNull()
+
+        val speed = (delta.toDouble() * 512 * 1_000 / elapsed / (1024 * 1024))
+            .roundToInt()
+            .coerceIn(0, 10_000)
+        recentReadSpeeds.addLast(speed)
+        while (recentReadSpeeds.size > 5) recentReadSpeeds.removeFirst()
+        return speed to recentReadSpeeds.averageOrNull()
+    }
+
+    private fun readSectors(): Long? = runCatching {
+        File("/proc/diskstats").takeIf { it.isFile && it.canRead() }?.useLines { lines ->
+            val stats = lines.mapNotNull { line ->
+                val fields = line.trim().split(Regex("\\s+"))
+                val device = fields.getOrNull(2) ?: return@mapNotNull null
+                val sectors = fields.getOrNull(5)?.toLongOrNull() ?: return@mapNotNull null
+                device to sectors
+            }.toList()
+            val logical = stats.filter { it.first.matches(LOGICAL_DEVICE_PATTERN) }
+            val physical = stats.filter { it.first.matches(PHYSICAL_DEVICE_PATTERN) }
+            val selected = logical.takeIf { entries -> entries.any { it.second > 0L } } ?: physical
+            selected.sumOf { it.second }
+        }
+    }.getOrNull()
+
+    private fun ArrayDeque<Int>.averageOrNull(): Int? = takeIf { it.isNotEmpty() }?.average()?.roundToInt()
+
+    private companion object {
+        const val MOTION_HOLD_MS = 1_500L
+        val LOGICAL_DEVICE_PATTERN = Regex("^dm-\\d+$")
+        val PHYSICAL_DEVICE_PATTERN = Regex("^(mmcblk\\d+|nvme\\d+n\\d+|sd[a-z]+)$")
+    }
+}

@@ -1,6 +1,7 @@
 ﻿package com.fioiu8.devinfo
 
 import android.app.ActivityManager
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -34,6 +35,12 @@ data class CpuCoreMetric(
     val index: Int,
     val frequency: String?,
     val usagePercent: Float?
+)
+
+data class SecuritySnapshot(
+    val securityPatch: String?,
+    val lockScreenEnabled: Boolean?,
+    val usbDebuggingEnabled: Boolean?
 )
 
 class DeviceInfoCollector(private val context: Context) {
@@ -209,6 +216,16 @@ class DeviceInfoCollector(private val context: Context) {
             null
         }
     }
+
+    fun getSecuritySnapshot(): SecuritySnapshot = SecuritySnapshot(
+        securityPatch = runCatching { Build.VERSION.SECURITY_PATCH.takeIf { it.isNotBlank() } }.getOrNull(),
+        lockScreenEnabled = runCatching {
+            (context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager)?.isKeyguardSecure
+        }.getOrNull(),
+        usbDebuggingEnabled = runCatching {
+            Settings.Global.getInt(context.contentResolver, Settings.Global.ADB_ENABLED) == 1
+        }.getOrNull()
+    )
 
     fun getCpuFrequency(): String? = readFrequency(
         "/sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq",

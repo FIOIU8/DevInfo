@@ -177,6 +177,30 @@
     <string name="copied_to_clipboard">%s 已复制</string>
     <string name="storage_usage_desc">存储与内存使用百分比进度条</string>
     <string name="battery_desc">电池电量进度条</string>
+    <string name="overview_realtime_title">实时动态</string>
+    <string name="overview_realtime_cpu">CPU 波形 · 2 秒采样</string>
+    <string name="overview_cpu_cores_detail">每核心占用</string>
+    <string name="overview_hardware_title">硬件传感器</string>
+    <string name="overview_motion">陀螺仪 / 加速度计</string>
+    <string name="overview_brightness">屏幕亮度</string>
+    <string name="overview_storage_read">实时读速</string>
+    <string name="overview_storage_average">平均读速：%d MB/s</string>
+    <string name="overview_storage_average_unknown">平均读速：采样中</string>
+    <string name="overview_wifi_signal">Wi-Fi 信号</string>
+    <string name="status_stationary">静止</string>
+    <string name="status_moving">运动中</string>
+    <string name="status_unavailable">不可用</string>
+    <string name="overview_security_title">系统安全与隐私</string>
+    <string name="security_patch_updated">安全补丁已更新（%s）</string>
+    <string name="security_lock_enabled">锁屏密码：已启用</string>
+    <string name="security_lock_disabled">锁屏密码：未启用</string>
+    <string name="security_lock_unknown">锁屏密码：状态未知</string>
+    <string name="security_usb_enabled">USB 调试：已开启</string>
+    <string name="security_usb_disabled">USB 调试：已关闭</string>
+    <string name="security_usb_unknown">USB 调试：状态未知</string>
+    <string name="security_usb_dialog_title">USB 调试已开启</string>
+    <string name="security_usb_dialog_text">USB 调试开启时，连接电脑可执行调试命令。如非开发需要，建议关闭。</string>
+    <string name="security_open_developer_options">打开开发者选项</string>
 
     <!-- Tool settings -->
     <string name="export_tool">导出模块</string>

@@ -1,5 +1,8 @@
 package com.fioiu8.devinfo.ui
 
+import android.content.Intent
+import android.provider.Settings
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,14 +20,24 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.OpenInBrowser
+import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Wifi
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
@@ -40,17 +53,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.CpuCoreMetric
+import com.fioiu8.devinfo.LiveHardwareSnapshot
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ItemWithVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import java.util.Locale
+import kotlin.math.roundToInt
 
 private enum class OverviewCardSize(val span: Int) {
     SMALL(1),
@@ -66,7 +82,17 @@ data class OverviewSnapshot(
     val storagePercent: Float? = null,
     val memoryPercent: Float? = null,
     val batteryLevel: Int? = null,
-    val batteryCharging: Boolean = false
+    val batteryCharging: Boolean = false,
+    val cpuUsageHistory: List<CpuUsageSample> = emptyList(),
+    val securityPatch: String? = null,
+    val lockScreenEnabled: Boolean? = null,
+    val usbDebuggingEnabled: Boolean? = null,
+    val hardware: LiveHardwareSnapshot = LiveHardwareSnapshot()
+)
+
+data class CpuUsageSample(
+    val timestampMillis: Long,
+    val valuesByCore: Map<Int, Float>
 )
 
 private data class OverviewMetric(
@@ -77,7 +103,8 @@ private data class OverviewMetric(
     val size: OverviewCardSize,
     val supportingText: String? = null,
     val progress: Float? = null,
-    val coreMetrics: List<CpuCoreMetric> = emptyList()
+    val coreMetrics: List<CpuCoreMetric> = emptyList(),
+    val history: List<CpuUsageSample> = emptyList()
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -144,6 +171,12 @@ fun DeviceInfoOverviewPage(
                         onClick = { onOpenDetails(metric.category) }
                     )
                 }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    HardwareSensorsCard(snapshot.hardware)
+                }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    SecuritySummaryCard(snapshot)
+                }
             }
         }
     }
@@ -153,18 +186,23 @@ fun DeviceInfoOverviewPage(
 private fun buildOverviewMetrics(
     snapshot: OverviewSnapshot
 ): List<OverviewMetric> = buildList {
-    val availableCoreMetrics = snapshot.cpuCoreMetrics.filter {
-        it.frequency != null || it.usagePercent != null
-    }
-    if (availableCoreMetrics.isNotEmpty()) {
+    val availableCoreMetrics = snapshot.cpuCoreMetrics
+    if (availableCoreMetrics.isNotEmpty() || snapshot.cpuUsageHistory.isNotEmpty() || snapshot.cpuUsage != null) {
+        val currentUsage = snapshot.cpuUsage
+            ?: availableCoreMetrics.mapNotNull { it.usagePercent }.average().toFloat().takeIf { !it.isNaN() }
         add(
             OverviewMetric(
-                title = "CPU",
+                title = stringResourceValue(R.string.overview_realtime_title),
+                value = currentUsage?.let(::formatPercent),
                 category = InfoCategory.SYSTEM,
                 icon = itemIconByResId(R.string.system_cpu_arch),
                 size = OverviewCardSize.LARGE,
-                supportingText = snapshot.cpuFrequency?.let { stringResourceValue(R.string.overview_cpu_frequency) + ": $it" },
-                coreMetrics = availableCoreMetrics
+                supportingText = listOfNotNull(
+                    stringResourceValue(R.string.overview_realtime_cpu),
+                    snapshot.cpuFrequency
+                ).joinToString(" · "),
+                coreMetrics = availableCoreMetrics,
+                history = snapshot.cpuUsageHistory
             )
         )
     } else {
@@ -294,64 +332,193 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             }
-            if (metric.coreMetrics.isNotEmpty()) {
-                metric.coreMetrics.chunked(2).forEach { rowMetrics ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        rowMetrics.forEach { core ->
-                            CoreMetricItem(core, Modifier.weight(1f))
-                        }
-                        if (rowMetrics.size == 1) Spacer(Modifier.weight(1f))
+            if (metric.history.isNotEmpty()) {
+                CpuTrendChart(metric.history)
+                CpuTrendLegend(metric)
+            }
+        }
+    }
+}
+
+private fun cpuLineColor(index: Int, coreCount: Int): Color = Color.hsv(
+    (index * 360f / coreCount.coerceAtLeast(1)) % 360f,
+    saturation = 0.72f,
+    value = 0.9f
+)
+
+@Composable
+private fun CpuTrendChart(history: List<CpuUsageSample>) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    Canvas(modifier = Modifier.fillMaxWidth().height(142.dp)) {
+        val left = 4.dp.toPx()
+        val right = size.width - 4.dp.toPx()
+        val top = 8.dp.toPx()
+        val bottom = size.height - 8.dp.toPx()
+        val plotWidth = (right - left).coerceAtLeast(1f)
+        val plotHeight = (bottom - top).coerceAtLeast(1f)
+        listOf(0f, 0.5f, 1f).forEach { fraction ->
+            val y = bottom - plotHeight * fraction
+            drawLine(
+                color = Color.Gray.copy(alpha = 0.18f),
+                start = androidx.compose.ui.geometry.Offset(left, y),
+                end = androidx.compose.ui.geometry.Offset(right, y),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
+        val coreIndexes = history.flatMap { it.valuesByCore.keys }.distinct().sorted()
+        coreIndexes.forEach { coreIndex ->
+            val points = history.mapIndexed { pointIndex, sample ->
+                val x = if (history.size == 1) left + plotWidth / 2 else left + plotWidth * pointIndex / (history.size - 1)
+                val value = sample.valuesByCore[coreIndex]?.coerceIn(0f, 100f) ?: 0f
+                androidx.compose.ui.geometry.Offset(x, bottom - plotHeight * value / 100f)
+            }
+            if (points.isNotEmpty()) {
+                val path = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(points.first().x, points.first().y)
+                    points.drop(1).forEachIndexed { index, point ->
+                        val previous = points[index]
+                        val middleX = (previous.x + point.x) / 2f
+                        cubicTo(middleX, previous.y, middleX, point.y, point.x, point.y)
                     }
                 }
+                drawPath(
+                    path = path,
+                    color = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex, coreIndexes.size),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx())
+                )
             }
         }
     }
 }
 
 @Composable
-private fun CoreMetricItem(metric: CpuCoreMetric, modifier: Modifier = Modifier) {
-    val usage = metric.usagePercent
-    val animatedUsage by animateFloatAsState(
-        targetValue = (usage ?: 0f).coerceIn(0f, 100f),
-        animationSpec = tween(650),
-        label = "cpuCoreUsage"
-    )
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (usage != null) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(44.dp)) {
-                CircularProgressIndicator(
-                    progress = { animatedUsage / 100f },
-                    modifier = Modifier.fillMaxSize(),
-                    strokeWidth = 5.dp,
-                    color = coreUsageColor(animatedUsage),
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+private fun CpuTrendLegend(metric: OverviewMetric) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val currentByCore = metric.coreMetrics.associate { it.index to it.usagePercent }
+    val coreIndexes = metric.history.flatMap { it.valuesByCore.keys }.distinct().sorted()
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        coreIndexes.forEach { core ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Box(Modifier.size(7.dp), contentAlignment = Alignment.Center) {
+                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                        drawCircle(if (core < 0) primaryColor else cpuLineColor(core, coreIndexes.size))
+                    }
+                }
                 Text(
-                    text = "${animatedUsage.toInt()}%",
+                    text = if (core < 0) "CPU" else "C$core${currentByCore[core]?.let { " ${it.roundToInt()}%" } ?: ""}",
                     style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-            Spacer(Modifier.width(8.dp))
-        }
-        Column {
-            Text("CPU${metric.index}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-            metric.frequency?.let {
-                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
 }
 
 @Composable
-private fun coreUsageColor(usage: Float): Color = when {
-    usage < 50f -> Color(0xFF4CAF50)
-    usage < 80f -> Color(0xFFFFA726)
-    else -> Color(0xFFEF5350)
+private fun HardwareSensorsCard(snapshot: LiveHardwareSnapshot) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Refresh, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(10.dp))
+                Text(stringResource(R.string.overview_hardware_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SensorValue(Icons.Outlined.Refresh, stringResource(R.string.overview_motion), when {
+                    !snapshot.motionAvailable -> stringResource(R.string.status_unavailable)
+                    snapshot.moving -> stringResource(R.string.status_moving)
+                    else -> stringResource(R.string.status_stationary)
+                }, Modifier.weight(1f))
+                SensorValue(Icons.Outlined.Brightness6, stringResource(R.string.overview_brightness), snapshot.brightnessPercent?.let { "$it%" } ?: "--", Modifier.weight(1f))
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SensorValue(Icons.Outlined.Storage, stringResource(R.string.overview_storage_read), snapshot.storageReadSpeedMbps?.let { "$it MB/s" } ?: "--", Modifier.weight(1f))
+                SensorValue(Icons.Outlined.Wifi, stringResource(R.string.overview_wifi_signal), snapshot.wifiRssiDbm?.let { "$it dBm" } ?: "--", Modifier.weight(1f))
+            }
+            Text(
+                text = stringResource(R.string.overview_storage_average, snapshot.storageAverageReadSpeedMbps ?: 0).takeIf { snapshot.storageAverageReadSpeedMbps != null } ?: stringResource(R.string.overview_storage_average_unknown),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun SensorValue(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String, modifier: Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Icon(icon, null, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
+        Column {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(value, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun SecuritySummaryCard(snapshot: OverviewSnapshot) {
+    val context = LocalContext.current
+    var showUsbDialog by remember { mutableStateOf(false) }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.CheckCircle, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(10.dp))
+                Text(stringResource(R.string.overview_security_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            SecurityRow(Icons.Outlined.CheckCircle, stringResource(R.string.security_patch_updated, snapshot.securityPatch ?: stringResource(R.string.status_unknown)), MaterialTheme.colorScheme.primary)
+            SecurityRow(Icons.Outlined.Lock, when (snapshot.lockScreenEnabled) {
+                true -> stringResource(R.string.security_lock_enabled)
+                false -> stringResource(R.string.security_lock_disabled)
+                null -> stringResource(R.string.security_lock_unknown)
+            }, MaterialTheme.colorScheme.primary)
+            Card(
+                onClick = { if (snapshot.usbDebuggingEnabled == true) showUsbDialog = true },
+                enabled = snapshot.usbDebuggingEnabled == true,
+                colors = CardDefaults.cardColors(containerColor = if (snapshot.usbDebuggingEnabled == true) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerLow),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                SecurityRow(Icons.Outlined.ErrorOutline, when (snapshot.usbDebuggingEnabled) {
+                    true -> stringResource(R.string.security_usb_enabled)
+                    false -> stringResource(R.string.security_usb_disabled)
+                    null -> stringResource(R.string.security_usb_unknown)
+                }, if (snapshot.usbDebuggingEnabled == true) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant, Modifier.padding(8.dp))
+            }
+        }
+    }
+    if (showUsbDialog) {
+        AlertDialog(
+            onDismissRequest = { showUsbDialog = false },
+            icon = { Icon(Icons.Outlined.ErrorOutline, null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text(stringResource(R.string.security_usb_dialog_title)) },
+            text = { Text(stringResource(R.string.security_usb_dialog_text)) },
+            dismissButton = { TextButton(onClick = { showUsbDialog = false }) { Text(stringResource(R.string.cancel)) } },
+            confirmButton = {
+                TextButton(onClick = {
+                    showUsbDialog = false
+                    runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) }
+                }) {
+                    Icon(Icons.Outlined.OpenInBrowser, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.security_open_developer_options))
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun SecurityRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, color: Color, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(icon, null, Modifier.size(19.dp), tint = color)
+        Text(text, style = MaterialTheme.typography.bodySmall, color = color)
+    }
 }

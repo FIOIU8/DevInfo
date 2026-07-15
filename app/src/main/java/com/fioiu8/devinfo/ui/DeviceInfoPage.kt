@@ -194,7 +194,8 @@ fun DeviceInfoPage(
                             storagePercent = storagePercent,
                             memoryPercent = memoryPercent,
                             batteryLevel = overviewSnapshot.batteryLevel,
-                            batteryCharging = overviewSnapshot.batteryCharging
+                            batteryCharging = overviewSnapshot.batteryCharging,
+                            cpuCoreMetrics = overviewSnapshot.cpuCoreMetrics
                         )
                     }
                 }
@@ -343,7 +344,8 @@ private fun CategoryCard(
     storagePercent: Float? = null,
     memoryPercent: Float? = null,
     batteryLevel: Int? = null,
-    batteryCharging: Boolean = false
+    batteryCharging: Boolean = false,
+    cpuCoreMetrics: List<com.fioiu8.devinfo.CpuCoreMetric> = emptyList()
 ) {
     // 分页切片
     val pagedItems = items.drop(currentPage * ITEMS_PER_PAGE).take(ITEMS_PER_PAGE)
@@ -425,11 +427,22 @@ private fun CategoryCard(
                         BatteryProgressSection(batteryLevel, batteryCharging)
                     }
                 }
+                InfoCategory.SYSTEM -> if (cpuCoreMetrics.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        CpuCoreDetailSection(cpuCoreMetrics)
+                    }
+                }
                 else -> { /* 无进度条 */ }
             }
 
             // Divider between progress and data rows (only for STORAGE/BATTERY)
-            if (category == InfoCategory.STORAGE || category == InfoCategory.BATTERY) {
+            if (category == InfoCategory.STORAGE || category == InfoCategory.BATTERY ||
+                (category == InfoCategory.SYSTEM && cpuCoreMetrics.isNotEmpty())
+            ) {
                 HorizontalDivider(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                     modifier = Modifier.padding(horizontal = 16.dp)
@@ -491,6 +504,52 @@ private fun CategoryCard(
             }
         }
     }
+}
+
+@Composable
+private fun CpuCoreDetailSection(metrics: List<com.fioiu8.devinfo.CpuCoreMetric>) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = stringResource(com.fioiu8.devinfo.R.string.overview_cpu_cores_detail),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+        metrics.chunked(2).forEach { rowMetrics ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                rowMetrics.forEach { metric -> CpuCoreDetailItem(metric, Modifier.weight(1f)) }
+                if (rowMetrics.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CpuCoreDetailItem(metric: com.fioiu8.devinfo.CpuCoreMetric, modifier: Modifier) {
+    val usage = metric.usagePercent
+    val animatedUsage by animateFloatAsState((usage ?: 0f).coerceIn(0f, 100f), tween(650), label = "cpuCoreUsage")
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(44.dp)) {
+            CircularProgressIndicator(
+                progress = { animatedUsage / 100f },
+                modifier = Modifier.fillMaxSize(),
+                strokeWidth = 5.dp,
+                color = coreUsageColor(animatedUsage),
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+            Text(usage?.let { "${animatedUsage.toInt()}%" } ?: "--", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.width(8.dp))
+        Column {
+            Text("CPU${metric.index}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            metric.frequency?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+    }
+}
+
+private fun coreUsageColor(usage: Float): Color = when {
+    usage < 50f -> Color(0xFF4CAF50)
+    usage < 80f -> Color(0xFFFFA726)
+    else -> Color(0xFFEF5350)
 }
 
 // ── Page Navigation Row ──

@@ -178,6 +178,30 @@
     <string name="copied_to_clipboard">%s をコピーしました</string>
     <string name="storage_usage_desc">ストレージとメモリの使用率</string>
     <string name="battery_desc">バッテリー残量</string>
+    <string name="overview_realtime_title">リアルタイム動態</string>
+    <string name="overview_realtime_cpu">CPU 波形 · 2 秒サンプリング</string>
+    <string name="overview_cpu_cores_detail">コア別使用率</string>
+    <string name="overview_hardware_title">ハードウェアセンサー</string>
+    <string name="overview_motion">ジャイロ / 加速度</string>
+    <string name="overview_brightness">画面の明るさ</string>
+    <string name="overview_storage_read">読み取り速度</string>
+    <string name="overview_storage_average">平均読み取り: %d MB/s</string>
+    <string name="overview_storage_average_unknown">平均読み取り: サンプリング中</string>
+    <string name="overview_wifi_signal">Wi-Fi 信号</string>
+    <string name="status_stationary">静止</string>
+    <string name="status_moving">移動中</string>
+    <string name="status_unavailable">利用不可</string>
+    <string name="overview_security_title">システムのセキュリティとプライバシー</string>
+    <string name="security_patch_updated">セキュリティパッチ更新済み（%s）</string>
+    <string name="security_lock_enabled">画面ロック: 有効</string>
+    <string name="security_lock_disabled">画面ロック: 無効</string>
+    <string name="security_lock_unknown">画面ロック: 不明</string>
+    <string name="security_usb_enabled">USB デバッグ: 有効</string>
+    <string name="security_usb_disabled">USB デバッグ: 無効</string>
+    <string name="security_usb_unknown">USB デバッグ: 不明</string>
+    <string name="security_usb_dialog_title">USB デバッグが有効です</string>
+    <string name="security_usb_dialog_text">USB デバッグが有効だと、接続したパソコンからデバッグコマンドを実行できます。開発時以外は無効にすることをおすすめします。</string>
+    <string name="security_open_developer_options">開発者向けオプションを開く</string>
 
     <!-- Tool settings -->
     <string name="export_tool">モジュールをエクスポート</string>
