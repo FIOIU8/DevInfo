@@ -18,6 +18,7 @@ import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.DeviceInfoItem
 import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.ui.itemIconByResId
+import java.io.File
 import java.util.Locale
 import java.util.TimeZone
 
@@ -201,6 +202,64 @@ class DeviceInfoCollector(private val context: Context) {
         } catch (_: Exception) {
             0f
         }
+    }
+
+    fun getCpuFrequency(): String? = readFrequency(
+        "/sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq",
+        "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq",
+        "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
+    )
+
+    fun getGpuFrequency(): String? = readFrequency(
+        "/sys/class/kgsl/kgsl-3d0/gpuclk",
+        "/sys/class/devfreq/1c00000.qcom,kgsl-3d0/cur_freq",
+        "/sys/class/devfreq/mali/cur_freq",
+        "/sys/devices/platform/17000000.gpu/devfreq/17000000.gpu/cur_freq"
+    )
+
+    fun getCpuUsagePercent(): Float? = runCatching {
+        val first = readCpuTimes() ?: return@runCatching null
+        Thread.sleep(180)
+        val second = readCpuTimes() ?: return@runCatching null
+        val totalDelta = second.total - first.total
+        val idleDelta = second.idle - first.idle
+        if (totalDelta <= 0L) null else ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
+    }.getOrNull()
+
+    fun getGpuUsagePercent(): Float? = readFirstLine(
+        "/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage",
+        "/sys/class/devfreq/1c00000.qcom,kgsl-3d0/load",
+        "/sys/class/devfreq/mali/load"
+    )?.trim()?.removeSuffix("%")?.toFloatOrNull()?.coerceIn(0f, 100f)
+
+    private fun readFrequency(vararg paths: String): String? {
+        val raw = readFirstLine(*paths)?.trim()?.toLongOrNull() ?: return null
+        val mhz = when {
+            raw >= 100_000_000L -> raw / 1_000_000f
+            raw >= 1_000L -> raw / 1_000f
+            else -> raw.toFloat()
+        }
+        return if (mhz > 0f) "%.0f MHz".format(Locale.US, mhz) else null
+    }
+
+    private fun readFirstLine(vararg paths: String): String? = paths.firstNotNullOfOrNull { path ->
+        runCatching {
+            File(path).takeIf { it.isFile && it.canRead() }?.useLines { lines -> lines.firstOrNull() }
+        }.getOrNull()?.takeIf { it.isNotBlank() }
+    }
+
+    private data class CpuTimes(val total: Long, val idle: Long)
+
+    private fun readCpuTimes(): CpuTimes? {
+        val fields = readFirstLine("/proc/stat")
+            ?.trim()
+            ?.split(Regex("\\s+"))
+            ?.takeIf { it.firstOrNull() == "cpu" }
+            ?.drop(1)
+            ?.mapNotNull { it.toLongOrNull() }
+            ?: return null
+        if (fields.size < 5) return null
+        return CpuTimes(total = fields.sum(), idle = fields[3] + (fields.getOrNull(4) ?: 0L))
     }
 
     private fun getUptime(): String = safeGet(statusUnknown) {

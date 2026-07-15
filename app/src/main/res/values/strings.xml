@@ -12,6 +12,7 @@
     <string name="nav_info">信息</string>
     <string name="nav_settings">设置</string>
     <string name="title_device_info">设备信息</string>
+    <string name="title_device_details">详细信息</string>
     <string name="title_settings">设置</string>
 
     <!-- Settings categories -->
@@ -161,6 +162,10 @@
     <string name="overview_storage">存储使用</string>
     <string name="overview_memory">内存使用</string>
     <string name="overview_battery">电池电量</string>
+    <string name="overview_cpu_frequency">CPU 频率</string>
+    <string name="overview_cpu_usage">CPU 占用</string>
+    <string name="overview_gpu_frequency">GPU 频率</string>
+    <string name="overview_gpu_usage">GPU 占用</string>
     <string name="storage_usage">存储使用</string>
     <string name="memory_usage">内存使用</string>
     <string name="battery_level_charging">电池电量（充电中）</string>
