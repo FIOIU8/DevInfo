@@ -45,6 +45,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.PredictiveBackHandler
@@ -66,10 +67,10 @@ import com.fioiu8.devinfo.UpdateChecker
 import com.fioiu8.devinfo.UpdateState
 import com.fioiu8.devinfo.model.ItemWithVisibility
 import com.fioiu8.devinfo.model.InfoCategory
-import com.fioiu8.devinfo.model.MountThemeColor
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.AppLanguage
 import com.fioiu8.devinfo.model.ThemeMode
+import com.fioiu8.devinfo.model.ThemeColor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -87,10 +88,6 @@ import kotlin.math.roundToInt
  * @param deviceId 持久化设备唯一标识
  * @param themeMode 当前主题模式
  * @param onThemeModeChange 主题模式变更回调
- * @param mountThemeColor 当前自定义主题色
- * @param onMountThemeColorChange 主题色变更回调
- * @param useMountTheme 是否启用自定义主题色
- * @param onUseMountThemeChange 自定义主题色开关回调
  * @param exportHelper 模块导出工具实例
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,10 +96,8 @@ fun MainScreen(
     deviceId: String,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
-    mountThemeColor: MountThemeColor,
-    onMountThemeColorChange: (MountThemeColor) -> Unit,
-    useMountTheme: Boolean,
-    onUseMountThemeChange: (Boolean) -> Unit,
+    themeColor: ThemeColor,
+    onThemeColorChange: (ThemeColor) -> Unit,
     exportHelper: ModuleExportHelper,
     appLanguage: AppLanguage = AppLanguage.SYSTEM,
     languageOptions: List<String> = emptyList(),
@@ -119,7 +114,7 @@ fun MainScreen(
     val batteryState by batteryObserver.batteryState.collectAsState(initial = null)
     val updateChecker = remember { UpdateChecker(context) }
     val scope = rememberCoroutineScope()
-    var selectedIndex by remember { mutableIntStateOf(0) }
+    var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
     var showDetailsPage by remember { mutableStateOf(false) }
     var detailCategory by remember { mutableStateOf(InfoCategory.DEVICE) }
     val itemsState = remember { mutableStateListOf<ItemWithVisibility>() }
@@ -169,7 +164,6 @@ fun MainScreen(
     val languageOptionsList = AppLanguage.entries.map { lang -> stringResource(lang.displayNameResId) }
     val alreadyLatestMessage = stringResource(R.string.already_latest)
     val exportFailedLabel = stringResource(R.string.export_failed)
-    val isDynamicMode = themeMode.isDynamic
 
     LaunchedEffect(showDetailsPage) {
         if (!showDetailsPage) {
@@ -405,15 +399,8 @@ fun MainScreen(
                             themeMode = themeMode,
                             themeOptions = themeOptions,
                             onThemeChange = { index -> onThemeModeChange(ThemeMode.entries[index]) },
-                            mountThemeColor = mountThemeColor,
-                            mountColorOptions = MountThemeColor.entries,
-                            selectedMountColorIndex = MountThemeColor.entries.indexOf(mountThemeColor),
-                            onMountColorChange = { index ->
-                                onMountThemeColorChange(MountThemeColor.entries[index])
-                                onUseMountThemeChange(true)
-                            },
-                            isDynamicMode = isDynamicMode,
-                            useMountTheme = useMountTheme,
+                            themeColor = themeColor,
+                            onThemeColorChange = onThemeColorChange,
                             onExportClick = { showExportDialog = true },
                             onAboutClick = { showAboutPage = true },
                             appLanguage = appLanguage,

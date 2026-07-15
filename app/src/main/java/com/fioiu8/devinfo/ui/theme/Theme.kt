@@ -10,8 +10,10 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import com.fioiu8.devinfo.model.ThemeColor
 import com.fioiu8.devinfo.model.ThemeMode
 
 // 静态 fallback — 用于非动态模式或 Android 12 以下
@@ -28,16 +30,15 @@ private val LightColorScheme = lightColorScheme(
 )
 
 /**
- * DevInfo 主题 — 支持动态颜色（Android 12+）、自定义种子色、手动浅色/深色。
+ * DevInfo 主题 — 支持完整的 Material 动态颜色（Android 12+）和手动浅色/深色。
  *
  * @param themeMode 主题模式
- * @param seedColor 自定义种子颜色；非 null 时覆盖系统壁纸色的 primary token
  * @param content Composable 内容
  */
 @Composable
 fun DevInfoTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    seedColor: Color? = null,
+    themeColor: ThemeColor = ThemeColor.DEFAULT,
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
@@ -48,6 +49,10 @@ fun DevInfoTheme(
 
     val colorScheme: ColorScheme = when {
         // Android 12+ 动态颜色
+        themeMode.isDynamic && themeColor != ThemeColor.DEFAULT -> {
+            if (darkTheme) themedDarkColorScheme(themeColor.color) else themedLightColorScheme(themeColor.color)
+        }
+
         themeMode.isDynamic && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             val dynamicScheme = if (darkTheme) {
@@ -55,28 +60,7 @@ fun DevInfoTheme(
             } else {
                 dynamicLightColorScheme(context)
             }
-            // 若有自定义种子色，覆盖 primary 及相关色
-            if (seedColor != null) {
-                dynamicScheme.copy(
-                    primary = seedColor,
-                    // 使用 seed 衍生 onPrimary（简单明暗判断）
-                    onPrimary = onPrimaryFor(seedColor)
-                )
-            } else {
-                dynamicScheme
-            }
-        }
-
-        // 动态模式但系统 < Android 12 → 从 seedColor 生成近似方案
-        themeMode.isDynamic && seedColor != null -> {
-            if (darkTheme) darkColorScheme(
-                primary = seedColor,
-                onPrimary = onPrimaryFor(seedColor)
-            )
-            else lightColorScheme(
-                primary = seedColor,
-                onPrimary = onPrimaryFor(seedColor)
-            )
+            dynamicScheme
         }
 
         // 静态 fallback
@@ -91,9 +75,35 @@ fun DevInfoTheme(
     )
 }
 
-/** 根据 primary 颜色亮度自动选择白/黑 onPrimary */
-private fun onPrimaryFor(primary: Color): Color =
-    if (primary.luminance() > 0.4f) Color.Black else Color.White
+private fun themedLightColorScheme(seed: Color): ColorScheme {
+    val primaryContainer = lerp(seed, Color.White, 0.82f)
+    return lightColorScheme(
+        primary = seed,
+        onPrimary = onColorFor(seed),
+        primaryContainer = primaryContainer,
+        onPrimaryContainer = seed,
+        secondary = lerp(seed, PurpleGrey40, 0.45f),
+        tertiary = lerp(seed, Pink40, 0.45f),
+        secondaryContainer = lerp(seed, Color.White, 0.86f),
+        tertiaryContainer = lerp(seed, Color.White, 0.86f)
+    )
+}
+
+private fun themedDarkColorScheme(seed: Color): ColorScheme {
+    val primary = lerp(seed, Color.White, 0.45f)
+    return darkColorScheme(
+        primary = primary,
+        onPrimary = onColorFor(primary),
+        primaryContainer = lerp(seed, Color.Black, 0.55f),
+        onPrimaryContainer = Color.White,
+        secondary = lerp(seed, PurpleGrey80, 0.45f),
+        tertiary = lerp(seed, Pink80, 0.45f),
+        secondaryContainer = lerp(seed, Color.Black, 0.58f),
+        tertiaryContainer = lerp(seed, Color.Black, 0.58f)
+    )
+}
+
+private fun onColorFor(color: Color): Color = if (color.luminance() > 0.4f) Color.Black else Color.White
 
 // 保留兼容旧调用方（无参数 → 使用默认 SYSTEM + 动态色）
 @Composable

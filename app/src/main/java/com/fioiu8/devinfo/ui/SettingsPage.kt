@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Palette
@@ -58,10 +59,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.fioiu8.devinfo.model.MountThemeColor
 import com.fioiu8.devinfo.model.AppLanguage
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.ThemeMode
+import com.fioiu8.devinfo.model.ThemeColor
 
 /**
  * 设置页面 — 主题、导出工具、关于入口。
@@ -71,12 +72,6 @@ import com.fioiu8.devinfo.model.ThemeMode
  * @param themeMode 当前主题模式
  * @param themeOptions 所有主题模式的展示名列表
  * @param onThemeChange 主题选中索引回调
- * @param mountThemeColor 当前主题色
- * @param mountColorOptions 所有可选主题色列表
- * @param selectedMountColorIndex 当前主题色选中索引
- * @param onMountColorChange 主题色选中索引回调
- * @param isDynamicMode 是否处于动态颜色模式
- * @param useMountTheme 是否启用自定义主题色
  * @param onExportClick 导出模块点击回调
  * @param onAboutClick 关于页面点击回调
  */
@@ -87,12 +82,8 @@ fun SettingsPage(
     themeMode: ThemeMode,
     themeOptions: List<String>,
     onThemeChange: (Int) -> Unit,
-    mountThemeColor: MountThemeColor,
-    mountColorOptions: List<MountThemeColor>,
-    selectedMountColorIndex: Int,
-    onMountColorChange: (Int) -> Unit,
-    isDynamicMode: Boolean,
-    useMountTheme: Boolean,
+    themeColor: ThemeColor,
+    onThemeColorChange: (ThemeColor) -> Unit,
     onExportClick: () -> Unit,
     onAboutClick: () -> Unit,
     appLanguage: AppLanguage = AppLanguage.SYSTEM,
@@ -103,6 +94,7 @@ fun SettingsPage(
 ) {
 
     var showCustomLocaleDialog by remember { mutableStateOf(false) }
+    var showThemeColorDialog by remember { mutableStateOf(false) }
     var customLocaleInput by remember { mutableStateOf(customLocaleTag) }
 
     // Custom locale dialog
@@ -142,6 +134,13 @@ fun SettingsPage(
         )
     }
 
+    ThemeColorPickerDialog(
+        show = showThemeColorDialog,
+        selectedColor = themeColor,
+        onColorSelected = onThemeColorChange,
+        onDismiss = { showThemeColorDialog = false }
+    )
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -154,33 +153,10 @@ fun SettingsPage(
         item {
             ThemeSettingsCard(
                 themeMode = themeMode,
-                onThemeChange = onThemeChange
+                onThemeChange = onThemeChange,
+                themeColor = themeColor,
+                onThemeColorClick = { showThemeColorDialog = true }
             )
-        }
-
-        if (isDynamicMode) {
-            item {
-                MountColorPreferenceCard(
-                    icon = Icons.Outlined.Palette,
-                    title = stringResource(R.string.theme_color),
-                    summary = if (useMountTheme) {
-                        stringResource(R.string.theme_color_enabled)
-                    } else {
-                        stringResource(R.string.theme_color_select)
-                    },
-                    colors = mountColorOptions,
-                    selectedIndex = selectedMountColorIndex,
-                    onSelectedIndexChange = onMountColorChange
-                )
-            }
-        } else {
-            item {
-                DisabledPreferenceCard(
-                    icon = Icons.Outlined.Palette,
-                    title = stringResource(com.fioiu8.devinfo.R.string.theme_color),
-                    summary = stringResource(R.string.theme_color_disabled)
-                )
-            }
         }
 
         // -- Language --
@@ -258,14 +234,15 @@ fun SettingsPage(
         }
     }
 }
-
 // ── Reusable MD3 Preference Components ──
 
 /** Theme controls: system-follow, official light/dark button group, and dynamic color. */
 @Composable
 private fun ThemeSettingsCard(
     themeMode: ThemeMode,
-    onThemeChange: (Int) -> Unit
+    onThemeChange: (Int) -> Unit,
+    themeColor: ThemeColor,
+    onThemeColorClick: () -> Unit
 ) {
     val followsSystem = themeMode == ThemeMode.SYSTEM || themeMode == ThemeMode.DYNAMIC_SYSTEM
     val usesDynamicColor = themeMode.isDynamic
@@ -303,7 +280,7 @@ private fun ThemeSettingsCard(
                 title = stringResource(R.string.theme_follow_system),
                 summary = stringResource(R.string.theme_follow_system_summary),
                 checked = followsSystem,
-                checkedIcon = Icons.Filled.Check,
+                checkedIcon = if (systemIsDark) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
                 uncheckedIcon = Icons.Filled.Close,
                 onCheckedChange = { updateTheme(followSystem = it) }
             )
@@ -342,7 +319,58 @@ private fun ThemeSettingsCard(
                 uncheckedIcon = Icons.Filled.Close,
                 onCheckedChange = { updateTheme(dynamic = it) }
             )
+
+            AnimatedVisibility(
+                visible = usesDynamicColor,
+                enter = fadeIn() + expandVertically() + slideInVertically { -it / 2 },
+                exit = fadeOut() + shrinkVertically() + slideOutVertically { -it / 2 }
+            ) {
+                ThemeColorSelectorRow(
+                    themeColor = themeColor,
+                    onClick = onThemeColorClick,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun ThemeColorSelectorRow(
+    themeColor: ThemeColor,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            modifier = Modifier.size(24.dp),
+            color = themeColor.color,
+            shape = RoundedCornerShape(6.dp)
+        ) {}
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.theme_color),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = stringResource(themeColor.displayNameResId),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -568,115 +596,6 @@ private fun DropdownPreferenceCard(
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = if (index == selectedIndex) FontWeight.Bold else FontWeight.Normal
                                 )
-                                if (index == selectedIndex) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                        },
-                        onClick = {
-                            onSelectedIndexChange(index)
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** 带主题色预览的下拉首选项卡片 */
-@Composable
-private fun MountColorPreferenceCard(
-    icon: ImageVector,
-    title: String,
-    summary: String,
-    colors: List<MountThemeColor>,
-    selectedIndex: Int,
-    onSelectedIndexChange: (Int) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = true },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
-    ) {
-        Box {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        ColorPreview(
-                            color = colors[selectedIndex].color,
-                            size = 14.dp,
-                            cornerRadius = 3.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = summary,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-            }
-
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                colors.forEachIndexed { index, entry ->
-                    DropdownMenuItem(
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                ColorPreview(
-                                    color = entry.color,
-                                    modifier = Modifier.padding(end = 12.dp)
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stringResource(entry.displayNameResId),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = if (index == selectedIndex) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                    Text(
-                                        text = stringResource(entry.descriptionResId),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
                                 if (index == selectedIndex) {
                                     Icon(
                                         imageVector = Icons.Filled.Check,
