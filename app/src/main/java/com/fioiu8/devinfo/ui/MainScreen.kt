@@ -210,7 +210,7 @@ fun MainScreen(
     // Keep volatile metrics current while preserving the loaded item list and navigation state.
     LaunchedEffect(lifecycle, selectedIndex, showDetailsPage) {
         lifecycle?.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            if (selectedIndex == 0 && !showDetailsPage) {
+            if (selectedIndex == 0) {
                 while (isActive) {
                     delay(DYNAMIC_REFRESH_INTERVAL_MS)
                     refreshDynamicMetrics(
