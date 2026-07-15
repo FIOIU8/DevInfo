@@ -175,12 +175,12 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     /** 返回内存使用百分比 [0, 100] */
-    fun getMemoryUsagePercent(): Float {
+    fun getMemoryUsagePercent(): Float? {
         return try {
             val mi = getMemoryInfo()
-            if (mi.totalMem > 0) ((mi.totalMem - mi.availMem).toFloat() / mi.totalMem * 100f) else 0f
+            if (mi.totalMem > 0) ((mi.totalMem - mi.availMem).toFloat() / mi.totalMem * 100f) else null
         } catch (_: Exception) {
-            0f
+            null
         }
     }
 
@@ -200,13 +200,13 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     /** 返回存储使用百分比 [0, 100] */
-    fun getStorageUsagePercent(): Float {
+    fun getStorageUsagePercent(): Float? {
         return try {
             val total = Environment.getExternalStorageDirectory().totalSpace
             val free = Environment.getExternalStorageDirectory().freeSpace
-            if (total > 0) ((total - free).toFloat() / total * 100f) else 0f
+            if (total > 0) ((total - free).toFloat() / total * 100f) else null
         } catch (_: Exception) {
-            0f
+            null
         }
     }
 
