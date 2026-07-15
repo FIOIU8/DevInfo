@@ -18,14 +18,14 @@ import com.fioiu8.devinfo.ui.theme.DevInfoTheme
 
 class MainActivity : ComponentActivity() {
 
-
     override fun attachBaseContext(base: Context) {
         val languagePrefs = LanguagePreferences(base)
         val tag = languagePrefs.getEffectiveLocaleTag()
         val newBase = if (tag != null) {
-            val locale = java.util.Locale.forLanguageTag(tag)
-            java.util.Locale.setDefault(locale)
-            val config = android.content.res.Configuration(base.resources.configuration)
+            // Recreate the base context so Android resolves resources in the selected locale.
+            val locale = Locale.forLanguageTag(tag)
+            Locale.setDefault(locale)
+            val config = Configuration(base.resources.configuration)
             config.setLocale(locale)
             base.createConfigurationContext(config)
         } else {
@@ -33,10 +33,10 @@ class MainActivity : ComponentActivity() {
         }
         super.attachBaseContext(newBase)
     }
-    override fun onCreate(savedInstanceState: Bundle?) {
-        // 根据保存的主题模式选择浅色/深色启动屏主题
-        val themePrefs = ThemePreferences(this)
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        // Apply the selected light or dark splash theme.
+        val themePrefs = ThemePreferences(this)
         val savedTheme = themePrefs.getThemeModeSnapshot()
         when (savedTheme) {
             ThemeMode.DARK, ThemeMode.DYNAMIC_DARK -> {

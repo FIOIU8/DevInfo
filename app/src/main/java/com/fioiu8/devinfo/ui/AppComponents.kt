@@ -25,11 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.fioiu8.devinfo.R
 
 /** 纯色预览块，用于主题色选择器 */
 @Composable
@@ -158,19 +160,19 @@ fun TestVersionWarningCard(
         ) {
             Icon(
                 imageVector = Icons.Outlined.Warning,
-                contentDescription = "警告",
+                contentDescription = stringResource(R.string.warning_icon_desc),
                 modifier = Modifier.size(24.dp),
                 tint = textColor
             )
             Column {
                 Text(
-                    text = "测试版本",
+                    text = stringResource(R.string.test_version_warning),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Medium,
                     color = textColor
                 )
                 Text(
-                    text = "当前为开发测试版，不建议在生产环境使用",
+                    text = stringResource(R.string.test_version_desc),
                     style = MaterialTheme.typography.labelSmall,
                     color = textColor.copy(alpha = 0.85f)
                 )
