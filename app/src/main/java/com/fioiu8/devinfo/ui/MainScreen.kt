@@ -56,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.fioiu8.devinfo.BuildConfig
+import com.fioiu8.devinfo.BatteryObserver
 import com.fioiu8.devinfo.DeviceInfoCollector
 import com.fioiu8.devinfo.ModuleExportHelper
 import com.fioiu8.devinfo.UpdateChecker
@@ -69,6 +70,7 @@ import com.fioiu8.devinfo.model.ThemeMode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -106,6 +108,8 @@ fun MainScreen(
 ) {
     val context = LocalContext.current
     val collector = remember { DeviceInfoCollector(context) }
+    val batteryObserver = remember { BatteryObserver(context) }
+    val batteryState by batteryObserver.batteryState.collectAsState(initial = null)
     val updateChecker = remember { UpdateChecker(context) }
     val scope = rememberCoroutineScope()
     var selectedIndex by remember { mutableIntStateOf(0) }
@@ -114,6 +118,8 @@ fun MainScreen(
     val itemsState = remember { mutableStateListOf<ItemWithVisibility>() }
     val reloadMutex = remember { Mutex() }
     var isLoading by remember { mutableStateOf(true) }
+    var isOverviewLoading by remember { mutableStateOf(true) }
+    var overviewSnapshot by remember { mutableStateOf(OverviewSnapshot()) }
 
     // 关于页面 — 预测性返回动画状态
     var showAboutPage by remember { mutableStateOf(false) }
@@ -164,14 +170,40 @@ fun MainScreen(
     suspend fun reloadDeviceInfo() {
         reloadMutex.withLock {
             isLoading = true
+            isOverviewLoading = true
             itemsState.clear()
-            loadDeviceInfo(collector, itemsState)
-            isLoading = false
+            coroutineScope {
+                val hardwareJob = launch(Dispatchers.Default) {
+                    val snapshot = readOverviewSnapshot(collector)
+                    withContext(Dispatchers.Main.immediate) {
+                        overviewSnapshot = snapshot.copy(
+                            batteryLevel = batteryState?.level,
+                            batteryCharging = batteryState?.isCharging == true
+                        )
+                        isOverviewLoading = false
+                    }
+                }
+                val itemsJob = launch {
+                    loadDeviceInfo(collector, itemsState)
+                    isLoading = false
+                }
+                itemsJob.join()
+                hardwareJob.join()
+            }
         }
     }
 
     LaunchedEffect(Unit) {
         reloadDeviceInfo()
+    }
+
+    LaunchedEffect(batteryState) {
+        batteryState?.let { state ->
+            overviewSnapshot = overviewSnapshot.copy(
+                batteryLevel = state.level,
+                batteryCharging = state.isCharging
+            )
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -289,6 +321,7 @@ fun MainScreen(
                                 deviceId = deviceId,
                                 itemsState = itemsState,
                                 isLoading = isLoading,
+                                overviewSnapshot = overviewSnapshot,
                                 onRefresh = { reloadDeviceInfo() },
                                 initialCategory = detailCategory
                             )
@@ -296,6 +329,8 @@ fun MainScreen(
                             DeviceInfoOverviewPage(
                                 itemsState = itemsState,
                                 isLoading = isLoading,
+                                isOverviewLoading = isOverviewLoading,
+                                snapshot = overviewSnapshot,
                                 onRefresh = { reloadDeviceInfo() },
                                 onOpenDetails = { category ->
                                     detailCategory = category
@@ -444,6 +479,16 @@ private suspend fun loadDeviceInfo(
         }
     }
 }
+
+private fun readOverviewSnapshot(collector: DeviceInfoCollector): OverviewSnapshot = OverviewSnapshot(
+    cpuFrequency = collector.getCpuFrequency(),
+    gpuFrequency = collector.getGpuFrequency(),
+    cpuUsage = collector.getCpuUsagePercent(),
+    gpuUsage = collector.getGpuUsagePercent(),
+    cpuCoreMetrics = collector.getCpuCoreMetrics(),
+    storagePercent = collector.getStorageUsagePercent(),
+    memoryPercent = collector.getMemoryUsagePercent()
+)
 
 /** 通过 Intent 打开外部链接，失败时弹出 Toast 提示 */
 private fun openUrl(context: android.content.Context, url: String) {
