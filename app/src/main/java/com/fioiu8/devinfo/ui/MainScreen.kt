@@ -2,7 +2,6 @@ package com.fioiu8.devinfo.ui
 
 import android.content.Intent
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -48,7 +47,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
-import androidx.activity.BackEventCompat
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -132,6 +130,7 @@ fun MainScreen(
     val density = LocalDensity.current
     val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
     val aboutOffsetX = remember { Animatable(screenWidthPx) }
+    val detailOffsetX = remember { Animatable(0f) }
 
     // 关于页面入场动画
     LaunchedEffect(showAboutPage) {
@@ -168,8 +167,10 @@ fun MainScreen(
     val exportFailedLabel = stringResource(R.string.export_failed)
     val isDynamicMode = themeMode.isDynamic
 
-    BackHandler(enabled = showDetailsPage) {
-        showDetailsPage = false
+    LaunchedEffect(showDetailsPage) {
+        if (!showDetailsPage) {
+            detailOffsetX.snapTo(0f)
+        }
     }
 
     suspend fun reloadDeviceInfo() {
@@ -333,6 +334,12 @@ fun MainScreen(
         ) { paddingValues ->
             Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                 AnimatedContent(
+                    modifier = Modifier.offset {
+                        IntOffset(
+                            if (showDetailsPage) detailOffsetX.value.roundToInt() else 0,
+                            0
+                        )
+                    },
                     targetState = selectedIndex to showDetailsPage,
                     transitionSpec = {
                         val direction = if (
@@ -414,23 +421,35 @@ fun MainScreen(
     // 预测性返回手势（Android 14+ 系统级预测性返回动画）
     // PredictiveBackHandler 需无条件调用；enabled 参数控制是否拦截
     PredictiveBackHandler(
-        enabled = showAboutPage,
+        enabled = showAboutPage || showDetailsPage,
         onBack = { progress ->
+            val dismissAbout = showAboutPage
+            val dismissDetails = !dismissAbout && showDetailsPage
             try {
                 progress.collect { event ->
-                    // 手势进度驱动关于页面实时跟随手指滑动
-                    aboutOffsetX.snapTo(event.progress * screenWidthPx)
+                    if (dismissAbout) {
+                        // 手势进度驱动关于页面实时跟随手指滑动
+                        aboutOffsetX.snapTo(event.progress * screenWidthPx)
+                    } else if (dismissDetails) {
+                        // 详情页随手势向右退出，底层页面保持可见
+                        detailOffsetX.snapTo(event.progress * screenWidthPx)
+                    }
                 }
-                // 手势提交 → 继续动画到完全滑出
-                scope.launch {
+                if (dismissAbout) {
+                    // 手势提交 → 继续动画到完全滑出
                     aboutOffsetX.animateTo(screenWidthPx, animationSpec = tween(200))
                     showAboutPage = false
                     isAboutVisible = false
+                } else if (dismissDetails) {
+                    detailOffsetX.animateTo(screenWidthPx, animationSpec = tween(200))
+                    showDetailsPage = false
                 }
             } catch (_: CancellationException) {
-                // 手势取消（用户滑回）→ 动画回到原位
-                scope.launch {
+                if (dismissAbout) {
+                    // 手势取消（用户滑回）→ 动画回到原位
                     aboutOffsetX.animateTo(0f, animationSpec = tween(200))
+                } else if (dismissDetails) {
+                    detailOffsetX.animateTo(0f, animationSpec = tween(200))
                 }
             }
         }
