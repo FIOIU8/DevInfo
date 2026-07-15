@@ -79,6 +79,7 @@ fun AboutPage(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val cannotOpenLinkMessage = stringResource(com.fioiu8.devinfo.R.string.cannot_open_link)
 
     var contributors by remember { mutableStateOf<List<GitHubClient.Contributor>>(emptyList()) }
     var languages by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
@@ -298,11 +299,15 @@ fun AboutPage(
                         )
                     } else {
                         contributors.forEach { c ->
+                            val contributorHomepageTitle = stringResource(
+                                com.fioiu8.devinfo.R.string.view_homepage,
+                                c.login
+                            )
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        confirmTitle = context.getString(com.fioiu8.devinfo.R.string.view_homepage, c.login)
+                                        confirmTitle = contributorHomepageTitle
                                         confirmUrl = c.htmlUrl
                                     }
                                     .padding(vertical = 6.dp),
@@ -435,8 +440,9 @@ fun AboutPage(
                     )
                     Spacer(Modifier.height(8.dp))
 
-                    LinkRow(Icons.Outlined.Code, stringResource(com.fioiu8.devinfo.R.string.view_source)) {
-                        confirmTitle = context.getString(com.fioiu8.devinfo.R.string.view_source)
+                    val viewSourceTitle = stringResource(com.fioiu8.devinfo.R.string.view_source)
+                    LinkRow(Icons.Outlined.Code, viewSourceTitle) {
+                        confirmTitle = viewSourceTitle
                         confirmUrl = "https://github.com/FIOIU8/DevInfo"
                     }
                     LinkRow(Icons.Outlined.BugReport, stringResource(com.fioiu8.devinfo.R.string.report_issues)) {
@@ -464,7 +470,11 @@ fun AboutPage(
                 try {
                     context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
                 } catch (_: Exception) {
-                    Toast.makeText(context, context.getString(com.fioiu8.devinfo.R.string.cannot_open_link), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        cannotOpenLinkMessage,
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             },
             onDismiss = { confirmUrl = null }

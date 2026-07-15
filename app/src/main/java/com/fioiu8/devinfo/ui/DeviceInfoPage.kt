@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
@@ -86,6 +87,7 @@ fun DeviceInfoPage(
     onRefresh: () -> Unit
 ) {
     val ctx = LocalContext.current
+    val resources = LocalResources.current
     val clipboardManager = LocalClipboardManager.current
     val collector = remember { DeviceInfoCollector(ctx) }
     val batteryObserver = remember { BatteryObserver(ctx) }
@@ -99,9 +101,9 @@ fun DeviceInfoPage(
     var currentPage by remember(selectedCategoryIndex) { mutableIntStateOf(0) }
     val categories = InfoCategory.entries
 
-    // 实时计算存储百分比（刷新时重新获取）
-    val storagePercent = remember(itemsState) { collector.getStorageUsagePercent() }
-    val memoryPercent = remember(itemsState) { collector.getMemoryUsagePercent() }
+    // Read these on recomposition so a refresh reflects the current device state.
+    val storagePercent = collector.getStorageUsagePercent()
+    val memoryPercent = collector.getMemoryUsagePercent()
 
     LaunchedEffect(isRefreshing) {
         if (isRefreshing) {
@@ -169,8 +171,15 @@ fun DeviceInfoPage(
                             onPageChange = { currentPage = it },
                             onItemCopy = { item ->
                                 clipboardManager.setText(AnnotatedString(item.item.value))
-                                val itemLabel = ctx.getString(item.item.keyResId)
-                                Toast.makeText(ctx, ctx.getString(com.fioiu8.devinfo.R.string.copied_to_clipboard, itemLabel), Toast.LENGTH_SHORT).show()
+                                val itemLabel = resources.getString(item.item.keyResId)
+                                Toast.makeText(
+                                    ctx,
+                                    resources.getString(
+                                        com.fioiu8.devinfo.R.string.copied_to_clipboard,
+                                        itemLabel
+                                    ),
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             },
                             storagePercent = storagePercent,
                             memoryPercent = memoryPercent,

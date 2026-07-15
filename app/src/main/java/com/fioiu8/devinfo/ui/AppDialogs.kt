@@ -154,6 +154,7 @@ fun ExportSuccessDialog(
 
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    val pathCopiedMessage = stringResource(com.fioiu8.devinfo.R.string.path_copied)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -192,7 +193,7 @@ fun ExportSuccessDialog(
                             onClick = {},
                             onLongClick = {
                                 clipboardManager.setText(AnnotatedString(filePath))
-                                Toast.makeText(context, context.getString(com.fioiu8.devinfo.R.string.path_copied), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, pathCopiedMessage, Toast.LENGTH_SHORT).show()
                             }
                         ),
                     shape = RoundedCornerShape(8.dp),
@@ -279,7 +280,7 @@ fun ExternalLinkConfirmDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text(stringResource(com.fioiu8.devinfo.R.string.cancel))
             }
         },
         confirmButton = {
@@ -325,7 +326,13 @@ fun UpdateAvailableDialog(
         },
         title = {
             Text(
-                text = if (isError) "检查更新失败" else "发现新版本",
+                text = stringResource(
+                    if (isError) {
+                        com.fioiu8.devinfo.R.string.update_check_failed
+                    } else {
+                        com.fioiu8.devinfo.R.string.update_found
+                    }
+                ),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -351,7 +358,7 @@ fun UpdateAvailableDialog(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "当前版本: $currentVersion",
+                        text = stringResource(com.fioiu8.devinfo.R.string.current_version) + ": $currentVersion",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
