@@ -2,8 +2,14 @@ package com.fioiu8.devinfo.ui
 
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -60,6 +66,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 /**
@@ -97,8 +106,8 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     var selectedIndex by remember { mutableIntStateOf(0) }
     val itemsState = remember { mutableStateListOf<ItemWithVisibility>() }
+    val reloadMutex = remember { Mutex() }
     var isLoading by remember { mutableStateOf(true) }
-    var refreshTrigger by remember { mutableIntStateOf(0) }
 
     // 关于页面 — 预测性返回动画状态
     var showAboutPage by remember { mutableStateOf(false) }
@@ -142,9 +151,17 @@ fun MainScreen(
     val exportFailedLabel = stringResource(R.string.export_failed)
     val isDynamicMode = themeMode.isDynamic
 
+    suspend fun reloadDeviceInfo() {
+        reloadMutex.withLock {
+            isLoading = true
+            itemsState.clear()
+            loadDeviceInfo(collector, itemsState)
+            isLoading = false
+        }
+    }
+
     LaunchedEffect(Unit) {
-        loadDeviceInfo(collector, itemsState)
-        isLoading = false
+        reloadDeviceInfo()
     }
 
     LaunchedEffect(Unit) {
@@ -163,13 +180,6 @@ fun MainScreen(
             UpdateState.NEW_VERSION_AVAILABLE -> showUpdateDialog = true
             UpdateState.ERROR -> showUpdateDialog = true
             else -> {}
-        }
-    }
-
-    LaunchedEffect(refreshTrigger) {
-        if (refreshTrigger > 0) {
-            itemsState.clear()
-            loadDeviceInfo(collector, itemsState)
         }
     }
 
@@ -234,36 +244,46 @@ fun MainScreen(
             containerColor = MaterialTheme.colorScheme.background
         ) { paddingValues ->
             Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-                when (selectedIndex) {
-                    0 -> DeviceInfoPage(
-                        deviceId = deviceId,
-                        itemsState = itemsState,
-                        isLoading = isLoading,
-                        onRefresh = { refreshTrigger++ }
-                    )
-                    1 -> SettingsPage(
-                        versionName = collector.getAppVersionName(),
-                        versionCode = collector.getAppVersionCode(),
-                        themeMode = themeMode,
-                        themeOptions = themeOptions,
-                        onThemeChange = { index -> onThemeModeChange(ThemeMode.entries[index]) },
-                        mountThemeColor = mountThemeColor,
-                        mountColorOptions = MountThemeColor.entries,
-                        selectedMountColorIndex = MountThemeColor.entries.indexOf(mountThemeColor),
-                        onMountColorChange = { index ->
-                            onMountThemeColorChange(MountThemeColor.entries[index])
-                            onUseMountThemeChange(true)
-                        },
-                        isDynamicMode = isDynamicMode,
-                        useMountTheme = useMountTheme,
-                        onExportClick = { showExportDialog = true },
-                        onAboutClick = { showAboutPage = true },
-                        appLanguage = appLanguage,
-                        languageOptions = languageOptionsList,
-                        onLanguageChange = { index -> onLanguageChange(index) },
-                        customLocaleTag = customLocaleTag,
-                        onCustomLocaleTagChange = { tag -> onCustomLocaleTagChange(tag) }
-                    )
+                AnimatedContent(
+                    targetState = selectedIndex,
+                    transitionSpec = {
+                        val direction = if (targetState > initialState) 1 else -1
+                        (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { direction * it / 5 })
+                            .togetherWith(fadeOut(tween(160)) + slideOutHorizontally(tween(180)) { -direction * it / 5 })
+                    },
+                    label = "mainNavigationTransition"
+                ) { pageIndex ->
+                    when (pageIndex) {
+                        0 -> DeviceInfoPage(
+                            deviceId = deviceId,
+                            itemsState = itemsState,
+                            isLoading = isLoading,
+                            onRefresh = { reloadDeviceInfo() }
+                        )
+                        1 -> SettingsPage(
+                            versionName = collector.getAppVersionName(),
+                            versionCode = collector.getAppVersionCode(),
+                            themeMode = themeMode,
+                            themeOptions = themeOptions,
+                            onThemeChange = { index -> onThemeModeChange(ThemeMode.entries[index]) },
+                            mountThemeColor = mountThemeColor,
+                            mountColorOptions = MountThemeColor.entries,
+                            selectedMountColorIndex = MountThemeColor.entries.indexOf(mountThemeColor),
+                            onMountColorChange = { index ->
+                                onMountThemeColorChange(MountThemeColor.entries[index])
+                                onUseMountThemeChange(true)
+                            },
+                            isDynamicMode = isDynamicMode,
+                            useMountTheme = useMountTheme,
+                            onExportClick = { showExportDialog = true },
+                            onAboutClick = { showAboutPage = true },
+                            appLanguage = appLanguage,
+                            languageOptions = languageOptionsList,
+                            onLanguageChange = { index -> onLanguageChange(index) },
+                            customLocaleTag = customLocaleTag,
+                            onCustomLocaleTagChange = { tag -> onCustomLocaleTagChange(tag) }
+                        )
+                    }
                 }
             }
         }
@@ -372,9 +392,14 @@ private suspend fun loadDeviceInfo(
     collector: DeviceInfoCollector,
     itemsState: MutableList<ItemWithVisibility>
 ) {
-    val infoList = collector.collectDeviceInfo()
-    itemsState.addAll(infoList.map { item -> ItemWithVisibility(item, mutableStateOf(false)) })
-    itemsState.forEach { item -> delay(30); item.visible.value = true }
+    withContext(Dispatchers.Default) {
+        collector.collectDeviceInfo { item ->
+            withContext(Dispatchers.Main.immediate) {
+                itemsState.add(ItemWithVisibility(item, mutableStateOf(true)))
+            }
+            delay(30)
+        }
+    }
 }
 
 /** 通过 Intent 打开外部链接，失败时弹出 Toast 提示 */

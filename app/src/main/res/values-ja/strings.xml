@@ -153,6 +153,11 @@
     <string name="view_homepage">%s のホームページを見る</string>
 
     <!-- Device info page -->
+    <string name="overview_title">デバイス概要</string>
+    <string name="overview_loading">デバイス情報を読み込み中</string>
+    <string name="overview_storage">ストレージ使用量</string>
+    <string name="overview_memory">メモリ使用量</string>
+    <string name="overview_battery">バッテリー残量</string>
     <string name="storage_usage">ストレージ使用量</string>
     <string name="memory_usage">メモリ使用量</string>
     <string name="battery_level_charging">バッテリー（充電中）</string>
@@ -198,12 +203,19 @@
     <string name="system_android_version">Androidバージョン</string>
     <string name="system_security_patch">セキュリティパッチ</string>
     <string name="system_baseband">ベースバンドバージョン</string>
+    <string name="system_uptime">稼働時間</string>
+    <string name="system_kernel">カーネルバージョン</string>
+    <string name="system_abis_32">32-bit ABI</string>
+    <string name="system_abis_64">64-bit ABI</string>
+    <string name="system_features">デバイス機能</string>
     <string name="locale_language">言語</string>
     <string name="locale_country">国</string>
     <string name="locale_timezone">タイムゾーン</string>
     <string name="display_dpi">画面DPI</string>
+    <string name="display_density">画面密度</string>
     <string name="display_width">画面幅</string>
     <string name="display_height">画面高さ</string>
+    <string name="display_size">画面 dp サイズ</string>
     <string name="display_refresh_rate">リフレッシュレート</string>
     <string name="display_font_scale">フォントスケール</string>
     <string name="storage_total_ram">総RAM</string>
@@ -212,6 +224,10 @@
     <string name="storage_available">利用可能ストレージ</string>
     <string name="battery_level_label">バッテリーレベル</string>
     <string name="battery_charging_state">充電状態</string>
+    <string name="battery_temperature">バッテリー温度</string>
+    <string name="battery_health">バッテリー状態</string>
+    <string name="battery_voltage">バッテリー電圧</string>
+    <string name="battery_technology">バッテリー技術</string>
     <string name="network_nfc">NFC</string>
     <string name="network_camera_count">カメラ数</string>
     <string name="network_bluetooth_state">Bluetooth状態</string>
@@ -228,6 +244,12 @@
 
     <!-- Status strings from collector -->
     <string name="status_charging">充電中</string>
+    <string name="status_health_good">良好</string>
+    <string name="status_health_overheat">過熱</string>
+    <string name="status_health_dead">故障</string>
+    <string name="status_health_over_voltage">過電圧</string>
+    <string name="status_health_failure">故障</string>
+    <string name="status_health_cold">低温</string>
     <string name="status_not_charging">充電していません</string>
     <string name="status_supported">対応</string>
     <string name="status_not_supported">非対応</string>

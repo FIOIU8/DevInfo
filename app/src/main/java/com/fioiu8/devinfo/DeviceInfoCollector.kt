@@ -2,6 +2,8 @@
 
 import android.app.ActivityManager
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.hardware.camera2.CameraManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -9,6 +11,7 @@ import android.nfc.NfcAdapter
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
+import android.os.SystemClock
 import android.provider.Settings
 import android.telephony.TelephonyManager
 import com.fioiu8.devinfo.R
@@ -53,89 +56,93 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     fun collectDeviceInfo(): List<DeviceInfoItem> {
-        val list = mutableListOf<DeviceInfoItem>()
-
-        // Android ID and the hardware serial number are different identifiers.
-        list += infoItem(R.string.device_android_id, getAndroidIdSafe(), InfoCategory.IDENTIFIERS)
-        list += infoItem(R.string.device_serial, getSerialNumberSafe(), InfoCategory.IDENTIFIERS)
-        list += infoItem(R.string.device_brand, Build.BRAND, InfoCategory.DEVICE)
-        list += infoItem(R.string.device_manufacturer, Build.MANUFACTURER, InfoCategory.DEVICE)
-        list += infoItem(R.string.device_model, Build.MODEL, InfoCategory.DEVICE)
-        list += infoItem(R.string.device_product, Build.PRODUCT, InfoCategory.DEVICE)
-        list += infoItem(R.string.device_device, Build.DEVICE, InfoCategory.DEVICE)
-        list += infoItem(R.string.device_board, Build.BOARD, InfoCategory.DEVICE)
-        list += infoItem(R.string.device_hardware, Build.HARDWARE, InfoCategory.DEVICE)
-        list += infoItem(R.string.device_bootloader, Build.BOOTLOADER, InfoCategory.DEVICE)
-        list += infoItem(R.string.device_build_id, Build.ID, InfoCategory.DEVICE)
-        list += infoItem(R.string.device_tags, Build.TAGS, InfoCategory.DEVICE)
-        list += infoItem(R.string.device_time, Build.TIME.toString(), InfoCategory.DEVICE)
-        list += infoItem(R.string.device_type, Build.TYPE, InfoCategory.DEVICE)
-
-        list += infoItem(R.string.system_cpu_arch, Build.SUPPORTED_ABIS.joinToString(), InfoCategory.SYSTEM)
-        list += infoItem(R.string.system_cpu_cores, Runtime.getRuntime().availableProcessors().toString(), InfoCategory.SYSTEM)
-        list += infoItem(R.string.system_sdk_version, Build.VERSION.SDK_INT.toString(), InfoCategory.SYSTEM)
-        list += infoItem(R.string.system_android_version, Build.VERSION.RELEASE, InfoCategory.SYSTEM)
-        list += infoItem(
-            R.string.system_security_patch,
-            safeGet(context.getString(R.string.status_unknown)) { Build.VERSION.SECURITY_PATCH },
-            InfoCategory.SYSTEM
-        )
-        list += infoItem(
-            R.string.system_baseband,
-            safeGet(context.getString(R.string.status_unknown)) { Build.getRadioVersion() },
-            InfoCategory.SYSTEM
-        )
-
-        list += infoItem(R.string.locale_language, Locale.getDefault().language, InfoCategory.LOCALE)
-        list += infoItem(R.string.locale_country, Locale.getDefault().country, InfoCategory.LOCALE)
-        list += infoItem(R.string.locale_timezone, TimeZone.getDefault().id, InfoCategory.LOCALE)
-
-        val dm = context.resources.displayMetrics
-        list += infoItem(R.string.display_dpi, dm.densityDpi.toString(), InfoCategory.DISPLAY)
-        list += infoItem(R.string.display_width, dm.widthPixels.toString(), InfoCategory.DISPLAY)
-        list += infoItem(R.string.display_height, dm.heightPixels.toString(), InfoCategory.DISPLAY)
-        list += infoItem(
-            R.string.display_refresh_rate,
-            safeGet(context.getString(R.string.status_unknown)) { context.display.refreshRate.toString() },
-            InfoCategory.DISPLAY
-        )
-        list += infoItem(
-            R.string.display_font_scale,
-            safeGet(context.getString(R.string.status_unknown)) {
-                context.resources.configuration.fontScale.toString()
-            },
-            InfoCategory.DISPLAY
-        )
-
-        list += infoItem(R.string.storage_total_ram, getTotalMemory(), InfoCategory.STORAGE)
-        list += infoItem(R.string.storage_available_ram, getAvailMemory(), InfoCategory.STORAGE)
-        list += infoItem(R.string.storage_total, getTotalStorage(), InfoCategory.STORAGE)
-        list += infoItem(R.string.storage_available, getFreeStorage(), InfoCategory.STORAGE)
-
-        list += infoItem(R.string.battery_level_label, getBatteryLevel(), InfoCategory.BATTERY)
-        list += infoItem(R.string.battery_charging_state, getBatteryCharging(), InfoCategory.BATTERY)
-
-        list += infoItem(
-            R.string.network_nfc,
-            if (NfcAdapter.getDefaultAdapter(context) != null) {
-                context.getString(R.string.status_supported)
-            } else {
-                context.getString(R.string.status_not_supported)
-            },
-            InfoCategory.NETWORK
-        )
-        list += infoItem(R.string.network_camera_count, getCameraCount(), InfoCategory.NETWORK)
-        list += infoItem(R.string.network_bluetooth_state, getBluetoothState(), InfoCategory.NETWORK)
-        list += infoItem(R.string.network_type, getNetworkType(), InfoCategory.NETWORK)
-        list += infoItem(R.string.network_operator, getNetworkOperator(), InfoCategory.NETWORK)
-        list += infoItem(R.string.network_sim_state, getSimState(), InfoCategory.NETWORK)
-
-        list += infoItem(R.string.app_package, context.packageName, InfoCategory.APP)
-        list += infoItem(R.string.app_version_name, getAppVersionName(), InfoCategory.APP)
-        list += infoItem(R.string.app_version_code, getAppVersionCode().toString(), InfoCategory.APP)
-
-        return list
+        return infoItemSuppliers().mapNotNull { supplier ->
+            try {
+                supplier()
+            } catch (_: Exception) {
+                null
+            }
+        }
     }
+
+    /** Reads one item at a time so the UI can publish successful results in source order. */
+    suspend fun collectDeviceInfo(onItem: suspend (DeviceInfoItem) -> Unit) {
+        infoItemSuppliers().forEach { supplier ->
+            val item = try {
+                supplier()
+            } catch (_: Exception) {
+                null
+            }
+            item?.let { onItem(it) }
+        }
+    }
+
+    private fun infoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
+        { infoItem(R.string.device_android_id, getAndroidIdSafe(), InfoCategory.IDENTIFIERS) },
+        { infoItem(R.string.device_serial, getSerialNumberSafe(), InfoCategory.IDENTIFIERS) },
+        { infoItem(R.string.device_brand, Build.BRAND, InfoCategory.DEVICE) },
+        { infoItem(R.string.device_manufacturer, Build.MANUFACTURER, InfoCategory.DEVICE) },
+        { infoItem(R.string.device_model, Build.MODEL, InfoCategory.DEVICE) },
+        { infoItem(R.string.device_product, Build.PRODUCT, InfoCategory.DEVICE) },
+        { infoItem(R.string.device_device, Build.DEVICE, InfoCategory.DEVICE) },
+        { infoItem(R.string.device_board, Build.BOARD, InfoCategory.DEVICE) },
+        { infoItem(R.string.device_hardware, Build.HARDWARE, InfoCategory.DEVICE) },
+        { infoItem(R.string.device_bootloader, Build.BOOTLOADER, InfoCategory.DEVICE) },
+        { infoItem(R.string.device_build_id, Build.ID, InfoCategory.DEVICE) },
+        { infoItem(R.string.device_tags, Build.TAGS, InfoCategory.DEVICE) },
+        { infoItem(R.string.device_time, Build.TIME.toString(), InfoCategory.DEVICE) },
+        { infoItem(R.string.device_type, Build.TYPE, InfoCategory.DEVICE) },
+
+        { infoItem(R.string.system_cpu_arch, Build.SUPPORTED_ABIS.joinToString(), InfoCategory.SYSTEM) },
+        { infoItem(R.string.system_cpu_cores, Runtime.getRuntime().availableProcessors().toString(), InfoCategory.SYSTEM) },
+        { infoItem(R.string.system_sdk_version, Build.VERSION.SDK_INT.toString(), InfoCategory.SYSTEM) },
+        { infoItem(R.string.system_android_version, Build.VERSION.RELEASE, InfoCategory.SYSTEM) },
+        { infoItem(R.string.system_security_patch, safeGet(statusUnknown) { Build.VERSION.SECURITY_PATCH }, InfoCategory.SYSTEM) },
+        { infoItem(R.string.system_baseband, safeGet(statusUnknown) { Build.getRadioVersion() }, InfoCategory.SYSTEM) },
+        { infoItem(R.string.system_uptime, getUptime(), InfoCategory.SYSTEM) },
+        { infoItem(R.string.system_kernel, safeGet(statusUnknown) { System.getProperty("os.version") ?: statusUnknown }, InfoCategory.SYSTEM) },
+        { infoItem(R.string.system_abis_32, Build.SUPPORTED_32_BIT_ABIS.joinToString(), InfoCategory.SYSTEM) },
+        { infoItem(R.string.system_abis_64, Build.SUPPORTED_64_BIT_ABIS.joinToString(), InfoCategory.SYSTEM) },
+        { infoItem(R.string.system_features, getDeviceFeatures(), InfoCategory.SYSTEM) },
+
+        { infoItem(R.string.locale_language, Locale.getDefault().language, InfoCategory.LOCALE) },
+        { infoItem(R.string.locale_country, Locale.getDefault().country, InfoCategory.LOCALE) },
+        { infoItem(R.string.locale_timezone, TimeZone.getDefault().id, InfoCategory.LOCALE) },
+
+        { infoItem(R.string.display_dpi, context.resources.displayMetrics.densityDpi.toString(), InfoCategory.DISPLAY) },
+        { infoItem(R.string.display_density, formatDensity(), InfoCategory.DISPLAY) },
+        { infoItem(R.string.display_width, context.resources.displayMetrics.widthPixels.toString(), InfoCategory.DISPLAY) },
+        { infoItem(R.string.display_height, context.resources.displayMetrics.heightPixels.toString(), InfoCategory.DISPLAY) },
+        { infoItem(R.string.display_size, getDisplaySize(), InfoCategory.DISPLAY) },
+        { infoItem(R.string.display_refresh_rate, safeGet(statusUnknown) { context.display.refreshRate.toString() }, InfoCategory.DISPLAY) },
+        { infoItem(R.string.display_font_scale, context.resources.configuration.fontScale.toString(), InfoCategory.DISPLAY) },
+
+        { infoItem(R.string.storage_total_ram, getTotalMemory(), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_available_ram, getAvailMemory(), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_total, getTotalStorage(), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_available, getFreeStorage(), InfoCategory.STORAGE) },
+
+        { infoItem(R.string.battery_level_label, getBatteryLevel(), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_charging_state, getBatteryCharging(), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_temperature, getBatteryProperty(BatteryManager.EXTRA_TEMPERATURE), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_health, getBatteryHealth(), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_voltage, getBatteryProperty(BatteryManager.EXTRA_VOLTAGE), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_technology, getBatteryTechnology(), InfoCategory.BATTERY) },
+
+        { infoItem(R.string.network_nfc, if (NfcAdapter.getDefaultAdapter(context) != null) context.getString(R.string.status_supported) else context.getString(R.string.status_not_supported), InfoCategory.NETWORK) },
+        { infoItem(R.string.network_camera_count, getCameraCount(), InfoCategory.NETWORK) },
+        { infoItem(R.string.network_bluetooth_state, getBluetoothState(), InfoCategory.NETWORK) },
+        { infoItem(R.string.network_type, getNetworkType(), InfoCategory.NETWORK) },
+        { infoItem(R.string.network_operator, getNetworkOperator(), InfoCategory.NETWORK) },
+        { infoItem(R.string.network_sim_state, getSimState(), InfoCategory.NETWORK) },
+
+        { infoItem(R.string.app_package, context.packageName, InfoCategory.APP) },
+        { infoItem(R.string.app_version_name, getAppVersionName(), InfoCategory.APP) },
+        { infoItem(R.string.app_version_code, getAppVersionCode().toString(), InfoCategory.APP) }
+    )
+
+    private val statusUnknown: String
+        get() = context.getString(R.string.status_unknown)
 
     private fun getAndroidIdSafe(): String = safeGet(context.getString(R.string.status_unknown)) {
         @Suppress("HardwareIds")
@@ -196,15 +203,78 @@ class DeviceInfoCollector(private val context: Context) {
         }
     }
 
+    private fun getUptime(): String = safeGet(statusUnknown) {
+        val totalMinutes = SystemClock.elapsedRealtime() / 60_000
+        val days = totalMinutes / (24 * 60)
+        val hours = (totalMinutes % (24 * 60)) / 60
+        val minutes = totalMinutes % 60
+        "${days}d ${hours}h ${minutes}m"
+    }
+
+    private fun formatDensity(): String = safeGet(statusUnknown) {
+        "%.2f".format(Locale.US, context.resources.displayMetrics.density)
+    }
+
+    private fun getDisplaySize(): String = safeGet(statusUnknown) {
+        val configuration = context.resources.configuration
+        "${configuration.screenWidthDp} x ${configuration.screenHeightDp} dp"
+    }
+
+    private fun getDeviceFeatures(): String = safeGet(statusUnknown) {
+        val featureManager = context.packageManager
+        buildList {
+            if (featureManager.hasSystemFeature("android.hardware.camera")) add("Camera")
+            if (featureManager.hasSystemFeature("android.hardware.nfc")) add("NFC")
+            if (featureManager.hasSystemFeature("android.hardware.bluetooth")) add("Bluetooth")
+            if (featureManager.hasSystemFeature("android.hardware.location.gps")) add("GPS")
+            if (featureManager.hasSystemFeature("android.hardware.biometrics")) add("Biometrics")
+        }.joinToString().ifBlank { statusUnknown }
+    }
+
     private fun getBatteryLevel() = safeGet(context.getString(R.string.status_unknown)) {
         val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-        "${bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)}%"
+        val level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        if (level !in 0..100) context.getString(R.string.status_unknown) else "$level%"
     }
 
     private fun getBatteryCharging() = safeGet(context.getString(R.string.status_unknown)) {
         val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
         if (bm.isCharging) context.getString(R.string.status_charging) else context.getString(R.string.status_not_charging)
     }
+
+    private fun getBatteryProperty(extraName: String): String = safeGet(statusUnknown) {
+        val intent = getBatteryIntent() ?: return@safeGet statusUnknown
+        val value = intent.getIntExtra(extraName, -1)
+        if (value < 0) return@safeGet statusUnknown
+        if (extraName == BatteryManager.EXTRA_TEMPERATURE) {
+            "%.1f C".format(Locale.US, value / 10f)
+        } else {
+            "$value mV"
+        }
+    }
+
+    private fun getBatteryHealth(): String = safeGet(statusUnknown) {
+        val intent = getBatteryIntent() ?: return@safeGet statusUnknown
+        when (intent.getIntExtra(BatteryManager.EXTRA_HEALTH, -1)) {
+            BatteryManager.BATTERY_HEALTH_GOOD -> context.getString(R.string.status_health_good)
+            BatteryManager.BATTERY_HEALTH_OVERHEAT -> context.getString(R.string.status_health_overheat)
+            BatteryManager.BATTERY_HEALTH_DEAD -> context.getString(R.string.status_health_dead)
+            BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE -> context.getString(R.string.status_health_over_voltage)
+            BatteryManager.BATTERY_HEALTH_UNSPECIFIED_FAILURE -> context.getString(R.string.status_health_failure)
+            BatteryManager.BATTERY_HEALTH_COLD -> context.getString(R.string.status_health_cold)
+            else -> statusUnknown
+        }
+    }
+
+    private fun getBatteryTechnology(): String = safeGet(statusUnknown) {
+        getBatteryIntent()
+            ?.getStringExtra(BatteryManager.EXTRA_TECHNOLOGY)
+            ?.takeIf { it.isNotBlank() }
+            ?: statusUnknown
+    }
+
+    private fun getBatteryIntent(): Intent? =
+        context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
     private fun getCameraCount() = safeGet(context.getString(R.string.status_unknown)) {
         val cam = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
@@ -248,11 +318,13 @@ class DeviceInfoCollector(private val context: Context) {
         }
     }
 
-    private fun infoItem(keyResId: Int, value: String, category: InfoCategory): DeviceInfoItem {
+    private fun infoItem(keyResId: Int, value: String, category: InfoCategory): DeviceInfoItem? {
+        val normalizedValue = value.trim()
+        if (normalizedValue.isBlank() || normalizedValue == statusUnknown) return null
         return DeviceInfoItem(
             key = context.resources.getResourceEntryName(keyResId),
             keyResId = keyResId,
-            value = value,
+            value = normalizedValue,
             category = category,
             icon = itemIconByResId(keyResId)
         )
