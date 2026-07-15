@@ -177,6 +177,7 @@
     <string name="warning_icon_desc">警告</string>
 
     <!-- Device data labels (from DeviceInfoCollector) -->
+    <string name="device_android_id">Android ID</string>
     <string name="device_serial">序列号</string>
     <string name="device_brand">品牌</string>
     <string name="device_manufacturer">制造商</string>
