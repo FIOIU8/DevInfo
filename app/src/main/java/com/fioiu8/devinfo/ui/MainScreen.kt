@@ -2,6 +2,7 @@ package com.fioiu8.devinfo.ui
 
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -21,11 +22,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -58,6 +61,7 @@ import com.fioiu8.devinfo.ModuleExportHelper
 import com.fioiu8.devinfo.UpdateChecker
 import com.fioiu8.devinfo.UpdateState
 import com.fioiu8.devinfo.model.ItemWithVisibility
+import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.MountThemeColor
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.AppLanguage
@@ -105,6 +109,8 @@ fun MainScreen(
     val updateChecker = remember { UpdateChecker(context) }
     val scope = rememberCoroutineScope()
     var selectedIndex by remember { mutableIntStateOf(0) }
+    var showDetailsPage by remember { mutableStateOf(false) }
+    var detailCategory by remember { mutableStateOf(InfoCategory.DEVICE) }
     val itemsState = remember { mutableStateListOf<ItemWithVisibility>() }
     val reloadMutex = remember { Mutex() }
     var isLoading by remember { mutableStateOf(true) }
@@ -151,6 +157,10 @@ fun MainScreen(
     val exportFailedLabel = stringResource(R.string.export_failed)
     val isDynamicMode = themeMode.isDynamic
 
+    BackHandler(enabled = showDetailsPage) {
+        showDetailsPage = false
+    }
+
     suspend fun reloadDeviceInfo() {
         reloadMutex.withLock {
             isLoading = true
@@ -194,9 +204,23 @@ fun MainScreen(
             topBar = {
                 Column {
                     TopAppBar(
+                        navigationIcon = {
+                            if (selectedIndex == 0 && showDetailsPage) {
+                                IconButton(onClick = { showDetailsPage = false }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.ArrowBack,
+                                        contentDescription = stringResource(R.string.back)
+                                    )
+                                }
+                            }
+                        },
                         title = {
                             Text(
-                                text = if (selectedIndex == 1) stringResource(R.string.title_settings) else stringResource(R.string.title_device_info),
+                                text = when {
+                                    selectedIndex == 1 -> stringResource(R.string.title_settings)
+                                    showDetailsPage -> stringResource(R.string.title_device_details)
+                                    else -> stringResource(R.string.title_device_info)
+                                },
                                 fontWeight = FontWeight.SemiBold
                             )
                         },
@@ -222,7 +246,10 @@ fun MainScreen(
                     tabs.forEachIndexed { i, title ->
                         NavigationBarItem(
                             selected = selectedIndex == i,
-                            onClick = { selectedIndex = i },
+                            onClick = {
+                                selectedIndex = i
+                                if (i == 1) showDetailsPage = false
+                            },
                             icon = {
                                 Icon(
                                     imageVector = if (selectedIndex == i) selectedIcons[i] else unselectedIcons[i],
@@ -245,21 +272,37 @@ fun MainScreen(
         ) { paddingValues ->
             Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                 AnimatedContent(
-                    targetState = selectedIndex,
+                    targetState = selectedIndex to showDetailsPage,
                     transitionSpec = {
-                        val direction = if (targetState > initialState) 1 else -1
+                        val direction = if (
+                            targetState.first > initialState.first ||
+                            targetState.second && !initialState.second
+                        ) 1 else -1
                         (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { direction * it / 5 })
                             .togetherWith(fadeOut(tween(160)) + slideOutHorizontally(tween(180)) { -direction * it / 5 })
                     },
                     label = "mainNavigationTransition"
-                ) { pageIndex ->
-                    when (pageIndex) {
-                        0 -> DeviceInfoPage(
-                            deviceId = deviceId,
-                            itemsState = itemsState,
-                            isLoading = isLoading,
-                            onRefresh = { reloadDeviceInfo() }
-                        )
+                ) { pageState ->
+                    when (pageState.first) {
+                        0 -> if (pageState.second) {
+                            DeviceInfoPage(
+                                deviceId = deviceId,
+                                itemsState = itemsState,
+                                isLoading = isLoading,
+                                onRefresh = { reloadDeviceInfo() },
+                                initialCategory = detailCategory
+                            )
+                        } else {
+                            DeviceInfoOverviewPage(
+                                itemsState = itemsState,
+                                isLoading = isLoading,
+                                onRefresh = { reloadDeviceInfo() },
+                                onOpenDetails = { category ->
+                                    detailCategory = category
+                                    showDetailsPage = true
+                                }
+                            )
+                        }
                         1 -> SettingsPage(
                             versionName = collector.getAppVersionName(),
                             versionCode = collector.getAppVersionCode(),

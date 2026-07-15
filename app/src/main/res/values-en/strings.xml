@@ -13,6 +13,7 @@
     <string name="nav_info">Info</string>
     <string name="nav_settings">Settings</string>
     <string name="title_device_info">Device Info</string>
+    <string name="title_device_details">Device Details</string>
     <string name="title_settings">Settings</string>
 
     <!-- Settings categories -->
@@ -162,6 +163,10 @@
     <string name="overview_storage">Storage usage</string>
     <string name="overview_memory">Memory usage</string>
     <string name="overview_battery">Battery level</string>
+    <string name="overview_cpu_frequency">CPU frequency</string>
+    <string name="overview_cpu_usage">CPU usage</string>
+    <string name="overview_gpu_frequency">GPU frequency</string>
+    <string name="overview_gpu_usage">GPU usage</string>
     <string name="storage_usage">Storage Usage</string>
     <string name="memory_usage">Memory Usage</string>
     <string name="battery_level_charging">Battery (Charging)</string>

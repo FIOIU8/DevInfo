@@ -25,19 +25,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -90,7 +89,8 @@ fun DeviceInfoPage(
     deviceId: String,
     itemsState: List<ItemWithVisibility>,
     isLoading: Boolean,
-    onRefresh: suspend () -> Unit
+    onRefresh: suspend () -> Unit,
+    initialCategory: InfoCategory = InfoCategory.DEVICE
 ) {
     val ctx = LocalContext.current
     val resources = LocalResources.current
@@ -100,13 +100,15 @@ fun DeviceInfoPage(
     val batteryState by batteryObserver.batteryState.collectAsState(
         initial = BatteryObserver.BatteryState(level = 100, isCharging = false)
     )
+    val categories = InfoCategory.entries
 
     var isRefreshing by remember { mutableStateOf(false) }
-    var selectedCategoryIndex by remember { mutableIntStateOf(0) }
+    var selectedCategoryIndex by remember(initialCategory) {
+        mutableIntStateOf(categories.indexOf(initialCategory).coerceAtLeast(0))
+    }
     var previousCategoryIndex by remember { mutableIntStateOf(0) }
     var currentPage by remember(selectedCategoryIndex) { mutableIntStateOf(0) }
     val pullToRefreshState = rememberPullToRefreshState()
-    val categories = InfoCategory.entries
 
     // Read these on recomposition so a refresh reflects the current device state.
     val storagePercent = collector.getStorageUsagePercent()
@@ -121,7 +123,7 @@ fun DeviceInfoPage(
 
     if (isLoading && itemsState.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+            LoadingIndicator(color = MaterialTheme.colorScheme.primary)
         }
     } else {
         val selectedCategory = categories[selectedCategoryIndex]
@@ -148,17 +150,6 @@ fun DeviceInfoPage(
                     top = 12.dp, bottom = 12.dp, start = 0.dp, end = 0.dp
                 )
             ) {
-                item {
-                    OverviewCard(
-                        items = itemsState,
-                        storagePercent = storagePercent,
-                        memoryPercent = memoryPercent,
-                        batteryLevel = batteryState.level,
-                        batteryCharging = batteryState.isCharging,
-                        isLoading = isLoading
-                    )
-                }
-
                 // Category Tab Row
                 item {
                     CategoryTabRow(
@@ -324,36 +315,23 @@ private fun List<ItemWithVisibility>.valueFor(keyResId: Int): String? =
     firstOrNull { it.item.keyResId == keyResId }?.item?.value
 
 // ── Category Tab Row ──
-/** 水平滚动的分类标签行 */
+/** Official Material 3 tabs keep each detail category separate and scannable. */
 @Composable
 private fun CategoryTabRow(
     categories: List<InfoCategory>,
     selectedIndex: Int,
     onCategorySelected: (Int) -> Unit
 ) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(categories.size) { index ->
-            val category = categories[index]
-            val selected = selectedIndex == index
-            FilterChip(
-                selected = selected,
+    ScrollableTabRow(
+        selectedTabIndex = selectedIndex,
+        edgePadding = 0.dp,
+        divider = {}
+    ) {
+        categories.forEachIndexed { index, category ->
+            Tab(
+                selected = selectedIndex == index,
                 onClick = { onCategorySelected(index) },
-                label = {
-                    Text(text = stringResource(category.displayNameResId), style = MaterialTheme.typography.labelMedium)
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = categoryIcon(category),
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ),
-                shape = RoundedCornerShape(20.dp)
+                text = { Text(stringResource(category.displayNameResId)) }
             )
         }
     }
