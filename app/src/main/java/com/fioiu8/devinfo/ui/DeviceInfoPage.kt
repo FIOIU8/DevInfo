@@ -406,15 +406,19 @@ private fun PageNavigationRow(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "上一页",
+                contentDescription = stringResource(com.fioiu8.devinfo.R.string.previous_page),
                 modifier = Modifier.size(18.dp)
             )
             Spacer(Modifier.width(2.dp))
-            Text("上一页")
+            Text(stringResource(com.fioiu8.devinfo.R.string.previous_page))
         }
 
         Text(
-            text = "第 ${currentPage + 1} / $totalPages 页",
+            text = stringResource(
+                com.fioiu8.devinfo.R.string.page_info,
+                currentPage + 1,
+                totalPages
+            ),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -423,11 +427,11 @@ private fun PageNavigationRow(
             onClick = onNext,
             enabled = currentPage < totalPages - 1
         ) {
-            Text("下一页")
+            Text(stringResource(com.fioiu8.devinfo.R.string.next_page))
             Spacer(Modifier.width(2.dp))
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = "下一页",
+                contentDescription = stringResource(com.fioiu8.devinfo.R.string.next_page),
                 modifier = Modifier.size(18.dp)
             )
         }
