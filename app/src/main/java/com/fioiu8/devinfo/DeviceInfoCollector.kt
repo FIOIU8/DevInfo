@@ -30,6 +30,12 @@ private inline fun safeGet(default: String, block: () -> String): String {
     }
 }
 
+data class CpuCoreMetric(
+    val index: Int,
+    val frequency: String?,
+    val usagePercent: Float?
+)
+
 class DeviceInfoCollector(private val context: Context) {
 
     private var cachedVersionName: String? = null
@@ -210,6 +216,27 @@ class DeviceInfoCollector(private val context: Context) {
         "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
     )
 
+    fun getCpuCoreMetrics(): List<CpuCoreMetric> = runCatching {
+        val first = readCpuTimesByCore()
+        if (first.isEmpty()) return@runCatching emptyList()
+        Thread.sleep(180)
+        val second = readCpuTimesByCore()
+        second.keys.sorted().map { index ->
+            val firstTimes = first[index]
+            val secondTimes = second[index]
+            val usage = if (firstTimes == null || secondTimes == null) {
+                null
+            } else {
+                val totalDelta = secondTimes.total - firstTimes.total
+                val idleDelta = secondTimes.idle - firstTimes.idle
+                if (totalDelta <= 0L) null else {
+                    ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
+                }
+            }
+            CpuCoreMetric(index, getCpuCoreFrequency(index), usage)
+        }
+    }.getOrDefault(emptyList())
+
     fun getGpuFrequency(): String? = readFrequency(
         "/sys/class/kgsl/kgsl-3d0/gpuclk",
         "/sys/class/devfreq/1c00000.qcom,kgsl-3d0/cur_freq",
@@ -242,6 +269,12 @@ class DeviceInfoCollector(private val context: Context) {
         return if (mhz > 0f) "%.0f MHz".format(Locale.US, mhz) else null
     }
 
+    private fun getCpuCoreFrequency(index: Int): String? = readFrequency(
+        "/sys/devices/system/cpu/cpu${index}/cpufreq/scaling_cur_freq",
+        "/sys/devices/system/cpu/cpu${index}/cpufreq/cpuinfo_cur_freq",
+        "/sys/devices/system/cpu/cpufreq/policy${index}/scaling_cur_freq"
+    )
+
     private fun readFirstLine(vararg paths: String): String? = paths.firstNotNullOfOrNull { path ->
         runCatching {
             File(path).takeIf { it.isFile && it.canRead() }?.useLines { lines -> lines.firstOrNull() }
@@ -249,6 +282,21 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     private data class CpuTimes(val total: Long, val idle: Long)
+
+    private fun readCpuTimesByCore(): Map<Int, CpuTimes> {
+        val result = mutableMapOf<Int, CpuTimes>()
+        File("/proc/stat").takeIf { it.isFile && it.canRead() }?.useLines { lines ->
+            lines.forEach { line ->
+                val parts = line.trim().split(Regex("\\s+"))
+                val index = parts.firstOrNull()?.removePrefix("cpu")?.toIntOrNull() ?: return@forEach
+                val fields = parts.drop(1).mapNotNull { it.toLongOrNull() }
+                if (fields.size >= 5) {
+                    result[index] = CpuTimes(fields.sum(), fields[3] + fields[4])
+                }
+            }
+        }
+        return result
+    }
 
     private fun readCpuTimes(): CpuTimes? {
         val fields = readFirstLine("/proc/stat")
