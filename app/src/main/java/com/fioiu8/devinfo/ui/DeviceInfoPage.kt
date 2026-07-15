@@ -47,7 +47,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -66,8 +65,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.fioiu8.devinfo.BatteryObserver
-import com.fioiu8.devinfo.DeviceInfoCollector
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ItemWithVisibility
@@ -89,17 +86,13 @@ fun DeviceInfoPage(
     deviceId: String,
     itemsState: List<ItemWithVisibility>,
     isLoading: Boolean,
+    overviewSnapshot: OverviewSnapshot,
     onRefresh: suspend () -> Unit,
     initialCategory: InfoCategory = InfoCategory.DEVICE
 ) {
     val ctx = LocalContext.current
     val resources = LocalResources.current
     val clipboardManager = LocalClipboardManager.current
-    val collector = remember { DeviceInfoCollector(ctx) }
-    val batteryObserver = remember { BatteryObserver(ctx) }
-    val batteryState by batteryObserver.batteryState.collectAsState(
-        initial = BatteryObserver.BatteryState(level = 100, isCharging = false)
-    )
     val categories = InfoCategory.entries
 
     var isRefreshing by remember { mutableStateOf(false) }
@@ -110,9 +103,8 @@ fun DeviceInfoPage(
     var currentPage by remember(selectedCategoryIndex) { mutableIntStateOf(0) }
     val pullToRefreshState = rememberPullToRefreshState()
 
-    // Read these on recomposition so a refresh reflects the current device state.
-    val storagePercent = collector.getStorageUsagePercent()
-    val memoryPercent = collector.getMemoryUsagePercent()
+    val storagePercent = overviewSnapshot.storagePercent ?: 0f
+    val memoryPercent = overviewSnapshot.memoryPercent ?: 0f
 
     LaunchedEffect(isRefreshing) {
         if (isRefreshing) {
@@ -201,8 +193,8 @@ fun DeviceInfoPage(
                             },
                             storagePercent = storagePercent,
                             memoryPercent = memoryPercent,
-                            batteryLevel = batteryState.level,
-                            batteryCharging = batteryState.isCharging
+                            batteryLevel = overviewSnapshot.batteryLevel,
+                            batteryCharging = overviewSnapshot.batteryCharging
                         )
                     }
                 }
@@ -350,7 +342,7 @@ private fun CategoryCard(
     onItemCopy: (ItemWithVisibility) -> Unit,
     storagePercent: Float = 0f,
     memoryPercent: Float = 0f,
-    batteryLevel: Int = 100,
+    batteryLevel: Int? = null,
     batteryCharging: Boolean = false
 ) {
     // 分页切片
@@ -424,7 +416,7 @@ private fun CategoryCard(
                         StorageProgressSection(storagePercent, memoryPercent)
                     }
                 }
-                InfoCategory.BATTERY -> {
+                InfoCategory.BATTERY -> if (batteryLevel != null) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()

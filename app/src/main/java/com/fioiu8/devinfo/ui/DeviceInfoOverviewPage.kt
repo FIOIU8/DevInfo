@@ -26,7 +26,6 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,13 +38,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.fioiu8.devinfo.BatteryObserver
-import com.fioiu8.devinfo.DeviceInfoCollector
+import com.fioiu8.devinfo.CpuCoreMetric
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ItemWithVisibility
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.util.Locale
 
 private enum class OverviewCardSize(val span: Int) {
@@ -53,9 +49,21 @@ private enum class OverviewCardSize(val span: Int) {
     LARGE(2)
 }
 
+data class OverviewSnapshot(
+    val cpuFrequency: String? = null,
+    val gpuFrequency: String? = null,
+    val cpuUsage: Float? = null,
+    val gpuUsage: Float? = null,
+    val cpuCoreMetrics: List<CpuCoreMetric> = emptyList(),
+    val storagePercent: Float? = null,
+    val memoryPercent: Float? = null,
+    val batteryLevel: Int? = null,
+    val batteryCharging: Boolean = false
+)
+
 private data class OverviewMetric(
     val title: String,
-    val value: String,
+    val value: String? = null,
     val category: InfoCategory,
     val icon: ImageVector,
     val size: OverviewCardSize,
@@ -63,49 +71,19 @@ private data class OverviewMetric(
     val progress: Float? = null
 )
 
-private data class HardwareOverview(
-    val cpuFrequency: String?,
-    val gpuFrequency: String?,
-    val cpuUsage: Float?,
-    val gpuUsage: Float?
-)
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DeviceInfoOverviewPage(
     itemsState: List<ItemWithVisibility>,
     isLoading: Boolean,
+    isOverviewLoading: Boolean,
+    snapshot: OverviewSnapshot,
     onRefresh: suspend () -> Unit,
     onOpenDetails: (InfoCategory) -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
-    val collector = remember { DeviceInfoCollector(context) }
-    val batteryObserver = remember { BatteryObserver(context) }
-    val batteryState by batteryObserver.batteryState.collectAsState(
-        initial = BatteryObserver.BatteryState(level = 100, isCharging = false)
-    )
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
-    var cpuFrequency by remember { mutableStateOf<String?>(null) }
-    var gpuFrequency by remember { mutableStateOf<String?>(null) }
-    var cpuUsage by remember { mutableStateOf<Float?>(null) }
-    var gpuUsage by remember { mutableStateOf<Float?>(null) }
-
-    LaunchedEffect(Unit) {
-        val hardware = withContext(Dispatchers.Default) {
-            HardwareOverview(
-                cpuFrequency = collector.getCpuFrequency(),
-                gpuFrequency = collector.getGpuFrequency(),
-                cpuUsage = collector.getCpuUsagePercent(),
-                gpuUsage = collector.getGpuUsagePercent()
-            )
-        }
-        cpuFrequency = hardware.cpuFrequency
-        gpuFrequency = hardware.gpuFrequency
-        cpuUsage = hardware.cpuUsage
-        gpuUsage = hardware.gpuUsage
-    }
 
     LaunchedEffect(isRefreshing) {
         if (isRefreshing) {
@@ -114,20 +92,11 @@ fun DeviceInfoOverviewPage(
         }
     }
 
-    val storagePercent = collector.getStorageUsagePercent()
-    val memoryPercent = collector.getMemoryUsagePercent()
     val metrics = buildOverviewMetrics(
-        cpuFrequency = cpuFrequency,
-        gpuFrequency = gpuFrequency,
-        cpuUsage = cpuUsage,
-        gpuUsage = gpuUsage,
-        storagePercent = storagePercent,
-        memoryPercent = memoryPercent,
-        batteryLevel = batteryState.level,
-        batteryCharging = batteryState.isCharging
+        snapshot = snapshot
     )
 
-    if (isLoading && itemsState.isEmpty()) {
+    if ((isLoading && itemsState.isEmpty()) || (isOverviewLoading && metrics.isEmpty())) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             LoadingIndicator(color = MaterialTheme.colorScheme.primary)
         }
@@ -173,16 +142,9 @@ fun DeviceInfoOverviewPage(
 
 @Composable
 private fun buildOverviewMetrics(
-    cpuFrequency: String?,
-    gpuFrequency: String?,
-    cpuUsage: Float?,
-    gpuUsage: Float?,
-    storagePercent: Float,
-    memoryPercent: Float,
-    batteryLevel: Int,
-    batteryCharging: Boolean
+    snapshot: OverviewSnapshot
 ): List<OverviewMetric> = buildList {
-    cpuFrequency?.let {
+    snapshot.cpuFrequency?.let {
         add(
             OverviewMetric(
                 title = "CPU",
@@ -194,7 +156,7 @@ private fun buildOverviewMetrics(
             )
         )
     }
-    cpuUsage?.let {
+    snapshot.cpuUsage?.let {
         add(
             OverviewMetric(
                 title = stringResourceValue(R.string.overview_cpu_usage),
@@ -206,60 +168,48 @@ private fun buildOverviewMetrics(
             )
         )
     }
-    gpuFrequency?.let {
+    snapshot.gpuFrequency?.let {
         add(
             OverviewMetric(
                 title = stringResourceValue(R.string.overview_gpu_frequency),
                 value = it,
-                category = InfoCategory.SYSTEM,
+                category = InfoCategory.DISPLAY,
                 icon = categoryIcon(InfoCategory.DISPLAY),
-                size = OverviewCardSize.SMALL
+                size = OverviewCardSize.SMALL,
             )
         )
     }
-    gpuUsage?.let {
+    snapshot.gpuUsage?.let {
         add(
             OverviewMetric(
                 title = stringResourceValue(R.string.overview_gpu_usage),
                 value = formatPercent(it),
-                category = InfoCategory.SYSTEM,
+                category = InfoCategory.DISPLAY,
                 icon = categoryIcon(InfoCategory.DISPLAY),
                 size = OverviewCardSize.SMALL,
                 progress = it / 100f
             )
         )
     }
-    add(
-        OverviewMetric(
-            title = stringResourceValue(R.string.overview_memory),
-            value = formatPercent(memoryPercent),
-            category = InfoCategory.STORAGE,
-            icon = categoryIcon(InfoCategory.STORAGE),
-            size = OverviewCardSize.SMALL,
-            progress = memoryPercent / 100f
+    snapshot.memoryPercent?.let {
+        add(
+            OverviewMetric(
+                title = stringResourceValue(R.string.overview_memory),
+                value = formatPercent(it),
+                category = InfoCategory.STORAGE,
+                icon = categoryIcon(InfoCategory.STORAGE),
+                size = OverviewCardSize.SMALL,
+                progress = it / 100f
+            )
         )
-    )
-    add(
-        OverviewMetric(
-            title = stringResourceValue(R.string.overview_storage),
-            value = formatPercent(storagePercent),
-            category = InfoCategory.STORAGE,
-            icon = categoryIcon(InfoCategory.STORAGE),
-            size = OverviewCardSize.SMALL,
-            progress = storagePercent / 100f
-        )
-    )
-    add(
-        OverviewMetric(
-            title = stringResourceValue(R.string.overview_battery),
-            value = "${batteryLevel.coerceIn(0, 100)}%",
-            category = InfoCategory.BATTERY,
-            icon = categoryIcon(InfoCategory.BATTERY),
-            size = OverviewCardSize.SMALL,
-            supportingText = if (batteryCharging) stringResourceValue(R.string.status_charging) else null,
-            progress = batteryLevel.coerceIn(0, 100) / 100f
-        )
-    )
+    }
+    snapshot.storagePercent?.let {
+        add(OverviewMetric(stringResourceValue(R.string.overview_storage), formatPercent(it), InfoCategory.STORAGE, categoryIcon(InfoCategory.STORAGE), OverviewCardSize.SMALL, progress = it / 100f))
+    }
+    snapshot.batteryLevel?.let { level ->
+        val safeLevel = level.coerceIn(0, 100)
+        add(OverviewMetric(stringResourceValue(R.string.overview_battery), "$safeLevel%", InfoCategory.BATTERY, categoryIcon(InfoCategory.BATTERY), OverviewCardSize.SMALL, if (snapshot.batteryCharging) stringResourceValue(R.string.status_charging) else null, safeLevel / 100f))
+    }
 }
 
 @Composable
@@ -294,14 +244,16 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = metric.value,
-                style = if (metric.size == OverviewCardSize.LARGE) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            metric.value?.let {
+                Text(
+                    text = it,
+                    style = if (metric.size == OverviewCardSize.LARGE) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             metric.supportingText?.let {
                 Text(
                     text = it,
