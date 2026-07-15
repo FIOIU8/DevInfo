@@ -174,12 +174,17 @@ fun MainScreen(
             itemsState.clear()
             coroutineScope {
                 val hardwareJob = launch(Dispatchers.Default) {
-                    val snapshot = readOverviewSnapshot(collector)
+                    loadOverviewSnapshot(
+                        collector = collector,
+                        batteryLevel = batteryState?.level,
+                        batteryCharging = batteryState?.isCharging == true,
+                        onSnapshot = { snapshot ->
+                            withContext(Dispatchers.Main.immediate) {
+                                overviewSnapshot = snapshot
+                            }
+                        }
+                    )
                     withContext(Dispatchers.Main.immediate) {
-                        overviewSnapshot = snapshot.copy(
-                            batteryLevel = batteryState?.level,
-                            batteryCharging = batteryState?.isCharging == true
-                        )
                         isOverviewLoading = false
                     }
                 }
@@ -480,15 +485,36 @@ private suspend fun loadDeviceInfo(
     }
 }
 
-private fun readOverviewSnapshot(collector: DeviceInfoCollector): OverviewSnapshot = OverviewSnapshot(
-    cpuFrequency = collector.getCpuFrequency(),
-    gpuFrequency = collector.getGpuFrequency(),
-    cpuUsage = collector.getCpuUsagePercent(),
-    gpuUsage = collector.getGpuUsagePercent(),
-    cpuCoreMetrics = collector.getCpuCoreMetrics(),
-    storagePercent = collector.getStorageUsagePercent(),
-    memoryPercent = collector.getMemoryUsagePercent()
-)
+private suspend fun loadOverviewSnapshot(
+    collector: DeviceInfoCollector,
+    batteryLevel: Int?,
+    batteryCharging: Boolean,
+    onSnapshot: suspend (OverviewSnapshot) -> Unit
+) {
+    var snapshot = OverviewSnapshot(
+        batteryLevel = batteryLevel,
+        batteryCharging = batteryCharging
+    )
+
+    suspend fun publish(update: OverviewSnapshot) {
+        snapshot = update
+        onSnapshot(snapshot)
+    }
+
+    publish(snapshot.copy(cpuFrequency = collector.getCpuFrequency()))
+
+    val coreMetrics = collector.getCpuCoreMetrics()
+    if (coreMetrics.isNotEmpty()) {
+        publish(snapshot.copy(cpuCoreMetrics = coreMetrics))
+    } else {
+        publish(snapshot.copy(cpuUsage = collector.getCpuUsagePercent()))
+    }
+
+    publish(snapshot.copy(gpuFrequency = collector.getGpuFrequency()))
+    publish(snapshot.copy(gpuUsage = collector.getGpuUsagePercent()))
+    publish(snapshot.copy(memoryPercent = collector.getMemoryUsagePercent()))
+    publish(snapshot.copy(storagePercent = collector.getStorageUsagePercent()))
+}
 
 /** 通过 Intent 打开外部链接，失败时弹出 Toast 提示 */
 private fun openUrl(context: android.content.Context, url: String) {
