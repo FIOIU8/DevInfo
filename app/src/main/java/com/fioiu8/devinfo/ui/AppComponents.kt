@@ -1,8 +1,6 @@
 package com.fioiu8.devinfo.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,32 +20,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.R
-
-/** 纯色预览块，用于主题色选择器 */
-@Composable
-fun ColorPreview(
-    color: Color,
-    modifier: Modifier = Modifier,
-    size: Dp = 24.dp,
-    cornerRadius: Dp = 6.dp
-) {
-    Box(
-        modifier = modifier
-            .size(size)
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(color)
-    )
-}
 
 /** 分类标题文本 */
 @Composable
@@ -115,17 +95,17 @@ fun InfoRow(
             text = value,
             style = MaterialTheme.typography.bodySmall,
             color = if (valueColor != Color.Unspecified) valueColor
-                    else MaterialTheme.colorScheme.onSurface,
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = when (valueAlignment) {
                 Alignment.Start -> TextAlign.Start
                 Alignment.CenterHorizontally -> TextAlign.Center
                 Alignment.End -> TextAlign.End
-                null -> TextAlign.End
-                else -> TextAlign.End
+                null -> TextAlign.Start
+                else -> TextAlign.Start
             },
-            modifier = Modifier.weight(1f, fill = false)
+            modifier = Modifier.weight(1f)
         )
     }
 }
@@ -141,8 +121,8 @@ fun TestVersionWarningCard(
     versionName: String = "",
     buildType: String = "dev"
 ) {
-    val bgColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
-    val textColor = MaterialTheme.colorScheme.error
+    val bgColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    val textColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     Card(
         modifier = modifier
@@ -162,7 +142,7 @@ fun TestVersionWarningCard(
                 imageVector = Icons.Outlined.Warning,
                 contentDescription = stringResource(R.string.warning_icon_desc),
                 modifier = Modifier.size(24.dp),
-                tint = textColor
+                tint = MaterialTheme.colorScheme.error
             )
             Column {
                 Text(
