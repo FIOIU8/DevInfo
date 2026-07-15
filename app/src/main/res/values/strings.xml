@@ -22,6 +22,10 @@
 
     <!-- Theme settings -->
     <string name="theme_mode">主题模式</string>
+    <string name="theme_follow_system">跟随系统</string>
+    <string name="theme_follow_system_summary">使用系统的浅色或深色外观</string>
+    <string name="theme_dynamic_color">动态颜色</string>
+    <string name="theme_dynamic_color_summary">使用系统动态主题颜色</string>
     <string name="theme_color">主题颜色</string>
     <string name="theme_mode_summary">跟随系统</string>
     <string name="theme_color_enabled">已启用自定义颜色</string>
