@@ -178,6 +178,30 @@
     <string name="copied_to_clipboard">%s copied</string>
     <string name="storage_usage_desc">Storage &amp; memory usage</string>
     <string name="battery_desc">Battery level</string>
+    <string name="overview_realtime_title">Live Activity</string>
+    <string name="overview_realtime_cpu">CPU waveform · 2 s sampling</string>
+    <string name="overview_cpu_cores_detail">Per-core usage</string>
+    <string name="overview_hardware_title">Hardware Sensors</string>
+    <string name="overview_motion">Gyroscope / accelerometer</string>
+    <string name="overview_brightness">Screen brightness</string>
+    <string name="overview_storage_read">Read speed</string>
+    <string name="overview_storage_average">Average read: %d MB/s</string>
+    <string name="overview_storage_average_unknown">Average read: sampling</string>
+    <string name="overview_wifi_signal">Wi-Fi signal</string>
+    <string name="status_stationary">Stationary</string>
+    <string name="status_moving">Moving</string>
+    <string name="status_unavailable">Unavailable</string>
+    <string name="overview_security_title">System Security &amp; Privacy</string>
+    <string name="security_patch_updated">Security patch updated (%s)</string>
+    <string name="security_lock_enabled">Screen lock: enabled</string>
+    <string name="security_lock_disabled">Screen lock: disabled</string>
+    <string name="security_lock_unknown">Screen lock: unknown</string>
+    <string name="security_usb_enabled">USB debugging: enabled</string>
+    <string name="security_usb_disabled">USB debugging: disabled</string>
+    <string name="security_usb_unknown">USB debugging: unknown</string>
+    <string name="security_usb_dialog_title">USB debugging is enabled</string>
+    <string name="security_usb_dialog_text">With USB debugging enabled, a connected computer can run debug commands. Turn it off when it is not needed for development.</string>
+    <string name="security_open_developer_options">Open developer options</string>
 
     <!-- Tool settings -->
     <string name="export_tool">Export Module</string>

@@ -58,7 +58,9 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.fioiu8.devinfo.BuildConfig
 import com.fioiu8.devinfo.BatteryObserver
+import com.fioiu8.devinfo.CpuUsageSampler
 import com.fioiu8.devinfo.DeviceInfoCollector
+import com.fioiu8.devinfo.LiveHardwareMonitor
 import com.fioiu8.devinfo.ModuleExportHelper
 import com.fioiu8.devinfo.UpdateChecker
 import com.fioiu8.devinfo.UpdateState
@@ -111,6 +113,8 @@ fun MainScreen(
     val context = LocalContext.current
     val lifecycle = (context as? LifecycleOwner)?.lifecycle
     val collector = remember { DeviceInfoCollector(context) }
+    val cpuUsageSampler = remember { CpuUsageSampler(collector) }
+    val liveHardwareMonitor = remember { LiveHardwareMonitor(context) }
     val batteryObserver = remember { BatteryObserver(context) }
     val batteryState by batteryObserver.batteryState.collectAsState(initial = null)
     val updateChecker = remember { UpdateChecker(context) }
@@ -184,6 +188,7 @@ fun MainScreen(
                         collector = collector,
                         batteryLevel = batteryState?.level,
                         batteryCharging = batteryState?.isCharging == true,
+                        hardware = liveHardwareMonitor.snapshot(),
                         onSnapshot = { snapshot ->
                             withContext(Dispatchers.Main.immediate) {
                                 overviewSnapshot = snapshot
@@ -212,17 +217,37 @@ fun MainScreen(
     LaunchedEffect(lifecycle, selectedIndex, showDetailsPage) {
         lifecycle?.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             if (selectedIndex == 0) {
-                while (isActive) {
-                    delay(DYNAMIC_REFRESH_INTERVAL_MS)
-                    refreshDynamicMetrics(
-                        collector = collector,
-                        reloadMutex = reloadMutex,
-                        currentSnapshot = { overviewSnapshot },
-                        onSnapshot = { snapshot ->
-                            overviewSnapshot = snapshot
-                        }
-                    )
+                cpuUsageSampler.start { reading ->
+                    overviewSnapshot = overviewSnapshot.withCpuUsageReading(reading)
                 }
+                try {
+                    while (isActive) {
+                        delay(DYNAMIC_REFRESH_INTERVAL_MS)
+                        refreshDynamicMetrics(
+                            collector = collector,
+                            reloadMutex = reloadMutex,
+                            currentSnapshot = { overviewSnapshot },
+                            onSnapshot = { snapshot -> overviewSnapshot = snapshot }
+                        )
+                    }
+                } finally {
+                    cpuUsageSampler.stop()
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(lifecycle) {
+        lifecycle?.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            liveHardwareMonitor.start()
+            try {
+                while (isActive) {
+                    val hardware = withContext(Dispatchers.Default) { liveHardwareMonitor.snapshot() }
+                    overviewSnapshot = overviewSnapshot.copy(hardware = hardware)
+                    delay(DYNAMIC_REFRESH_INTERVAL_MS)
+                }
+            } finally {
+                liveHardwareMonitor.stop()
             }
         }
     }
@@ -536,11 +561,13 @@ private suspend fun loadOverviewSnapshot(
     collector: DeviceInfoCollector,
     batteryLevel: Int?,
     batteryCharging: Boolean,
+    hardware: com.fioiu8.devinfo.LiveHardwareSnapshot,
     onSnapshot: suspend (OverviewSnapshot) -> Unit
 ) {
     var snapshot = OverviewSnapshot(
         batteryLevel = batteryLevel,
-        batteryCharging = batteryCharging
+        batteryCharging = batteryCharging,
+        hardware = hardware
     )
 
     suspend fun publish(update: OverviewSnapshot) {
@@ -552,7 +579,7 @@ private suspend fun loadOverviewSnapshot(
 
     val coreMetrics = collector.getCpuCoreMetrics()
     if (coreMetrics.isNotEmpty()) {
-        publish(snapshot.copy(cpuCoreMetrics = coreMetrics))
+        publish(snapshot.copy(cpuCoreMetrics = coreMetrics).withCpuUsageReading(coreMetrics))
     } else {
         publish(snapshot.copy(cpuUsage = collector.getCpuUsagePercent()))
     }
@@ -561,9 +588,42 @@ private suspend fun loadOverviewSnapshot(
     publish(snapshot.copy(gpuUsage = collector.getGpuUsagePercent()))
     publish(snapshot.copy(memoryPercent = collector.getMemoryUsagePercent()))
     publish(snapshot.copy(storagePercent = collector.getStorageUsagePercent()))
+    val security = collector.getSecuritySnapshot()
+    publish(
+        snapshot.copy(
+            securityPatch = security.securityPatch,
+            lockScreenEnabled = security.lockScreenEnabled,
+            usbDebuggingEnabled = security.usbDebuggingEnabled
+        )
+    )
 }
 
-private const val DYNAMIC_REFRESH_INTERVAL_MS = 1_000L
+private fun OverviewSnapshot.withCpuUsageReading(reading: com.fioiu8.devinfo.CpuUsageReading): OverviewSnapshot {
+    val currentMetrics = reading.coreMetrics.ifEmpty { cpuCoreMetrics }
+    val values = if (reading.coreMetrics.isNotEmpty()) {
+        reading.coreMetrics.mapNotNull { metric -> metric.usagePercent?.let { metric.index to it } }.toMap()
+    } else {
+        reading.overallUsage?.let { mapOf(-1 to it) } ?: emptyMap()
+    }
+    val history = if (values.isEmpty()) cpuUsageHistory else {
+        (cpuUsageHistory + CpuUsageSample(System.currentTimeMillis(), values)).takeLast(30)
+    }
+    return copy(
+        cpuCoreMetrics = currentMetrics,
+        cpuUsage = reading.overallUsage,
+        cpuUsageHistory = history
+    )
+}
+
+private fun OverviewSnapshot.withCpuUsageReading(metrics: List<com.fioiu8.devinfo.CpuCoreMetric>): OverviewSnapshot =
+    withCpuUsageReading(
+        com.fioiu8.devinfo.CpuUsageReading(
+            coreMetrics = metrics,
+            overallUsage = metrics.mapNotNull { it.usagePercent }.average().toFloat().takeIf { !it.isNaN() }
+        )
+    )
+
+private const val DYNAMIC_REFRESH_INTERVAL_MS = 2_000L
 
 private suspend fun refreshDynamicMetrics(
     collector: DeviceInfoCollector,
@@ -579,22 +639,6 @@ private suspend fun refreshDynamicMetrics(
             onSnapshot(snapshot)
         }
 
-        publish(snapshot.copy(cpuFrequency = withContext(Dispatchers.Default) {
-            collector.getCpuFrequency()
-        }))
-
-        val coreMetrics = withContext(Dispatchers.Default) {
-            collector.getCpuCoreMetrics()
-        }
-        if (coreMetrics.isNotEmpty()) {
-            publish(snapshot.copy(cpuCoreMetrics = coreMetrics, cpuUsage = null))
-        } else {
-            val cpuUsage = withContext(Dispatchers.Default) {
-                collector.getCpuUsagePercent()
-            }
-            publish(snapshot.copy(cpuCoreMetrics = emptyList(), cpuUsage = cpuUsage))
-        }
-
         publish(snapshot.copy(gpuFrequency = withContext(Dispatchers.Default) {
             collector.getGpuFrequency()
         }))
@@ -607,6 +651,14 @@ private suspend fun refreshDynamicMetrics(
         publish(snapshot.copy(storagePercent = withContext(Dispatchers.Default) {
             collector.getStorageUsagePercent()
         }))
+        val security = withContext(Dispatchers.Default) { collector.getSecuritySnapshot() }
+        publish(
+            snapshot.copy(
+                securityPatch = security.securityPatch,
+                lockScreenEnabled = security.lockScreenEnabled,
+                usbDebuggingEnabled = security.usbDebuggingEnabled
+            )
+        )
     }
 }
 
