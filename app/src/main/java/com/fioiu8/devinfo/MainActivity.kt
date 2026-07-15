@@ -10,8 +10,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.fioiu8.devinfo.model.MountThemeColor
 import com.fioiu8.devinfo.model.AppLanguage
+import com.fioiu8.devinfo.model.ThemeColor
 import com.fioiu8.devinfo.model.ThemeMode
 import com.fioiu8.devinfo.ui.MainScreen
 import com.fioiu8.devinfo.ui.theme.DevInfoTheme
@@ -66,30 +66,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val themeMode by themePrefs.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
-            val mountColor by themePrefs.mountThemeColor.collectAsState(initial = MountThemeColor.DEFAULT)
-            val useMount by themePrefs.useMountTheme.collectAsState(initial = false)
-
-            // 动态颜色模式下，可选的自定义种子颜色
-            val seedColor = if (useMount && themeMode.isDynamic) mountColor.color else null
-
+            val themeColor by themePrefs.themeColor.collectAsState(initial = ThemeColor.DEFAULT)
             val appLanguage by languagePrefs.appLanguage.collectAsState(initial = AppLanguage.SYSTEM)
             val customLocaleTag by languagePrefs.customLocaleTag.collectAsState(initial = "")
 
-            DevInfoTheme(
-                themeMode = themeMode,
-                seedColor = seedColor
-            ) {
+            DevInfoTheme(themeMode = themeMode, themeColor = themeColor) {
                 MainScreen(
                     deviceId = deviceId,
                     themeMode = themeMode,
                     onThemeModeChange = { themePrefs.setThemeMode(it) },
-                    mountThemeColor = mountColor,
-                    onMountThemeColorChange = { color ->
-                        themePrefs.setMountThemeColor(color)
-                        themePrefs.setUseMountTheme(true)
-                    },
-                    useMountTheme = useMount,
-                    onUseMountThemeChange = { themePrefs.setUseMountTheme(it) },
+                    themeColor = themeColor,
+                    onThemeColorChange = { themePrefs.setThemeColor(it) },
                     exportHelper = exportHelper,
                     appLanguage = appLanguage,
                     languageOptions = AppLanguage.entries.map { getString(it.displayNameResId) },

@@ -38,22 +38,19 @@ enum class ThemeMode(val displayNameResId: Int) {
     val isDynamic: Boolean get() = name.startsWith("DYNAMIC")
 }
 
-/**
- * 自定义主题色选项
- */
-enum class MountThemeColor(
+enum class ThemeColor(
     val displayNameResId: Int,
     val color: Color,
     val descriptionResId: Int
 ) {
-    DEFAULT(com.fioiu8.devinfo.R.string.mount_color_default, Color(0xFF4A90D9), com.fioiu8.devinfo.R.string.mount_color_desc_default),
-    RED(com.fioiu8.devinfo.R.string.mount_color_red, Color(0xFFE74C3C), com.fioiu8.devinfo.R.string.mount_color_desc_red),
-    ORANGE(com.fioiu8.devinfo.R.string.mount_color_orange, Color(0xFFE67E22), com.fioiu8.devinfo.R.string.mount_color_desc_orange),
-    GREEN(com.fioiu8.devinfo.R.string.mount_color_green, Color(0xFF2ECC71), com.fioiu8.devinfo.R.string.mount_color_desc_green),
-    TEAL(com.fioiu8.devinfo.R.string.mount_color_teal, Color(0xFF1ABC9C), com.fioiu8.devinfo.R.string.mount_color_desc_teal),
-    PURPLE(com.fioiu8.devinfo.R.string.mount_color_purple, Color(0xFF9B59B6), com.fioiu8.devinfo.R.string.mount_color_desc_purple),
-    PINK(com.fioiu8.devinfo.R.string.mount_color_pink, Color(0xFFE91E63), com.fioiu8.devinfo.R.string.mount_color_desc_pink),
-    DARK(com.fioiu8.devinfo.R.string.mount_color_dark, Color(0xFF34495E), com.fioiu8.devinfo.R.string.mount_color_desc_dark)
+    DEFAULT(com.fioiu8.devinfo.R.string.mount_color_default, Color(0xFF6750A4), com.fioiu8.devinfo.R.string.mount_color_desc_default),
+    RED(com.fioiu8.devinfo.R.string.mount_color_red, Color(0xFFB3261E), com.fioiu8.devinfo.R.string.mount_color_desc_red),
+    ORANGE(com.fioiu8.devinfo.R.string.mount_color_orange, Color(0xFF9A4600), com.fioiu8.devinfo.R.string.mount_color_desc_orange),
+    GREEN(com.fioiu8.devinfo.R.string.mount_color_green, Color(0xFF386A20), com.fioiu8.devinfo.R.string.mount_color_desc_green),
+    TEAL(com.fioiu8.devinfo.R.string.mount_color_teal, Color(0xFF006A6A), com.fioiu8.devinfo.R.string.mount_color_desc_teal),
+    PURPLE(com.fioiu8.devinfo.R.string.mount_color_purple, Color(0xFF6750A4), com.fioiu8.devinfo.R.string.mount_color_desc_purple),
+    PINK(com.fioiu8.devinfo.R.string.mount_color_pink, Color(0xFF9C3D6D), com.fioiu8.devinfo.R.string.mount_color_desc_pink),
+    DARK(com.fioiu8.devinfo.R.string.mount_color_dark, Color(0xFF415F91), com.fioiu8.devinfo.R.string.mount_color_desc_dark)
 }
 
 /**
