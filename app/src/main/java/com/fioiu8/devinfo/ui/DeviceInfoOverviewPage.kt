@@ -2,12 +2,16 @@ package com.fioiu8.devinfo.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -15,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -31,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
@@ -42,6 +48,8 @@ import com.fioiu8.devinfo.CpuCoreMetric
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ItemWithVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import java.util.Locale
 
 private enum class OverviewCardSize(val span: Int) {
@@ -68,7 +76,8 @@ private data class OverviewMetric(
     val icon: ImageVector,
     val size: OverviewCardSize,
     val supportingText: String? = null,
-    val progress: Float? = null
+    val progress: Float? = null,
+    val coreMetrics: List<CpuCoreMetric> = emptyList()
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -144,29 +153,42 @@ fun DeviceInfoOverviewPage(
 private fun buildOverviewMetrics(
     snapshot: OverviewSnapshot
 ): List<OverviewMetric> = buildList {
-    snapshot.cpuFrequency?.let {
+    if (snapshot.cpuCoreMetrics.isNotEmpty()) {
         add(
             OverviewMetric(
                 title = "CPU",
-                value = it,
                 category = InfoCategory.SYSTEM,
                 icon = itemIconByResId(R.string.system_cpu_arch),
                 size = OverviewCardSize.LARGE,
-                supportingText = stringResourceValue(R.string.overview_cpu_frequency)
+                supportingText = snapshot.cpuFrequency?.let { stringResourceValue(R.string.overview_cpu_frequency) + ": $it" },
+                coreMetrics = snapshot.cpuCoreMetrics
             )
         )
-    }
-    snapshot.cpuUsage?.let {
-        add(
-            OverviewMetric(
-                title = stringResourceValue(R.string.overview_cpu_usage),
-                value = formatPercent(it),
-                category = InfoCategory.SYSTEM,
-                icon = itemIconByResId(R.string.system_cpu_cores),
-                size = OverviewCardSize.SMALL,
-                progress = it / 100f
+    } else {
+        snapshot.cpuFrequency?.let {
+            add(
+                OverviewMetric(
+                    title = "CPU",
+                    value = it,
+                    category = InfoCategory.SYSTEM,
+                    icon = itemIconByResId(R.string.system_cpu_arch),
+                    size = OverviewCardSize.LARGE,
+                    supportingText = stringResourceValue(R.string.overview_cpu_frequency)
+                )
             )
-        )
+        }
+        snapshot.cpuUsage?.let {
+            add(
+                OverviewMetric(
+                    title = stringResourceValue(R.string.overview_cpu_usage),
+                    value = formatPercent(it),
+                    category = InfoCategory.SYSTEM,
+                    icon = itemIconByResId(R.string.system_cpu_cores),
+                    size = OverviewCardSize.SMALL,
+                    progress = it / 100f
+                )
+            )
+        }
     }
     snapshot.gpuFrequency?.let {
         add(
@@ -223,7 +245,7 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (metric.size == OverviewCardSize.LARGE) 156.dp else 132.dp),
+            .then(if (metric.coreMetrics.isNotEmpty()) Modifier else Modifier.height(if (metric.size == OverviewCardSize.LARGE) 156.dp else 132.dp)),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
@@ -269,6 +291,62 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             }
+            if (metric.coreMetrics.isNotEmpty()) {
+                metric.coreMetrics.chunked(2).forEach { rowMetrics ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        rowMetrics.forEach { core ->
+                            CoreMetricItem(core, Modifier.weight(1f))
+                        }
+                        if (rowMetrics.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun CoreMetricItem(metric: CpuCoreMetric, modifier: Modifier = Modifier) {
+    val usage = metric.usagePercent
+    val animatedUsage by animateFloatAsState(
+        targetValue = (usage ?: 0f).coerceIn(0f, 100f),
+        animationSpec = tween(650),
+        label = "cpuCoreUsage"
+    )
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(44.dp)) {
+            CircularProgressIndicator(
+                progress = { animatedUsage / 100f },
+                modifier = Modifier.fillMaxSize(),
+                strokeWidth = 5.dp,
+                color = coreUsageColor(animatedUsage),
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+            Text(
+                text = usage?.let { "${animatedUsage.toInt()}%" } ?: "-",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        Column {
+            Text("CPU${metric.index}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            metric.frequency?.let {
+                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun coreUsageColor(usage: Float): Color = when {
+    usage < 50f -> Color(0xFF4CAF50)
+    usage < 80f -> Color(0xFFFFA726)
+    else -> Color(0xFFEF5350)
 }
