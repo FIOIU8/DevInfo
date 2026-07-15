@@ -23,6 +23,8 @@ class UpdateChecker(private val context: Context) {
 
     /** 开始异步检查 */
     suspend fun check(currentVersion: String) {
+        if (!BuildConfig.IS_OFFICIAL) return
+
         _state.value = UpdateState.CHECKING
 
         // 12小时缓存

@@ -236,7 +236,7 @@ fun MainScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (!updateChecked) {
+        if (BuildConfig.IS_OFFICIAL && !updateChecked) {
             updateChecked = true
             updateChecker.check(BuildConfig.VERSION_NAME)
         }
