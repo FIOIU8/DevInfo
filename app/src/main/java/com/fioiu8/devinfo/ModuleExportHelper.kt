@@ -1,17 +1,18 @@
 package com.fioiu8.devinfo
 
 // 导入 Android 相关类
-import android.content.Context // 用于获取应用上下文，访问系统服务和缓存目录
-import android.os.Build // 用于获取设备硬件和系统版本信息
-import android.os.Environment // 用于访问外部存储的公共目录（如下载文件夹）
-import android.provider.Settings // 用于读取系统设置值，如 Android ID
-import java.io.File // 用于文件和目录操作
-import java.io.FileOutputStream // 用于将数据写入文件的输出流
-import java.text.SimpleDateFormat // 用于格式化日期和时间为指定的字符串格式
-import java.util.* // 导入 Java 工具类，如 Date, Locale, ZipEntry
-import java.util.zip.ZipEntry // 表示 ZIP 文件中的单个条目（文件或目录）
-import java.util.zip.ZipOutputStream // 用于创建 ZIP 文件的输出流
+import android.content.Context
+import android.os.Build
+import android.os.Environment
+import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.ItemWithVisibility
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 /**
  * 模块导出助手类，负责生成 Magisk/KernelSU 模块的 ZIP 包
@@ -73,9 +74,7 @@ class ModuleExportHelper(private val context: Context) {
             val fingerprint = Build.FINGERPRINT        // 构建指纹
             val versionRelease = Build.VERSION.RELEASE // Android 版本
             val versionSdk = Build.VERSION.SDK_INT.toString()  // SDK 版本
-            val securityPatch = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                Build.VERSION.SECURITY_PATCH ?: ""     // 安全补丁日期（仅 API 23+）
-            } else ""
+            val securityPatch = Build.VERSION.SECURITY_PATCH.orEmpty()
 
             // ==================== 2. 生成模块元数据 ====================
             // 模块 ID：用于唯一标识模块，只能包含字母数字和下划线
@@ -87,11 +86,8 @@ class ModuleExportHelper(private val context: Context) {
             // 模块显示名称：用户可见的模块名称
             val moduleName = "机型模拟-$deviceName"
 
-            // Android ID：设备唯一标识（用于生成作者名）
-            val androidId = getAndroidId()
-
-            // 作者名：使用 Android ID 前 8 位
-            val author = androidId.take(8)
+            // Use the same persisted identifier shown by the app for stable exports.
+            val author = deviceId.take(8).ifBlank { "DevInfo" }
 
             // 模块版本：基于 Android 版本号
             val version = "v$versionRelease"
@@ -233,24 +229,18 @@ class ModuleExportHelper(private val context: Context) {
      * @return 格式为 "制造商 型号" 的设备名称
      */
     private fun getDeviceDisplayName(itemsState: List<ItemWithVisibility>): String {
-        val manufacturer = itemsState.find { it.item.key == "制造商" }?.item?.value ?: Build.MANUFACTURER
-        val model = itemsState.find { it.item.key == "型号" }?.item?.value ?: Build.MODEL
+        // DeviceInfoItem.key stores the resource entry name, not its localized text.
+        val manufacturer = itemsState
+            .find { it.item.key == "device_manufacturer" }
+            ?.item
+            ?.value
+            ?: Build.MANUFACTURER
+        val model = itemsState
+            .find { it.item.key == "device_model" }
+            ?.item
+            ?.value
+            ?: Build.MODEL
         return "$manufacturer $model"
-    }
-
-    /**
-     * 安全地获取 Android ID
-     * Android ID 是设备唯一的 64 位十六进制字符串
-     *
-     * @return 16 位十六进制字符串，失败时返回默认值
-     */
-    private fun getAndroidId(): String {
-        return try {
-            Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-                ?: "0000000000000000"
-        } catch (e: Exception) {
-            "0000000000000000"
-        }
     }
 
     /**

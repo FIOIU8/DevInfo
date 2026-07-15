@@ -57,6 +57,7 @@ import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.AppLanguage
 import com.fioiu8.devinfo.model.ThemeMode
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -137,6 +138,8 @@ fun MainScreen(
 
     val themeOptions = ThemeMode.entries.map { stringResource(it.displayNameResId) }
     val languageOptionsList = AppLanguage.entries.map { lang -> stringResource(lang.displayNameResId) }
+    val alreadyLatestMessage = stringResource(R.string.already_latest)
+    val exportFailedLabel = stringResource(R.string.export_failed)
     val isDynamicMode = themeMode.isDynamic
 
     LaunchedEffect(Unit) {
@@ -154,7 +157,7 @@ fun MainScreen(
     LaunchedEffect(updateState) {
         when (updateState) {
             UpdateState.UP_TO_DATE -> {
-                Toast.makeText(context, context.getString(R.string.already_latest), Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, alreadyLatestMessage, Toast.LENGTH_SHORT).show()
                 updateChecker.reset()
             }
             UpdateState.NEW_VERSION_AVAILABLE -> showUpdateDialog = true
@@ -330,16 +333,29 @@ fun MainScreen(
     ExportConfirmDialog(
         show = showExportDialog,
         onConfirm = {
-            exportHelper.exportModule(
-                deviceId = deviceId, itemsState = itemsState,
-                onSuccess = { path ->
-                    exportedFilePath = path
-                    showExportSuccessDialog = true
-                },
-                onError = { error ->
-                    Toast.makeText(context, context.getString(R.string.export_failed) + ": $error", Toast.LENGTH_SHORT).show()
-                }
-            )
+            showExportDialog = false
+            // ZIP creation performs file I/O and must not block the Compose main thread.
+            scope.launch(Dispatchers.IO) {
+                exportHelper.exportModule(
+                    deviceId = deviceId,
+                    itemsState = itemsState,
+                    onSuccess = { path ->
+                        scope.launch {
+                            exportedFilePath = path
+                            showExportSuccessDialog = true
+                        }
+                    },
+                    onError = { error ->
+                        scope.launch {
+                            Toast.makeText(
+                                context,
+                                "$exportFailedLabel: $error",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                )
+            }
         },
         onDismiss = { showExportDialog = false }
     )
