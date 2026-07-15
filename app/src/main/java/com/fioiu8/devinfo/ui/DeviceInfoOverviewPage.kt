@@ -340,18 +340,20 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
     }
 }
 
-private fun cpuLineColor(index: Int, coreCount: Int): Color = Color.hsv(
-    (index * 360f / coreCount.coerceAtLeast(1)) % 360f,
-    saturation = 0.72f,
-    value = 0.9f
-)
+private fun cpuLineColor(index: Int, primary: Color, tertiary: Color, secondary: Color): Color = when (index % 3) {
+    0 -> primary
+    1 -> tertiary
+    else -> secondary
+}
 
 @Composable
 private fun CpuTrendChart(history: List<CpuUsageSample>) {
     val primaryColor = MaterialTheme.colorScheme.primary
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
     Canvas(modifier = Modifier.fillMaxWidth().height(142.dp)) {
-        val left = 4.dp.toPx()
-        val right = size.width - 4.dp.toPx()
+        val left = 8.dp.toPx()
+        val right = size.width - 8.dp.toPx()
         val top = 8.dp.toPx()
         val bottom = size.height - 8.dp.toPx()
         val plotWidth = (right - left).coerceAtLeast(1f)
@@ -383,8 +385,15 @@ private fun CpuTrendChart(history: List<CpuUsageSample>) {
                 }
                 drawPath(
                     path = path,
-                    color = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex, coreIndexes.size),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx())
+                    color = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex, primaryColor, tertiaryColor, secondaryColor),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = 2.5.dp.toPx(),
+                        pathEffect = if (coreIndex >= 0 && coreIndex % 2 == 1) {
+                            androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 5.dp.toPx()))
+                        } else {
+                            null
+                        }
+                    )
                 )
             }
         }
@@ -394,6 +403,8 @@ private fun CpuTrendChart(history: List<CpuUsageSample>) {
 @Composable
 private fun CpuTrendLegend(metric: OverviewMetric) {
     val primaryColor = MaterialTheme.colorScheme.primary
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
     val currentByCore = metric.coreMetrics.associate { it.index to it.usagePercent }
     val coreIndexes = metric.history.flatMap { it.valuesByCore.keys }.distinct().sorted()
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -401,7 +412,7 @@ private fun CpuTrendLegend(metric: OverviewMetric) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Box(Modifier.size(7.dp), contentAlignment = Alignment.Center) {
                     androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                        drawCircle(if (core < 0) primaryColor else cpuLineColor(core, coreIndexes.size))
+                        drawCircle(if (core < 0) primaryColor else cpuLineColor(core, primaryColor, tertiaryColor, secondaryColor))
                     }
                 }
                 Text(
