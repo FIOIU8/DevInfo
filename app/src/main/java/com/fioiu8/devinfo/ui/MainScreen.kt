@@ -55,6 +55,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.fioiu8.devinfo.BuildConfig
 import com.fioiu8.devinfo.BatteryObserver
 import com.fioiu8.devinfo.DeviceInfoCollector
@@ -71,6 +74,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -107,6 +111,7 @@ fun MainScreen(
     onCustomLocaleTagChange: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val lifecycle = (context as? LifecycleOwner)?.lifecycle
     val collector = remember { DeviceInfoCollector(context) }
     val batteryObserver = remember { BatteryObserver(context) }
     val batteryState by batteryObserver.batteryState.collectAsState(initial = null)
@@ -200,6 +205,25 @@ fun MainScreen(
 
     LaunchedEffect(Unit) {
         reloadDeviceInfo()
+    }
+
+    // Keep volatile metrics current while preserving the loaded item list and navigation state.
+    LaunchedEffect(lifecycle, selectedIndex, showDetailsPage) {
+        lifecycle?.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            if (selectedIndex == 0 && !showDetailsPage) {
+                while (isActive) {
+                    delay(DYNAMIC_REFRESH_INTERVAL_MS)
+                    refreshDynamicMetrics(
+                        collector = collector,
+                        reloadMutex = reloadMutex,
+                        currentSnapshot = { overviewSnapshot },
+                        onSnapshot = { snapshot ->
+                            overviewSnapshot = snapshot
+                        }
+                    )
+                }
+            }
+        }
     }
 
     LaunchedEffect(batteryState) {
@@ -514,6 +538,53 @@ private suspend fun loadOverviewSnapshot(
     publish(snapshot.copy(gpuUsage = collector.getGpuUsagePercent()))
     publish(snapshot.copy(memoryPercent = collector.getMemoryUsagePercent()))
     publish(snapshot.copy(storagePercent = collector.getStorageUsagePercent()))
+}
+
+private const val DYNAMIC_REFRESH_INTERVAL_MS = 1_000L
+
+private suspend fun refreshDynamicMetrics(
+    collector: DeviceInfoCollector,
+    reloadMutex: Mutex,
+    currentSnapshot: () -> OverviewSnapshot,
+    onSnapshot: (OverviewSnapshot) -> Unit
+) {
+    reloadMutex.withLock {
+        var snapshot = currentSnapshot()
+
+        suspend fun publish(update: OverviewSnapshot) {
+            snapshot = update
+            onSnapshot(snapshot)
+        }
+
+        publish(snapshot.copy(cpuFrequency = withContext(Dispatchers.Default) {
+            collector.getCpuFrequency()
+        }))
+
+        val coreMetrics = withContext(Dispatchers.Default) {
+            collector.getCpuCoreMetrics()
+        }
+        if (coreMetrics.isNotEmpty()) {
+            publish(snapshot.copy(cpuCoreMetrics = coreMetrics, cpuUsage = null))
+        } else {
+            val cpuUsage = withContext(Dispatchers.Default) {
+                collector.getCpuUsagePercent()
+            }
+            publish(snapshot.copy(cpuCoreMetrics = emptyList(), cpuUsage = cpuUsage))
+        }
+
+        publish(snapshot.copy(gpuFrequency = withContext(Dispatchers.Default) {
+            collector.getGpuFrequency()
+        }))
+        publish(snapshot.copy(gpuUsage = withContext(Dispatchers.Default) {
+            collector.getGpuUsagePercent()
+        }))
+        publish(snapshot.copy(memoryPercent = withContext(Dispatchers.Default) {
+            collector.getMemoryUsagePercent()
+        }))
+        publish(snapshot.copy(storagePercent = withContext(Dispatchers.Default) {
+            collector.getStorageUsagePercent()
+        }))
+    }
 }
 
 /** 通过 Intent 打开外部链接，失败时弹出 Toast 提示 */
