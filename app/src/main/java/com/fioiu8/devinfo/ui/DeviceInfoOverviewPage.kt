@@ -3,6 +3,8 @@ package com.fioiu8.devinfo.ui
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +24,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -35,6 +38,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -283,6 +288,7 @@ private fun formatPercent(value: Float): String = "%.1f%%".format(Locale.US, val
 
 @Composable
 private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
+    var selectedCore by remember(metric.title) { mutableStateOf<Int?>(null) }
     Card(
         onClick = onClick,
         modifier = Modifier
@@ -295,19 +301,31 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(
-                imageVector = metric.icon,
-                contentDescription = null,
-                modifier = Modifier.size(26.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = metric.title,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = metric.icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(26.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = metric.title,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (metric.category == InfoCategory.SYSTEM) {
+                    IconButton(onClick = onClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                            contentDescription = stringResource(R.string.title_device_details)
+                        )
+                    }
+                }
+            }
             metric.value?.let {
                 Text(
                     text = it,
@@ -334,8 +352,27 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
                 )
             }
             if (metric.history.isNotEmpty()) {
-                CpuTrendChart(metric.history)
-                CpuTrendLegend(metric)
+                CpuTrendChart(metric.history, selectedCore)
+                CpuTrendLegend(
+                    metric = metric,
+                    selectedCore = selectedCore,
+                    onCoreSelected = { selectedCore = it }
+                )
+                selectedCore?.let { coreIndex ->
+                    val coreColor = if (coreIndex < 0) MaterialTheme.colorScheme.primary else cpuLineColor(
+                        coreIndex,
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.tertiary,
+                        MaterialTheme.colorScheme.secondary
+                    )
+                    CpuCoreSelectionDetails(
+                        coreIndex = coreIndex,
+                        metric = metric.coreMetrics.firstOrNull { it.index == coreIndex },
+                        usagePercent = metric.coreMetrics.firstOrNull { it.index == coreIndex }?.usagePercent
+                            ?: metric.history.lastOrNull()?.valuesByCore?.get(coreIndex),
+                        color = coreColor
+                    )
+                }
             }
         }
     }
@@ -348,7 +385,7 @@ private fun cpuLineColor(index: Int, primary: Color, tertiary: Color, secondary:
 }
 
 @Composable
-private fun CpuTrendChart(history: List<CpuUsageSample>) {
+private fun CpuTrendChart(history: List<CpuUsageSample>, selectedCore: Int?) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
     val secondaryColor = MaterialTheme.colorScheme.secondary
@@ -386,9 +423,10 @@ private fun CpuTrendChart(history: List<CpuUsageSample>) {
                 }
                 drawPath(
                     path = path,
-                    color = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex, primaryColor, tertiaryColor, secondaryColor),
+                    color = (if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex, primaryColor, tertiaryColor, secondaryColor))
+                        .copy(alpha = if (selectedCore == null || selectedCore == coreIndex) 1f else 0.3f),
                     style = androidx.compose.ui.graphics.drawscope.Stroke(
-                        width = 2.5.dp.toPx(),
+                        width = if (selectedCore == coreIndex) 3.5.dp.toPx() else 2.5.dp.toPx(),
                         pathEffect = if (coreIndex >= 0 && coreIndex % 2 == 1) {
                             androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 5.dp.toPx()))
                         } else {
@@ -402,7 +440,11 @@ private fun CpuTrendChart(history: List<CpuUsageSample>) {
 }
 
 @Composable
-private fun CpuTrendLegend(metric: OverviewMetric) {
+private fun CpuTrendLegend(
+    metric: OverviewMetric,
+    selectedCore: Int?,
+    onCoreSelected: (Int) -> Unit
+) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
     val secondaryColor = MaterialTheme.colorScheme.secondary
@@ -413,7 +455,16 @@ private fun CpuTrendLegend(metric: OverviewMetric) {
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         coreIndexes.forEach { core ->
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            val isSelected = selectedCore == core
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                    .clickable { onCoreSelected(core) }
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Box(Modifier.size(7.dp), contentAlignment = Alignment.Center) {
                     androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
                         drawCircle(if (core < 0) primaryColor else cpuLineColor(core, primaryColor, tertiaryColor, secondaryColor))
@@ -422,10 +473,49 @@ private fun CpuTrendLegend(metric: OverviewMetric) {
                 Text(
                     text = if (core < 0) "CPU" else "C$core${currentByCore[core]?.let { " ${it.roundToInt()}%" } ?: ""}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun CpuCoreSelectionDetails(
+    coreIndex: Int,
+    metric: CpuCoreMetric?,
+    usagePercent: Float?,
+    color: Color
+) {
+    val title = if (coreIndex < 0) "CPU" else "CPU$coreIndex"
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            Modifier
+                .size(8.dp)
+                .background(color, RoundedCornerShape(50)),
+        )
+        Text(title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        Text(
+            text = metric?.frequency ?: "--",
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = usagePercent?.let(::formatPercent) ?: "--",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
