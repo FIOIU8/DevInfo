@@ -6,6 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -407,7 +408,10 @@ private fun CpuTrendLegend(metric: OverviewMetric) {
     val secondaryColor = MaterialTheme.colorScheme.secondary
     val currentByCore = metric.coreMetrics.associate { it.index to it.usagePercent }
     val coreIndexes = metric.history.flatMap { it.valuesByCore.keys }.distinct().sorted()
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
         coreIndexes.forEach { core ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Box(Modifier.size(7.dp), contentAlignment = Alignment.Center) {
