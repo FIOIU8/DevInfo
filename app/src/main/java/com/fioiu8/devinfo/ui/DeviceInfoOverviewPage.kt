@@ -289,11 +289,12 @@ private fun formatPercent(value: Float): String = "%.1f%%".format(Locale.US, val
 @Composable
 private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
     var selectedCore by remember(metric.title) { mutableStateOf<Int?>(null) }
+    val hasCoreControls = metric.history.isNotEmpty()
     Card(
-        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (metric.coreMetrics.isNotEmpty()) Modifier else Modifier.height(if (metric.size == OverviewCardSize.LARGE) 156.dp else 132.dp)),
+            .then(if (metric.coreMetrics.isNotEmpty()) Modifier else Modifier.height(if (metric.size == OverviewCardSize.LARGE) 156.dp else 132.dp))
+            .then(if (hasCoreControls) Modifier else Modifier.clickable(onClick = onClick)),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
@@ -359,12 +360,7 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
                     onCoreSelected = { selectedCore = it }
                 )
                 selectedCore?.let { coreIndex ->
-                    val coreColor = if (coreIndex < 0) MaterialTheme.colorScheme.primary else cpuLineColor(
-                        coreIndex,
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.tertiary,
-                        MaterialTheme.colorScheme.secondary
-                    )
+                    val coreColor = if (coreIndex < 0) MaterialTheme.colorScheme.primary else cpuLineColor(coreIndex)
                     CpuCoreSelectionDetails(
                         coreIndex = coreIndex,
                         metric = metric.coreMetrics.firstOrNull { it.index == coreIndex },
@@ -378,17 +374,20 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
     }
 }
 
-private fun cpuLineColor(index: Int, primary: Color, tertiary: Color, secondary: Color): Color = when (index % 3) {
-    0 -> primary
-    1 -> tertiary
-    else -> secondary
+private fun cpuLineColor(index: Int): Color = when (index % 8) {
+    0 -> Color(0xFF2196F3)
+    1 -> Color(0xFF009688)
+    2 -> Color(0xFFFFA000)
+    3 -> Color(0xFFEF5350)
+    4 -> Color(0xFFAB47BC)
+    5 -> Color(0xFF7CB342)
+    6 -> Color(0xFF00838F)
+    else -> Color(0xFFFF7043)
 }
 
 @Composable
 private fun CpuTrendChart(history: List<CpuUsageSample>, selectedCore: Int?) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val tertiaryColor = MaterialTheme.colorScheme.tertiary
-    val secondaryColor = MaterialTheme.colorScheme.secondary
     Canvas(modifier = Modifier.fillMaxWidth().height(142.dp)) {
         val left = 8.dp.toPx()
         val right = size.width - 8.dp.toPx()
@@ -421,12 +420,31 @@ private fun CpuTrendChart(history: List<CpuUsageSample>, selectedCore: Int?) {
                         cubicTo(middleX, previous.y, middleX, point.y, point.x, point.y)
                     }
                 }
+                val areaPath = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(points.first().x, bottom)
+                    lineTo(points.first().x, points.first().y)
+                    points.drop(1).forEachIndexed { index, point ->
+                        val previous = points[index]
+                        val middleX = (previous.x + point.x) / 2f
+                        cubicTo(middleX, previous.y, middleX, point.y, point.x, point.y)
+                    }
+                    lineTo(points.last().x, bottom)
+                    close()
+                }
+                val lineColor = if (coreIndex < 0) {
+                    primaryColor
+                } else {
+                    cpuLineColor(coreIndex)
+                }
+                drawPath(
+                    path = areaPath,
+                    color = lineColor.copy(alpha = if (selectedCore == coreIndex) 0.24f else 0.14f)
+                )
                 drawPath(
                     path = path,
-                    color = (if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex, primaryColor, tertiaryColor, secondaryColor))
-                        .copy(alpha = if (selectedCore == null || selectedCore == coreIndex) 1f else 0.3f),
+                    color = lineColor,
                     style = androidx.compose.ui.graphics.drawscope.Stroke(
-                        width = if (selectedCore == coreIndex) 3.5.dp.toPx() else 2.5.dp.toPx(),
+                        width = 2.5.dp.toPx(),
                         pathEffect = if (coreIndex >= 0 && coreIndex % 2 == 1) {
                             androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 5.dp.toPx()))
                         } else {
@@ -446,8 +464,6 @@ private fun CpuTrendLegend(
     onCoreSelected: (Int) -> Unit
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val tertiaryColor = MaterialTheme.colorScheme.tertiary
-    val secondaryColor = MaterialTheme.colorScheme.secondary
     val currentByCore = metric.coreMetrics.associate { it.index to it.usagePercent }
     val coreIndexes = metric.history.flatMap { it.valuesByCore.keys }.distinct().sorted()
     FlowRow(
@@ -461,13 +477,13 @@ private fun CpuTrendLegend(
                     .clip(RoundedCornerShape(12.dp))
                     .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
                     .clickable { onCoreSelected(core) }
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Box(Modifier.size(7.dp), contentAlignment = Alignment.Center) {
                     androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                        drawCircle(if (core < 0) primaryColor else cpuLineColor(core, primaryColor, tertiaryColor, secondaryColor))
+                        drawCircle(if (core < 0) primaryColor else cpuLineColor(core))
                     }
                 }
                 Text(
