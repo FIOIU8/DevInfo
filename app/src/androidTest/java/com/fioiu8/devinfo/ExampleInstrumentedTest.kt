@@ -3,9 +3,12 @@ package com.fioiu8.devinfo
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import com.fioiu8.devinfo.ui.CpuUsageSample
 import com.fioiu8.devinfo.ui.DeviceInfoOverviewPage
 import com.fioiu8.devinfo.ui.OverviewSnapshot
@@ -71,5 +74,45 @@ class ExampleInstrumentedTest {
         val rootBounds = composeTestRule.onRoot().fetchSemanticsNode().boundsInRoot
         val lastCoreBounds = lastCore.fetchSemanticsNode().boundsInRoot
         assertTrue(lastCoreBounds.right <= rootBounds.right)
+    }
+
+    @Test
+    fun liveActivity_selectingCoreShowsItsDetails() {
+        val detailsLabel = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.title_device_details)
+        val coreMetrics = listOf(
+            CpuCoreMetric(index = 0, frequency = "1800 MHz", usagePercent = 42f),
+            CpuCoreMetric(index = 1, frequency = "2100 MHz", usagePercent = 73.5f)
+        )
+        val history = listOf(
+            CpuUsageSample(
+                timestampMillis = 1L,
+                valuesByCore = coreMetrics.associate { it.index to (it.usagePercent ?: 0f) }
+            )
+        )
+
+        composeTestRule.setContent {
+            DevInfoTheme(themeMode = ThemeMode.LIGHT) {
+                DeviceInfoOverviewPage(
+                    itemsState = emptyList(),
+                    isLoading = false,
+                    isOverviewLoading = false,
+                    snapshot = OverviewSnapshot(
+                        cpuUsage = 57.75f,
+                        cpuCoreMetrics = coreMetrics,
+                        cpuUsageHistory = history
+                    ),
+                    onRefresh = {},
+                    onOpenDetails = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("C1 74%").performClick()
+
+        composeTestRule.onNodeWithText("CPU1").assertIsDisplayed()
+        composeTestRule.onNodeWithText("2100 MHz").assertIsDisplayed()
+        composeTestRule.onNodeWithText("73.5%").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(detailsLabel).assertHasClickAction()
     }
 }
