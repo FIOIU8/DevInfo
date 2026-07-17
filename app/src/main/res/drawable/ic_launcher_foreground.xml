@@ -8,7 +8,7 @@
     <!-- 背景圆形 -->
     <path
         android:fillColor="#4A90D9"
-        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0" />
+        android:pathData="M54,54m-32,0a32,32 0,1 1,64 0a32,32 0,1 1,-64 0" />
 
     <!-- 手机图标 (Material "Phone Android" 路径，居中缩放) -->
     <path

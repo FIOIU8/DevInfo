@@ -35,20 +35,18 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Apply the selected light or dark splash theme.
-        val themePrefs = ThemePreferences(this)
-        val savedTheme = themePrefs.getThemeModeSnapshot()
-        when (savedTheme) {
-            ThemeMode.DARK, ThemeMode.DYNAMIC_DARK -> {
-                setTheme(R.style.Theme_DevInfo_Splash_Dark)
-            }
-            else -> {
-                setTheme(R.style.Theme_DevInfo_Splash)
-            }
-        }
-
+        // The manifest theme owns the system splash window before this callback runs.
         // 必须在 setContentView 之前调用
-        installSplashScreen()
+        val splashScreen = installSplashScreen()
+        splashScreen.setOnExitAnimationListener { splashScreenView ->
+            splashScreenView.iconView.animate()
+                .alpha(0f)
+                .scaleX(0.85f)
+                .scaleY(0.85f)
+                .setDuration(180L)
+                .withEndAction { splashScreenView.remove() }
+                .start()
+        }
 
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -62,6 +60,7 @@ class MainActivity : ComponentActivity() {
 
         // 模块导出助手
         val exportHelper = ModuleExportHelper(this)
+        val themePrefs = ThemePreferences(this)
         val languagePrefs = LanguagePreferences(this)
 
         setContent {
