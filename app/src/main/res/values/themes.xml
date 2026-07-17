@@ -11,14 +11,16 @@
         <!-- 启动屏背景色 -->
         <item name="windowSplashScreenBackground">@color/splash_background</item>
         <!-- 启动屏图标（使用应用图标的 foreground 层） -->
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_animated</item>
+        <item name="windowSplashScreenAnimationDuration">320</item>
     </style>
 
     <!-- 启动屏主题（深色） -->
     <style name="Theme.DevInfo.Splash.Dark" parent="Theme.SplashScreen">
         <item name="postSplashScreenTheme">@style/Theme.DevInfo</item>
         <item name="windowSplashScreenBackground">@color/splash_background_dark</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_animated</item>
+        <item name="windowSplashScreenAnimationDuration">320</item>
     </style>
 
 </resources>

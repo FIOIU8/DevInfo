@@ -12,5 +12,5 @@
     <color name="splash_background">#FFF5F5F5</color>
     <color name="splash_background_dark">#FF1A1C1E</color>
     <!-- 自适应图标背景色 -->
-    <color name="ic_launcher_bg">#FF4A90D9</color>
+    <color name="ic_launcher_bg">#00000000</color>
 </resources>
