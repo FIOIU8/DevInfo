@@ -128,6 +128,36 @@ private data class OverviewMetric(
     val history: List<CpuUsageSample> = emptyList()
 )
 
+/** 从已采集信息项中挑选出的静态信息卡片数据 */
+private data class StaticInfoCardData(
+    val keyResId: Int,
+    val value: String,
+    val category: InfoCategory,
+    val icon: ImageVector
+)
+
+/** 概览页展示的静态信息项（按此顺序），值缺失时自动跳过 */
+private val staticCardResIds = listOf(
+    R.string.system_cpu_arch,
+    R.string.system_lock_screen,
+    R.string.device_model,
+    R.string.system_android_version,
+    R.string.system_security_patch,
+    R.string.display_refresh_rate,
+    R.string.system_sensor_count,
+    R.string.network_type,
+    R.string.battery_temperature,
+    R.string.locale_timezone,
+    R.string.system_boot_time,
+    R.string.system_usb_debugging
+)
+
+private fun buildStaticInfoCards(items: List<ItemWithVisibility>): List<StaticInfoCardData> =
+    staticCardResIds.mapNotNull { resId ->
+        val item = items.firstOrNull { it.item.keyResId == resId }?.item ?: return@mapNotNull null
+        StaticInfoCardData(resId, item.value, item.category, item.icon)
+    }
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DeviceInfoOverviewPage(
@@ -151,6 +181,9 @@ fun DeviceInfoOverviewPage(
 
     val metrics by remember(snapshot) {
         derivedStateOf { buildOverviewMetrics(snapshot) }
+    }
+    val staticCards by remember(itemsState) {
+        derivedStateOf { buildStaticInfoCards(itemsState) }
     }
 
     if ((isLoading && itemsState.isEmpty()) || (isOverviewLoading && metrics.isEmpty())) {
@@ -190,6 +223,16 @@ fun DeviceInfoOverviewPage(
                     OverviewMetricCard(
                         metric = metric,
                         onClick = { onOpenDetails(metric.category) }
+                    )
+                }
+                items(
+                    items = staticCards,
+                    key = { card -> card.keyResId },
+                    span = { GridItemSpan(1) }
+                ) { card ->
+                    StaticInfoCard(
+                        card = card,
+                        onClick = { onOpenDetails(card.category) }
                     )
                 }
                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -418,6 +461,50 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
                     )
                 }
             }
+        }
+    }
+}
+
+/** 静态信息小卡片：图标 + 标题 + 值，点击跳转到对应分类详情 */
+@Composable
+private fun StaticInfoCard(card: StaticInfoCardData, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(132.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = card.icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(26.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = stringResource(card.keyResId),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Text(
+                text = card.value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
