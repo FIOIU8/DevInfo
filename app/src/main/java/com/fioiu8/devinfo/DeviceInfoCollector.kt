@@ -91,9 +91,24 @@ class DeviceInfoCollector(private val context: Context) {
         }
     }
 
-    private fun infoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
+    private fun infoItemSuppliers(): List<() -> DeviceInfoItem?> = buildList {
+        addAll(identifierInfoItemSuppliers())
+        addAll(deviceInfoItemSuppliers())
+        addAll(systemInfoItemSuppliers())
+        addAll(localeInfoItemSuppliers())
+        addAll(displayInfoItemSuppliers())
+        addAll(storageInfoItemSuppliers())
+        addAll(batteryInfoItemSuppliers())
+        addAll(networkInfoItemSuppliers())
+        addAll(appInfoItemSuppliers())
+    }
+
+    private fun identifierInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.device_android_id, getAndroidIdSafe(), InfoCategory.IDENTIFIERS) },
-        { infoItem(R.string.device_serial, getSerialNumberSafe(), InfoCategory.IDENTIFIERS) },
+        { infoItem(R.string.device_serial, getSerialNumberSafe(), InfoCategory.IDENTIFIERS) }
+    )
+
+    private fun deviceInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.device_brand, Build.BRAND, InfoCategory.DEVICE) },
         { infoItem(R.string.device_manufacturer, Build.MANUFACTURER, InfoCategory.DEVICE) },
         { infoItem(R.string.device_model, Build.MODEL, InfoCategory.DEVICE) },
@@ -105,8 +120,10 @@ class DeviceInfoCollector(private val context: Context) {
         { infoItem(R.string.device_build_id, Build.ID, InfoCategory.DEVICE) },
         { infoItem(R.string.device_tags, Build.TAGS, InfoCategory.DEVICE) },
         { infoItem(R.string.device_time, Build.TIME.toString(), InfoCategory.DEVICE) },
-        { infoItem(R.string.device_type, Build.TYPE, InfoCategory.DEVICE) },
+        { infoItem(R.string.device_type, Build.TYPE, InfoCategory.DEVICE) }
+    )
 
+    private fun systemInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.system_cpu_arch, Build.SUPPORTED_ABIS.joinToString(), InfoCategory.SYSTEM) },
         { infoItem(R.string.system_cpu_cores, Runtime.getRuntime().availableProcessors().toString(), InfoCategory.SYSTEM) },
         { infoItem(R.string.system_sdk_version, Build.VERSION.SDK_INT.toString(), InfoCategory.SYSTEM) },
@@ -117,39 +134,51 @@ class DeviceInfoCollector(private val context: Context) {
         { infoItem(R.string.system_kernel, safeGet(statusUnknown) { System.getProperty("os.version") ?: statusUnknown }, InfoCategory.SYSTEM) },
         { infoItem(R.string.system_abis_32, Build.SUPPORTED_32_BIT_ABIS.joinToString(), InfoCategory.SYSTEM) },
         { infoItem(R.string.system_abis_64, Build.SUPPORTED_64_BIT_ABIS.joinToString(), InfoCategory.SYSTEM) },
-        { infoItem(R.string.system_features, getDeviceFeatures(), InfoCategory.SYSTEM) },
+        { infoItem(R.string.system_features, getDeviceFeatures(), InfoCategory.SYSTEM) }
+    )
 
+    private fun localeInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.locale_language, Locale.getDefault().language, InfoCategory.LOCALE) },
         { infoItem(R.string.locale_country, Locale.getDefault().country, InfoCategory.LOCALE) },
-        { infoItem(R.string.locale_timezone, TimeZone.getDefault().id, InfoCategory.LOCALE) },
+        { infoItem(R.string.locale_timezone, TimeZone.getDefault().id, InfoCategory.LOCALE) }
+    )
 
+    private fun displayInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.display_dpi, context.resources.displayMetrics.densityDpi.toString(), InfoCategory.DISPLAY) },
         { infoItem(R.string.display_density, formatDensity(), InfoCategory.DISPLAY) },
         { infoItem(R.string.display_width, context.resources.displayMetrics.widthPixels.toString(), InfoCategory.DISPLAY) },
         { infoItem(R.string.display_height, context.resources.displayMetrics.heightPixels.toString(), InfoCategory.DISPLAY) },
         { infoItem(R.string.display_size, getDisplaySize(), InfoCategory.DISPLAY) },
         { infoItem(R.string.display_refresh_rate, safeGet(statusUnknown) { context.display.refreshRate.toString() }, InfoCategory.DISPLAY) },
-        { infoItem(R.string.display_font_scale, context.resources.configuration.fontScale.toString(), InfoCategory.DISPLAY) },
+        { infoItem(R.string.display_font_scale, context.resources.configuration.fontScale.toString(), InfoCategory.DISPLAY) }
+    )
 
+    private fun storageInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.storage_total_ram, getTotalMemory(), InfoCategory.STORAGE) },
         { infoItem(R.string.storage_available_ram, getAvailMemory(), InfoCategory.STORAGE) },
         { infoItem(R.string.storage_total, getTotalStorage(), InfoCategory.STORAGE) },
-        { infoItem(R.string.storage_available, getFreeStorage(), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_available, getFreeStorage(), InfoCategory.STORAGE) }
+    )
 
+    private fun batteryInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.battery_level_label, getBatteryLevel(), InfoCategory.BATTERY) },
         { infoItem(R.string.battery_charging_state, getBatteryCharging(), InfoCategory.BATTERY) },
         { infoItem(R.string.battery_temperature, getBatteryProperty(BatteryManager.EXTRA_TEMPERATURE), InfoCategory.BATTERY) },
         { infoItem(R.string.battery_health, getBatteryHealth(), InfoCategory.BATTERY) },
         { infoItem(R.string.battery_voltage, getBatteryProperty(BatteryManager.EXTRA_VOLTAGE), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_technology, getBatteryTechnology(), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_technology, getBatteryTechnology(), InfoCategory.BATTERY) }
+    )
 
+    private fun networkInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.network_nfc, if (NfcAdapter.getDefaultAdapter(context) != null) context.getString(R.string.status_supported) else context.getString(R.string.status_not_supported), InfoCategory.NETWORK) },
         { infoItem(R.string.network_camera_count, getCameraCount(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_bluetooth_state, getBluetoothState(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_type, getNetworkType(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_operator, getNetworkOperator(), InfoCategory.NETWORK) },
-        { infoItem(R.string.network_sim_state, getSimState(), InfoCategory.NETWORK) },
+        { infoItem(R.string.network_sim_state, getSimState(), InfoCategory.NETWORK) }
+    )
 
+    private fun appInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.app_package, context.packageName, InfoCategory.APP) },
         { infoItem(R.string.app_version_name, getAppVersionName(), InfoCategory.APP) },
         { infoItem(R.string.app_version_code, getAppVersionCode().toString(), InfoCategory.APP) }
