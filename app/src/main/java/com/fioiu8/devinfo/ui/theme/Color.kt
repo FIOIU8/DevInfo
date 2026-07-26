@@ -2,10 +2,10 @@ package com.fioiu8.devinfo.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+val Teal80 = Color(0xFF53DBC7)
+val BlueGrey80 = Color(0xFFB0CCC6)
+val Sky80 = Color(0xFFADCBE5)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val Teal40 = Color(0xFF006A60)
+val BlueGrey40 = Color(0xFF4A635F)
+val Sky40 = Color(0xFF456179)
