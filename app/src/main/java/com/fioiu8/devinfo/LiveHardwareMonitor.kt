@@ -85,6 +85,7 @@ class LiveHardwareMonitor(context: Context) : SensorEventListener {
         raw.takeIf { it >= 0 }?.let { (it / 255f * 100f).roundToInt().coerceIn(0, 100) }
     }.getOrNull()
 
+    // minSdk 30 仍需支持 WIFI_RSSI，无新 API 替代
     @Suppress("DEPRECATION")
     private fun readWifiRssi(): Int? = runCatching {
         wifiManager?.connectionInfo?.rssi?.takeIf { it in -126..0 }
