@@ -424,6 +424,7 @@ class DeviceInfoCollector(private val context: Context) {
         tm.networkOperatorName ?: context.getString(R.string.status_unknown)
     }
 
+    // minSdk 30 仍需支持，无新 API 替代
     @Suppress("DEPRECATION")
     private fun getSimState() = safeGet(context.getString(R.string.status_unknown)) {
         val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
