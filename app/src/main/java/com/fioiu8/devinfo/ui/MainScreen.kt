@@ -1,27 +1,26 @@
 package com.fioiu8.devinfo.ui
 
+import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.offset
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Settings
@@ -37,133 +36,118 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.res.stringResource
-import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fioiu8.devinfo.BuildConfig
-import com.fioiu8.devinfo.BatteryObserver
-import com.fioiu8.devinfo.CpuUsageSampler
-import com.fioiu8.devinfo.DeviceInfoCollector
-import com.fioiu8.devinfo.LiveHardwareMonitor
 import com.fioiu8.devinfo.ModuleExportHelper
-import com.fioiu8.devinfo.UpdateChecker
-import com.fioiu8.devinfo.UpdateState
-import com.fioiu8.devinfo.model.ItemWithVisibility
-import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.R
+import com.fioiu8.devinfo.UpdateState
 import com.fioiu8.devinfo.model.AppLanguage
-import com.fioiu8.devinfo.model.ThemeMode
+import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ThemeColor
+import com.fioiu8.devinfo.model.ThemeMode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
-/**
- * 主屏幕 — 双标签布局（设备信息 / 设置），协调更新检查、导出对话框和关于页面。
- *
- * @param deviceId 持久化设备唯一标识
- * @param themeMode 当前主题模式
- * @param onThemeModeChange 主题模式变更回调
- * @param exportHelper 模块导出工具实例
- */
+/** App-owned settings and callbacks required by the main UI. */
+data class MainScreenSettings(
+    val deviceId: String,
+    val themeMode: ThemeMode,
+    val onThemeModeChange: (ThemeMode) -> Unit,
+    val themeColor: ThemeColor,
+    val onThemeColorChange: (ThemeColor) -> Unit,
+    val appLanguage: AppLanguage,
+    val customLocaleTag: String,
+    val onAppLanguageChange: (AppLanguage) -> Unit,
+    val onCustomLocaleTagChange: (String) -> Unit
+)
+
+/** Renders navigation and UI effects while [MainViewModel] owns data coordination. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    deviceId: String,
-    themeMode: ThemeMode,
-    onThemeModeChange: (ThemeMode) -> Unit,
-    themeColor: ThemeColor,
-    onThemeColorChange: (ThemeColor) -> Unit,
-    exportHelper: ModuleExportHelper,
-    appLanguage: AppLanguage = AppLanguage.SYSTEM,
-    languageOptions: List<String> = emptyList(),
-    onLanguageChange: (Int) -> Unit = {},
-    customLocaleTag: String = "",
-    onCustomLocaleTagChange: (String) -> Unit = {}
+    viewModel: MainViewModel,
+    settings: MainScreenSettings,
+    exportHelper: ModuleExportHelper
 ) {
     val context = LocalContext.current
-    val lifecycle = (context as? LifecycleOwner)?.lifecycle
-    val collector = remember { DeviceInfoCollector(context) }
-    val cpuUsageSampler = remember { CpuUsageSampler(collector) }
-    val liveHardwareMonitor = remember { LiveHardwareMonitor(context) }
-    val batteryObserver = remember { BatteryObserver(context) }
-    val batteryState by batteryObserver.batteryState.collectAsState(initial = null)
-    val updateChecker = remember { UpdateChecker(context) }
+    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
-    var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
+    val deviceInfoItems by viewModel.deviceInfoItems.collectAsStateWithLifecycle()
+    val isDeviceInfoLoading by viewModel.isDeviceInfoLoading.collectAsStateWithLifecycle()
+    val overviewSnapshot by viewModel.overviewSnapshot.collectAsStateWithLifecycle()
+    val isOverviewLoading by viewModel.isOverviewLoading.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val releaseInfo by viewModel.releaseInfo.collectAsStateWithLifecycle()
+
+    var selectedIndex by rememberSaveable { mutableIntStateOf(INFO_TAB_INDEX) }
     var showDetailsPage by remember { mutableStateOf(false) }
     var detailCategory by remember { mutableStateOf(InfoCategory.DEVICE) }
-    val itemsState = remember { mutableStateListOf<ItemWithVisibility>() }
-    val reloadMutex = remember { Mutex() }
-    var isLoading by remember { mutableStateOf(true) }
-    var isOverviewLoading by remember { mutableStateOf(true) }
-    var overviewSnapshot by remember { mutableStateOf(OverviewSnapshot()) }
-
-    // 关于页面 — 预测性返回动画状态
     var showAboutPage by remember { mutableStateOf(false) }
     var isAboutVisible by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var showExportSuccessDialog by remember { mutableStateOf(false) }
+    var exportedFilePath by remember { mutableStateOf("") }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+
     val density = LocalDensity.current
     val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
     val aboutOffsetX = remember { Animatable(screenWidthPx) }
     val detailOffsetX = remember { Animatable(0f) }
+    val alreadyLatestMessage = stringResource(R.string.already_latest)
+    val exportFailedLabel = stringResource(R.string.export_failed)
 
-    // 关于页面入场动画
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> viewModel.onForegroundChanged(true)
+                Lifecycle.Event.ON_PAUSE -> viewModel.onForegroundChanged(false)
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            viewModel.onForegroundChanged(true)
+        }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.onForegroundChanged(false)
+        }
+    }
+
+    LaunchedEffect(selectedIndex, viewModel) {
+        viewModel.onInfoTabChanged(selectedIndex == INFO_TAB_INDEX)
+    }
+
     LaunchedEffect(showAboutPage) {
         if (showAboutPage) {
             isAboutVisible = true
             aboutOffsetX.snapTo(screenWidthPx)
-            aboutOffsetX.animateTo(0f, animationSpec = tween(300))
+            aboutOffsetX.animateTo(0f, animationSpec = tween(ABOUT_ANIMATION_DURATION_MS))
         }
     }
-
-    // 关于页面退场动画（返回按钮或预测返回提交后调用）
-    fun dismissAboutPage() {
-        scope.launch {
-            aboutOffsetX.animateTo(screenWidthPx, animationSpec = tween(300))
-            showAboutPage = false
-            isAboutVisible = false
-        }
-    }
-
-    var showExportDialog by remember { mutableStateOf(false) }
-    var showExportSuccessDialog by remember { mutableStateOf(false) }
-    var exportedFilePath by remember { mutableStateOf("") }
-
-    // Update — 使用 collectAsState 响应式订阅 StateFlow
-    var showUpdateDialog by remember { mutableStateOf(false) }
-    var updateChecked by remember { mutableStateOf(false) }
-
-    val updateState by updateChecker.state.collectAsState()
-    val releaseInfo by updateChecker.releaseInfo.collectAsState()
-
-    val themeOptions = ThemeMode.entries.map { stringResource(it.displayNameResId) }
-    val languageOptionsList = AppLanguage.entries.map { lang -> stringResource(lang.displayNameResId) }
-    val alreadyLatestMessage = stringResource(R.string.already_latest)
-    val exportFailedLabel = stringResource(R.string.export_failed)
 
     LaunchedEffect(showDetailsPage) {
         if (!showDetailsPage) {
@@ -171,111 +155,28 @@ fun MainScreen(
         }
     }
 
-    suspend fun reloadDeviceInfo() {
-        reloadMutex.withLock {
-            isLoading = true
-            isOverviewLoading = true
-            itemsState.clear()
-            coroutineScope {
-                val hardwareJob = launch(Dispatchers.Default) {
-                    loadOverviewSnapshot(
-                        collector = collector,
-                        batteryLevel = batteryState?.level,
-                        batteryCharging = batteryState?.isCharging == true,
-                        hardware = liveHardwareMonitor.snapshot(),
-                        onSnapshot = { snapshot ->
-                            withContext(Dispatchers.Main.immediate) {
-                                overviewSnapshot = snapshot
-                            }
-                        }
-                    )
-                    withContext(Dispatchers.Main.immediate) {
-                        isOverviewLoading = false
-                    }
-                }
-                val itemsJob = launch {
-                    loadDeviceInfo(collector, itemsState)
-                    isLoading = false
-                }
-                itemsJob.join()
-                hardwareJob.join()
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        reloadDeviceInfo()
-    }
-
-    // Keep volatile metrics current while preserving the loaded item list and navigation state.
-    LaunchedEffect(lifecycle, selectedIndex, showDetailsPage) {
-        lifecycle?.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            if (selectedIndex == 0) {
-                cpuUsageSampler.start { reading ->
-                    overviewSnapshot = overviewSnapshot.withCpuUsageReading(reading)
-                }
-                try {
-                    while (isActive) {
-                        delay(DYNAMIC_REFRESH_INTERVAL_MS)
-                        refreshDynamicMetrics(
-                            collector = collector,
-                            reloadMutex = reloadMutex,
-                            currentSnapshot = { overviewSnapshot },
-                            onSnapshot = { snapshot -> overviewSnapshot = snapshot }
-                        )
-                    }
-                } finally {
-                    cpuUsageSampler.stop()
-                }
-            }
-        }
-    }
-
-    LaunchedEffect(lifecycle) {
-        lifecycle?.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            liveHardwareMonitor.start()
-            try {
-                while (isActive) {
-                    val hardware = withContext(Dispatchers.Default) { liveHardwareMonitor.snapshot() }
-                    overviewSnapshot = overviewSnapshot.copy(hardware = hardware)
-                    delay(DYNAMIC_REFRESH_INTERVAL_MS)
-                }
-            } finally {
-                liveHardwareMonitor.stop()
-            }
-        }
-    }
-
-    LaunchedEffect(batteryState) {
-        batteryState?.let { state ->
-            overviewSnapshot = overviewSnapshot.copy(
-                batteryLevel = state.level,
-                batteryCharging = state.isCharging
-            )
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        if (BuildConfig.IS_OFFICIAL && !updateChecked) {
-            updateChecked = true
-            updateChecker.check(BuildConfig.VERSION_NAME)
-        }
-    }
-
     LaunchedEffect(updateState) {
         when (updateState) {
             UpdateState.UP_TO_DATE -> {
                 Toast.makeText(context, alreadyLatestMessage, Toast.LENGTH_SHORT).show()
-                updateChecker.reset()
+                viewModel.resetUpdateState()
             }
-            UpdateState.NEW_VERSION_AVAILABLE -> showUpdateDialog = true
+
+            UpdateState.NEW_VERSION_AVAILABLE,
             UpdateState.ERROR -> showUpdateDialog = true
-            else -> {}
+
+            else -> Unit
         }
     }
 
-    // 主界面内容（始终渲染，确保关于页面滑入时无白屏闪烁、
-    // 预测性返回预览时能看到底层内容）
+    fun dismissAboutPage() {
+        scope.launch {
+            aboutOffsetX.animateTo(screenWidthPx, animationSpec = tween(ABOUT_ANIMATION_DURATION_MS))
+            showAboutPage = false
+            isAboutVisible = false
+        }
+    }
+
     val tabs = listOf(stringResource(R.string.nav_info), stringResource(R.string.nav_settings))
     val selectedIcons = listOf(Icons.Filled.Description, Icons.Filled.Settings)
     val unselectedIcons = listOf(Icons.Outlined.Description, Icons.Outlined.Settings)
@@ -286,10 +187,10 @@ fun MainScreen(
                 Column {
                     TopAppBar(
                         navigationIcon = {
-                            if (selectedIndex == 0 && showDetailsPage) {
+                            if (selectedIndex == INFO_TAB_INDEX && showDetailsPage) {
                                 IconButton(onClick = { showDetailsPage = false }) {
                                     Icon(
-                                        imageVector = Icons.Filled.ArrowBack,
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                         contentDescription = stringResource(R.string.back)
                                     )
                                 }
@@ -298,7 +199,7 @@ fun MainScreen(
                         title = {
                             Text(
                                 text = when {
-                                    selectedIndex == 1 -> stringResource(R.string.title_settings)
+                                    selectedIndex == SETTINGS_TAB_INDEX -> stringResource(R.string.title_settings)
                                     showDetailsPage -> stringResource(R.string.title_device_details)
                                     else -> stringResource(R.string.title_device_info)
                                 },
@@ -324,20 +225,29 @@ fun MainScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                     tonalElevation = 0.dp
                 ) {
-                    tabs.forEachIndexed { i, title ->
+                    tabs.forEachIndexed { index, title ->
                         NavigationBarItem(
-                            selected = selectedIndex == i,
+                            selected = selectedIndex == index,
                             onClick = {
-                                selectedIndex = i
-                                if (i == 1) showDetailsPage = false
+                                selectedIndex = index
+                                if (index == SETTINGS_TAB_INDEX) showDetailsPage = false
                             },
                             icon = {
                                 Icon(
-                                    imageVector = if (selectedIndex == i) selectedIcons[i] else unselectedIcons[i],
+                                    imageVector = if (selectedIndex == index) {
+                                        selectedIcons[index]
+                                    } else {
+                                        unselectedIcons[index]
+                                    },
                                     contentDescription = title
                                 )
                             },
-                            label = { Text(text = title, style = MaterialTheme.typography.labelSmall) },
+                            label = {
+                                Text(
+                                    text = title,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -351,12 +261,16 @@ fun MainScreen(
             },
             containerColor = MaterialTheme.colorScheme.background
         ) { paddingValues ->
-            Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
                 AnimatedContent(
                     modifier = Modifier.offset {
                         IntOffset(
-                            if (showDetailsPage) detailOffsetX.value.roundToInt() else 0,
-                            0
+                            x = if (showDetailsPage) detailOffsetX.value.roundToInt() else 0,
+                            y = 0
                         )
                     },
                     targetState = selectedIndex to showDetailsPage,
@@ -364,58 +278,78 @@ fun MainScreen(
                         val direction = if (
                             targetState.first > initialState.first ||
                             targetState.second && !initialState.second
-                        ) 1 else -1
+                        ) {
+                            FORWARD_DIRECTION
+                        } else {
+                            BACKWARD_DIRECTION
+                        }
                         (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { direction * it / 5 })
-                            .togetherWith(fadeOut(tween(160)) + slideOutHorizontally(tween(180)) { -direction * it / 5 })
+                            .togetherWith(
+                                fadeOut(tween(160)) +
+                                    slideOutHorizontally(tween(180)) { -direction * it / 5 }
+                            )
                     },
                     label = "mainNavigationTransition"
                 ) { pageState ->
                     when (pageState.first) {
-                        0 -> if (pageState.second) {
-                            DeviceInfoPage(
-                                deviceId = deviceId,
-                                itemsState = itemsState,
-                                isLoading = isLoading,
-                                overviewSnapshot = overviewSnapshot,
-                                onRefresh = { reloadDeviceInfo() },
-                                initialCategory = detailCategory
-                            )
-                        } else {
-                            DeviceInfoOverviewPage(
-                                itemsState = itemsState,
-                                isLoading = isLoading,
-                                isOverviewLoading = isOverviewLoading,
-                                snapshot = overviewSnapshot,
-                                onRefresh = { reloadDeviceInfo() },
-                                onOpenDetails = { category ->
-                                    detailCategory = category
-                                    showDetailsPage = true
-                                }
+                        INFO_TAB_INDEX -> {
+                            if (pageState.second) {
+                                DeviceInfoPage(
+                                    deviceId = settings.deviceId,
+                                    itemsState = deviceInfoItems,
+                                    isLoading = isDeviceInfoLoading,
+                                    overviewSnapshot = overviewSnapshot,
+                                    onRefresh = viewModel::refreshAndAwait,
+                                    initialCategory = detailCategory
+                                )
+                            } else {
+                                DeviceInfoOverviewPage(
+                                    itemsState = deviceInfoItems,
+                                    isLoading = isDeviceInfoLoading,
+                                    isOverviewLoading = isOverviewLoading,
+                                    snapshot = overviewSnapshot,
+                                    onRefresh = viewModel::refreshAndAwait,
+                                    onOpenDetails = { category ->
+                                        detailCategory = category
+                                        showDetailsPage = true
+                                    }
+                                )
+                            }
+                        }
+
+                        SETTINGS_TAB_INDEX -> {
+                            val themeOptions = ThemeMode.entries.map { mode ->
+                                stringResource(mode.displayNameResId)
+                            }
+                            val languageOptions = AppLanguage.entries.map { language ->
+                                stringResource(language.displayNameResId)
+                            }
+                            SettingsPage(
+                                versionName = viewModel.appVersionName,
+                                versionCode = viewModel.appVersionCode,
+                                themeMode = settings.themeMode,
+                                themeOptions = themeOptions,
+                                onThemeChange = { index ->
+                                    settings.onThemeModeChange(ThemeMode.entries[index])
+                                },
+                                themeColor = settings.themeColor,
+                                onThemeColorChange = settings.onThemeColorChange,
+                                onExportClick = { showExportDialog = true },
+                                onAboutClick = { showAboutPage = true },
+                                appLanguage = settings.appLanguage,
+                                languageOptions = languageOptions,
+                                onLanguageChange = { index ->
+                                    settings.onAppLanguageChange(AppLanguage.entries[index])
+                                },
+                                customLocaleTag = settings.customLocaleTag,
+                                onCustomLocaleTagChange = settings.onCustomLocaleTagChange
                             )
                         }
-                        1 -> SettingsPage(
-                            versionName = collector.getAppVersionName(),
-                            versionCode = collector.getAppVersionCode(),
-                            themeMode = themeMode,
-                            themeOptions = themeOptions,
-                            onThemeChange = { index -> onThemeModeChange(ThemeMode.entries[index]) },
-                            themeColor = themeColor,
-                            onThemeColorChange = onThemeColorChange,
-                            onExportClick = { showExportDialog = true },
-                            onAboutClick = { showAboutPage = true },
-                            appLanguage = appLanguage,
-                            languageOptions = languageOptionsList,
-                            onLanguageChange = { index -> onLanguageChange(index) },
-                            customLocaleTag = customLocaleTag,
-                            onCustomLocaleTagChange = { tag -> onCustomLocaleTagChange(tag) }
-                        )
                     }
                 }
             }
         }
 
-        // 关于页面 — 覆盖在主界面之上，offset 由预测返回手势或入场动画驱动
-        // 主界面始终在下层渲染，避免动画过程中出现白屏闪烁
         if (isAboutVisible) {
             Box(
                 modifier = Modifier
@@ -423,15 +357,13 @@ fun MainScreen(
                     .offset { IntOffset(aboutOffsetX.value.roundToInt(), 0) }
             ) {
                 AboutPage(
-                    versionName = collector.getAppVersionName(),
+                    versionName = viewModel.appVersionName,
                     onBack = { dismissAboutPage() }
                 )
             }
         }
     }
 
-    // 预测性返回手势（Android 14+ 系统级预测性返回动画）
-    // PredictiveBackHandler 需无条件调用；enabled 参数控制是否拦截
     PredictiveBackHandler(
         enabled = showAboutPage || showDetailsPage,
         onBack = { progress ->
@@ -439,56 +371,66 @@ fun MainScreen(
             val dismissDetails = !dismissAbout && showDetailsPage
             try {
                 progress.collect { event ->
-                    if (dismissAbout) {
-                        // 手势进度驱动关于页面实时跟随手指滑动
-                        aboutOffsetX.snapTo(event.progress * screenWidthPx)
-                    } else if (dismissDetails) {
-                        // 详情页随手势向右退出，底层页面保持可见
-                        detailOffsetX.snapTo(event.progress * screenWidthPx)
+                    when {
+                        dismissAbout -> aboutOffsetX.snapTo(event.progress * screenWidthPx)
+                        dismissDetails -> detailOffsetX.snapTo(event.progress * screenWidthPx)
                     }
                 }
-                if (dismissAbout) {
-                    // 手势提交 → 继续动画到完全滑出
-                    aboutOffsetX.animateTo(screenWidthPx, animationSpec = tween(200))
-                    showAboutPage = false
-                    isAboutVisible = false
-                } else if (dismissDetails) {
-                    detailOffsetX.animateTo(screenWidthPx, animationSpec = tween(200))
-                    showDetailsPage = false
+                when {
+                    dismissAbout -> {
+                        aboutOffsetX.animateTo(
+                            screenWidthPx,
+                            animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS)
+                        )
+                        showAboutPage = false
+                        isAboutVisible = false
+                    }
+
+                    dismissDetails -> {
+                        detailOffsetX.animateTo(
+                            screenWidthPx,
+                            animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS)
+                        )
+                        showDetailsPage = false
+                    }
                 }
             } catch (_: CancellationException) {
-                if (dismissAbout) {
-                    // 手势取消（用户滑回）→ 动画回到原位
-                    scope.launch {
-                        aboutOffsetX.animateTo(0f, animationSpec = tween(200))
+                when {
+                    dismissAbout -> scope.launch {
+                        aboutOffsetX.animateTo(
+                            0f,
+                            animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS)
+                        )
                     }
-                } else if (dismissDetails) {
-                    scope.launch {
-                        detailOffsetX.animateTo(0f, animationSpec = tween(200))
+
+                    dismissDetails -> scope.launch {
+                        detailOffsetX.animateTo(
+                            0f,
+                            animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS)
+                        )
                     }
                 }
             }
         }
     )
 
-    // Dialogs
     UpdateAvailableDialog(
         show = showUpdateDialog,
         info = releaseInfo,
         isError = updateState == UpdateState.ERROR,
         currentVersion = BuildConfig.VERSION_NAME,
         onDownload = {
-            openUrl(context, releaseInfo?.htmlUrl ?: "https://github.com/FIOIU8/DevInfo/releases")
+            openUrl(context, releaseInfo?.htmlUrl ?: RELEASES_URL)
             showUpdateDialog = false
-            updateChecker.reset()
+            viewModel.resetUpdateState()
         },
         onRetry = {
             showUpdateDialog = false
-            scope.launch { updateChecker.check(BuildConfig.VERSION_NAME) }
+            viewModel.retryUpdateCheck()
         },
         onDismiss = {
             showUpdateDialog = false
-            updateChecker.reset()
+            viewModel.resetUpdateState()
         }
     )
 
@@ -496,11 +438,10 @@ fun MainScreen(
         show = showExportDialog,
         onConfirm = {
             showExportDialog = false
-            // ZIP creation performs file I/O and must not block the Compose main thread.
             scope.launch(Dispatchers.IO) {
                 exportHelper.exportModule(
-                    deviceId = deviceId,
-                    itemsState = itemsState,
+                    deviceId = settings.deviceId,
+                    itemsState = deviceInfoItems,
                     onSuccess = { path ->
                         scope.launch {
                             exportedFilePath = path
@@ -529,128 +470,18 @@ fun MainScreen(
     )
 }
 
-/** 从 DeviceInfoCollector 加载设备信息并执行逐项淡入动画 */
-private suspend fun loadDeviceInfo(
-    collector: DeviceInfoCollector,
-    itemsState: MutableList<ItemWithVisibility>
-) {
-    withContext(Dispatchers.Default) {
-        collector.collectDeviceInfo { item ->
-            withContext(Dispatchers.Main.immediate) {
-                itemsState.add(ItemWithVisibility(item, mutableStateOf(true)))
-            }
-            delay(30)
-        }
+private fun openUrl(context: Context, url: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+    } catch (_: Exception) {
+        Toast.makeText(context, context.getString(R.string.cannot_open_link), Toast.LENGTH_SHORT).show()
     }
 }
 
-private suspend fun loadOverviewSnapshot(
-    collector: DeviceInfoCollector,
-    batteryLevel: Int?,
-    batteryCharging: Boolean,
-    hardware: com.fioiu8.devinfo.LiveHardwareSnapshot,
-    onSnapshot: suspend (OverviewSnapshot) -> Unit
-) {
-    var snapshot = OverviewSnapshot(
-        batteryLevel = batteryLevel,
-        batteryCharging = batteryCharging,
-        hardware = hardware
-    )
-
-    suspend fun publish(update: OverviewSnapshot) {
-        snapshot = update
-        onSnapshot(snapshot)
-    }
-
-    publish(snapshot.copy(cpuFrequency = collector.getCpuFrequency()))
-
-    val coreMetrics = collector.getCpuCoreMetrics()
-    if (coreMetrics.isNotEmpty()) {
-        publish(snapshot.copy(cpuCoreMetrics = coreMetrics).withCpuUsageReading(coreMetrics))
-    } else {
-        publish(snapshot.copy(cpuUsage = collector.getCpuUsagePercent()))
-    }
-
-    publish(snapshot.copy(gpuFrequency = collector.getGpuFrequency()))
-    publish(snapshot.copy(gpuUsage = collector.getGpuUsagePercent()))
-    publish(snapshot.copy(memoryPercent = collector.getMemoryUsagePercent()))
-    publish(snapshot.copy(storagePercent = collector.getStorageUsagePercent()))
-    val security = collector.getSecuritySnapshot()
-    publish(
-        snapshot.copy(
-            securityPatch = security.securityPatch,
-            lockScreenEnabled = security.lockScreenEnabled,
-            usbDebuggingEnabled = security.usbDebuggingEnabled
-        )
-    )
-}
-
-private fun OverviewSnapshot.withCpuUsageReading(reading: com.fioiu8.devinfo.CpuUsageReading): OverviewSnapshot {
-    val currentMetrics = reading.coreMetrics.ifEmpty { cpuCoreMetrics }
-    val values = if (reading.coreMetrics.isNotEmpty()) {
-        reading.coreMetrics.mapNotNull { metric -> metric.usagePercent?.let { metric.index to it } }.toMap()
-    } else {
-        reading.overallUsage?.let { mapOf(-1 to it) } ?: emptyMap()
-    }
-    val history = if (values.isEmpty()) cpuUsageHistory else {
-        (cpuUsageHistory + CpuUsageSample(System.currentTimeMillis(), values)).takeLast(30)
-    }
-    return copy(
-        cpuCoreMetrics = currentMetrics,
-        cpuUsage = reading.overallUsage,
-        cpuUsageHistory = history
-    )
-}
-
-private fun OverviewSnapshot.withCpuUsageReading(metrics: List<com.fioiu8.devinfo.CpuCoreMetric>): OverviewSnapshot =
-    withCpuUsageReading(
-        com.fioiu8.devinfo.CpuUsageReading(
-            coreMetrics = metrics,
-            overallUsage = metrics.mapNotNull { it.usagePercent }.average().toFloat().takeIf { !it.isNaN() }
-        )
-    )
-
-private const val DYNAMIC_REFRESH_INTERVAL_MS = 2_000L
-
-private suspend fun refreshDynamicMetrics(
-    collector: DeviceInfoCollector,
-    reloadMutex: Mutex,
-    currentSnapshot: () -> OverviewSnapshot,
-    onSnapshot: (OverviewSnapshot) -> Unit
-) {
-    reloadMutex.withLock {
-        var snapshot = currentSnapshot()
-
-        suspend fun publish(update: OverviewSnapshot) {
-            snapshot = update
-            onSnapshot(snapshot)
-        }
-
-        publish(snapshot.copy(gpuFrequency = withContext(Dispatchers.Default) {
-            collector.getGpuFrequency()
-        }))
-        publish(snapshot.copy(gpuUsage = withContext(Dispatchers.Default) {
-            collector.getGpuUsagePercent()
-        }))
-        publish(snapshot.copy(memoryPercent = withContext(Dispatchers.Default) {
-            collector.getMemoryUsagePercent()
-        }))
-        publish(snapshot.copy(storagePercent = withContext(Dispatchers.Default) {
-            collector.getStorageUsagePercent()
-        }))
-        val security = withContext(Dispatchers.Default) { collector.getSecuritySnapshot() }
-        publish(
-            snapshot.copy(
-                securityPatch = security.securityPatch,
-                lockScreenEnabled = security.lockScreenEnabled,
-                usbDebuggingEnabled = security.usbDebuggingEnabled
-            )
-        )
-    }
-}
-
-/** 通过 Intent 打开外部链接，失败时弹出 Toast 提示 */
-private fun openUrl(context: android.content.Context, url: String) {
-    try { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
-    catch (_: Exception) { Toast.makeText(context, context.getString(R.string.cannot_open_link), Toast.LENGTH_SHORT).show() }
-}
+private const val INFO_TAB_INDEX = 0
+private const val SETTINGS_TAB_INDEX = 1
+private const val FORWARD_DIRECTION = 1
+private const val BACKWARD_DIRECTION = -1
+private const val ABOUT_ANIMATION_DURATION_MS = 300
+private const val PREDICTIVE_BACK_ANIMATION_DURATION_MS = 200
+private const val RELEASES_URL = "https://github.com/FIOIU8/DevInfo/releases"
