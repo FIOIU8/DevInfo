@@ -15,9 +15,12 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
@@ -31,6 +34,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -46,6 +52,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -112,9 +119,11 @@ fun MainScreen(
     var exportedFilePath by remember { mutableStateOf("") }
     var showUpdateDialog by remember { mutableStateOf(false) }
 
+    val configuration = LocalConfiguration.current
+    val useNavigationRail = configuration.screenWidthDp >= TABLET_NAVIGATION_RAIL_MIN_WIDTH_DP
     val density = LocalDensity.current
-    val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
-    val aboutOffsetX = remember { Animatable(screenWidthPx) }
+    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
+    val aboutOffsetX = remember { Animatable(0f) }
     val detailOffsetX = remember { Animatable(0f) }
     val alreadyLatestMessage = stringResource(R.string.already_latest)
     val exportFailedLabel = stringResource(R.string.export_failed)
@@ -177,173 +186,169 @@ fun MainScreen(
         }
     }
 
-    val tabs = listOf(stringResource(R.string.nav_info), stringResource(R.string.nav_settings))
-    val selectedIcons = listOf(Icons.Filled.Description, Icons.Filled.Settings)
-    val unselectedIcons = listOf(Icons.Outlined.Description, Icons.Outlined.Settings)
+    val navigationItems = listOf(
+        MainNavigationItem(
+            label = stringResource(R.string.nav_info),
+            selectedIcon = Icons.Filled.Description,
+            unselectedIcon = Icons.Outlined.Description
+        ),
+        MainNavigationItem(
+            label = stringResource(R.string.nav_settings),
+            selectedIcon = Icons.Filled.Settings,
+            unselectedIcon = Icons.Outlined.Settings
+        )
+    )
+
+    fun selectNavigationItem(index: Int) {
+        selectedIndex = index
+        if (index == SETTINGS_TAB_INDEX) showDetailsPage = false
+    }
 
     Box(Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                Column {
-                    TopAppBar(
-                        navigationIcon = {
-                            if (selectedIndex == INFO_TAB_INDEX && showDetailsPage) {
-                                IconButton(onClick = { showDetailsPage = false }) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = stringResource(R.string.back)
+        Row(Modifier.fillMaxSize()) {
+            if (useNavigationRail) {
+                MainNavigationRail(
+                    items = navigationItems,
+                    selectedIndex = selectedIndex,
+                    onItemSelected = ::selectNavigationItem,
+                    modifier = Modifier.fillMaxHeight()
+                )
+            }
+
+            Scaffold(
+                modifier = Modifier.weight(1f),
+                topBar = {
+                    Column {
+                        TopAppBar(
+                            navigationIcon = {
+                                if (selectedIndex == INFO_TAB_INDEX && showDetailsPage) {
+                                    IconButton(onClick = { showDetailsPage = false }) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = stringResource(R.string.back)
+                                        )
+                                    }
+                                }
+                            },
+                            title = {
+                                Text(
+                                    text = when {
+                                        selectedIndex == SETTINGS_TAB_INDEX -> stringResource(R.string.title_settings)
+                                        showDetailsPage -> stringResource(R.string.title_device_details)
+                                        else -> stringResource(R.string.title_device_info)
+                                    },
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                titleContentColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        )
+                        if (!BuildConfig.IS_OFFICIAL) {
+                            TestVersionWarningCard(
+                                versionName = BuildConfig.VERSION_NAME,
+                                buildType = BuildConfig.BUILD_TYPE_NAME,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                },
+                bottomBar = {
+                    if (!useNavigationRail) {
+                        MainNavigationBar(
+                            items = navigationItems,
+                            selectedIndex = selectedIndex,
+                            onItemSelected = ::selectNavigationItem
+                        )
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.background
+            ) { paddingValues ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    AnimatedContent(
+                        modifier = Modifier.offset {
+                            IntOffset(
+                                x = if (showDetailsPage) detailOffsetX.value.roundToInt() else 0,
+                                y = 0
+                            )
+                        },
+                        targetState = selectedIndex to showDetailsPage,
+                        transitionSpec = {
+                            val direction = if (
+                                targetState.first > initialState.first ||
+                                targetState.second && !initialState.second
+                            ) {
+                                FORWARD_DIRECTION
+                            } else {
+                                BACKWARD_DIRECTION
+                            }
+                            (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { direction * it / 5 })
+                                .togetherWith(
+                                    fadeOut(tween(160)) +
+                                        slideOutHorizontally(tween(180)) { -direction * it / 5 }
+                                )
+                        },
+                        label = "mainNavigationTransition"
+                    ) { pageState ->
+                        when (pageState.first) {
+                            INFO_TAB_INDEX -> {
+                                if (pageState.second) {
+                                    DeviceInfoPage(
+                                        deviceId = settings.deviceId,
+                                        itemsState = deviceInfoItems,
+                                        isLoading = isDeviceInfoLoading,
+                                        overviewSnapshot = overviewSnapshot,
+                                        onRefresh = viewModel::refreshAndAwait,
+                                        initialCategory = detailCategory
+                                    )
+                                } else {
+                                    DeviceInfoOverviewPage(
+                                        itemsState = deviceInfoItems,
+                                        isLoading = isDeviceInfoLoading,
+                                        isOverviewLoading = isOverviewLoading,
+                                        snapshot = overviewSnapshot,
+                                        onRefresh = viewModel::refreshAndAwait,
+                                        onOpenDetails = { category ->
+                                            detailCategory = category
+                                            showDetailsPage = true
+                                        }
                                     )
                                 }
                             }
-                        },
-                        title = {
-                            Text(
-                                text = when {
-                                    selectedIndex == SETTINGS_TAB_INDEX -> stringResource(R.string.title_settings)
-                                    showDetailsPage -> stringResource(R.string.title_device_details)
-                                    else -> stringResource(R.string.title_device_info)
-                                },
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            titleContentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    )
-                    if (!BuildConfig.IS_OFFICIAL) {
-                        TestVersionWarningCard(
-                            versionName = BuildConfig.VERSION_NAME,
-                            buildType = BuildConfig.BUILD_TYPE_NAME,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            },
-            bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    tonalElevation = 0.dp
-                ) {
-                    tabs.forEachIndexed { index, title ->
-                        NavigationBarItem(
-                            selected = selectedIndex == index,
-                            onClick = {
-                                selectedIndex = index
-                                if (index == SETTINGS_TAB_INDEX) showDetailsPage = false
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = if (selectedIndex == index) {
-                                        selectedIcons[index]
-                                    } else {
-                                        unselectedIcons[index]
-                                    },
-                                    contentDescription = title
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                            )
-                        )
-                    }
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.background
-        ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                AnimatedContent(
-                    modifier = Modifier.offset {
-                        IntOffset(
-                            x = if (showDetailsPage) detailOffsetX.value.roundToInt() else 0,
-                            y = 0
-                        )
-                    },
-                    targetState = selectedIndex to showDetailsPage,
-                    transitionSpec = {
-                        val direction = if (
-                            targetState.first > initialState.first ||
-                            targetState.second && !initialState.second
-                        ) {
-                            FORWARD_DIRECTION
-                        } else {
-                            BACKWARD_DIRECTION
-                        }
-                        (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { direction * it / 5 })
-                            .togetherWith(
-                                fadeOut(tween(160)) +
-                                    slideOutHorizontally(tween(180)) { -direction * it / 5 }
-                            )
-                    },
-                    label = "mainNavigationTransition"
-                ) { pageState ->
-                    when (pageState.first) {
-                        INFO_TAB_INDEX -> {
-                            if (pageState.second) {
-                                DeviceInfoPage(
-                                    deviceId = settings.deviceId,
-                                    itemsState = deviceInfoItems,
-                                    isLoading = isDeviceInfoLoading,
-                                    overviewSnapshot = overviewSnapshot,
-                                    onRefresh = viewModel::refreshAndAwait,
-                                    initialCategory = detailCategory
-                                )
-                            } else {
-                                DeviceInfoOverviewPage(
-                                    itemsState = deviceInfoItems,
-                                    isLoading = isDeviceInfoLoading,
-                                    isOverviewLoading = isOverviewLoading,
-                                    snapshot = overviewSnapshot,
-                                    onRefresh = viewModel::refreshAndAwait,
-                                    onOpenDetails = { category ->
-                                        detailCategory = category
-                                        showDetailsPage = true
-                                    }
-                                )
-                            }
-                        }
 
-                        SETTINGS_TAB_INDEX -> {
-                            val themeOptions = ThemeMode.entries.map { mode ->
-                                stringResource(mode.displayNameResId)
+                            SETTINGS_TAB_INDEX -> {
+                                val themeOptions = ThemeMode.entries.map { mode ->
+                                    stringResource(mode.displayNameResId)
+                                }
+                                val languageOptions = AppLanguage.entries.map { language ->
+                                    stringResource(language.displayNameResId)
+                                }
+                                SettingsPage(
+                                    versionName = viewModel.appVersionName,
+                                    versionCode = viewModel.appVersionCode,
+                                    themeMode = settings.themeMode,
+                                    themeOptions = themeOptions,
+                                    onThemeChange = { index ->
+                                        settings.onThemeModeChange(ThemeMode.entries[index])
+                                    },
+                                    themeColor = settings.themeColor,
+                                    onThemeColorChange = settings.onThemeColorChange,
+                                    onExportClick = { showExportDialog = true },
+                                    onAboutClick = { showAboutPage = true },
+                                    appLanguage = settings.appLanguage,
+                                    languageOptions = languageOptions,
+                                    onLanguageChange = { index ->
+                                        settings.onAppLanguageChange(AppLanguage.entries[index])
+                                    },
+                                    customLocaleTag = settings.customLocaleTag,
+                                    onCustomLocaleTagChange = settings.onCustomLocaleTagChange
+                                )
                             }
-                            val languageOptions = AppLanguage.entries.map { language ->
-                                stringResource(language.displayNameResId)
-                            }
-                            SettingsPage(
-                                versionName = viewModel.appVersionName,
-                                versionCode = viewModel.appVersionCode,
-                                themeMode = settings.themeMode,
-                                themeOptions = themeOptions,
-                                onThemeChange = { index ->
-                                    settings.onThemeModeChange(ThemeMode.entries[index])
-                                },
-                                themeColor = settings.themeColor,
-                                onThemeColorChange = settings.onThemeColorChange,
-                                onExportClick = { showExportDialog = true },
-                                onAboutClick = { showAboutPage = true },
-                                appLanguage = settings.appLanguage,
-                                languageOptions = languageOptions,
-                                onLanguageChange = { index ->
-                                    settings.onAppLanguageChange(AppLanguage.entries[index])
-                                },
-                                customLocaleTag = settings.customLocaleTag,
-                                onCustomLocaleTagChange = settings.onCustomLocaleTagChange
-                            )
                         }
                     }
                 }
@@ -470,6 +475,92 @@ fun MainScreen(
     )
 }
 
+private data class MainNavigationItem(
+    val label: String,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector
+)
+
+@Composable
+private fun MainNavigationBar(
+    items: List<MainNavigationItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit
+) {
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 0.dp
+    ) {
+        items.forEachIndexed { index, item ->
+            NavigationBarItem(
+                selected = selectedIndex == index,
+                onClick = { onItemSelected(index) },
+                icon = {
+                    Icon(
+                        imageVector = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
+                        contentDescription = item.label
+                    )
+                },
+                label = {
+                    Text(
+                        text = item.label,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun MainNavigationRail(
+    items: List<MainNavigationItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    NavigationRail(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer
+    ) {
+        Spacer(modifier = Modifier.weight(1f))
+        items.forEachIndexed { index, item ->
+            NavigationRailItem(
+                selected = selectedIndex == index,
+                onClick = { onItemSelected(index) },
+                icon = {
+                    Icon(
+                        imageVector = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
+                        contentDescription = item.label
+                    )
+                },
+                label = {
+                    Text(
+                        text = item.label,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                },
+                alwaysShowLabel = true,
+                colors = NavigationRailItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
+    }
+}
+
 private fun openUrl(context: Context, url: String) {
     try {
         context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
@@ -482,6 +573,7 @@ private const val INFO_TAB_INDEX = 0
 private const val SETTINGS_TAB_INDEX = 1
 private const val FORWARD_DIRECTION = 1
 private const val BACKWARD_DIRECTION = -1
+private const val TABLET_NAVIGATION_RAIL_MIN_WIDTH_DP = 600
 private const val ABOUT_ANIMATION_DURATION_MS = 300
 private const val PREDICTIVE_BACK_ANIMATION_DURATION_MS = 200
 private const val RELEASES_URL = "https://github.com/FIOIU8/DevInfo/releases"
