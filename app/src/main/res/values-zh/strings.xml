@@ -3,4 +3,7 @@
     <string name="module_export_name">机型模拟-%1$s</string>
     <string name="module_export_description">这是一个自动化程序生成的机型模拟模块，用于模拟 %1$s %2$s 设备。\n生成时间: %3$s\n注意: 使用此模块具有一定风险，请自行评估。</string>
     <string name="device_id_fetch_failed">获取失败: %1$s</string>
+    <string name="ui_style">界面风格</string>
+    <string name="ui_style_material3">Material 3</string>
+    <string name="ui_style_miuix">Miuix</string>
 </resources>

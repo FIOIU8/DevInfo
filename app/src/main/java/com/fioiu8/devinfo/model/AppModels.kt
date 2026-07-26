@@ -38,6 +38,11 @@ enum class ThemeMode(val displayNameResId: Int) {
     val isDynamic: Boolean get() = name.startsWith("DYNAMIC")
 }
 
+enum class UiStyle {
+    MATERIAL3,
+    MIUIX,
+}
+
 enum class ThemeColor(
     val displayNameResId: Int,
     val color: Color,

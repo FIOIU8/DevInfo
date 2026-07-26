@@ -30,6 +30,7 @@ import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -50,7 +51,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.res.stringResource
@@ -63,12 +64,20 @@ import com.fioiu8.devinfo.model.AppLanguage
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.ThemeMode
 import com.fioiu8.devinfo.model.ThemeColor
+import com.fioiu8.devinfo.model.UiStyle
+import com.fioiu8.devinfo.ui.theme.LocalUiStyle
+import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
+import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * 设置页面 — 主题、导出工具、关于入口。
  *
  * @param versionName 应用版本名
  * @param versionCode 应用版本号
+ * @param uiStyle 当前界面风格
+ * @param onUiStyleChange 界面风格切换回调
  * @param themeMode 当前主题模式
  * @param themeOptions 所有主题模式的展示名列表
  * @param onThemeChange 主题选中索引回调
@@ -79,6 +88,8 @@ import com.fioiu8.devinfo.model.ThemeColor
 fun SettingsPage(
     versionName: String,
     versionCode: Long,
+    uiStyle: UiStyle,
+    onUiStyleChange: (UiStyle) -> Unit,
     themeMode: ThemeMode,
     themeOptions: List<String>,
     onThemeChange: (Int) -> Unit,
@@ -93,9 +104,16 @@ fun SettingsPage(
     onCustomLocaleTagChange: (String) -> Unit = {}
 ) {
 
-    var showCustomLocaleDialog by remember { mutableStateOf(false) }
-    var showThemeColorDialog by remember { mutableStateOf(false) }
-    var customLocaleInput by remember { mutableStateOf(customLocaleTag) }
+    var showCustomLocaleDialog by rememberSaveable { mutableStateOf(false) }
+    var showThemeColorDialog by rememberSaveable { mutableStateOf(false) }
+    var customLocaleInput by rememberSaveable { mutableStateOf(customLocaleTag) }
+    val uiStyleEntries = listOf(
+        UiStyle.MATERIAL3 to stringResource(R.string.ui_style_material3),
+        UiStyle.MIUIX to stringResource(R.string.ui_style_miuix)
+    )
+    val selectedUiStyleIndex = uiStyleEntries
+        .indexOfFirst { (style, _) -> style == uiStyle }
+        .coerceAtLeast(0)
 
     // Custom locale dialog
     if (showCustomLocaleDialog) {
@@ -149,6 +167,19 @@ fun SettingsPage(
     ) {
         // ── 外观 ──
         item { CategoryHeader(title = stringResource(R.string.category_appearance)) }
+
+        item {
+            DropdownPreferenceCard(
+                icon = Icons.Outlined.Style,
+                title = stringResource(R.string.ui_style),
+                summary = uiStyleEntries[selectedUiStyleIndex].second,
+                items = uiStyleEntries.map { (_, label) -> label },
+                selectedIndex = selectedUiStyleIndex,
+                onSelectedIndexChange = { index ->
+                    uiStyleEntries.getOrNull(index)?.first?.let(onUiStyleChange)
+                }
+            )
+        }
 
         item {
             ThemeSettingsCard(
@@ -536,7 +567,37 @@ private fun DropdownPreferenceCard(
     selectedIndex: Int,
     onSelectedIndexChange: (Int) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    when (LocalUiStyle.current) {
+        UiStyle.MATERIAL3 -> MaterialDropdownPreferenceCard(
+            icon = icon,
+            title = title,
+            summary = summary,
+            items = items,
+            selectedIndex = selectedIndex,
+            onSelectedIndexChange = onSelectedIndexChange
+        )
+
+        UiStyle.MIUIX -> MiuixDropdownPreferenceCard(
+            icon = icon,
+            title = title,
+            summary = summary,
+            items = items,
+            selectedIndex = selectedIndex,
+            onSelectedIndexChange = onSelectedIndexChange
+        )
+    }
+}
+
+@Composable
+private fun MaterialDropdownPreferenceCard(
+    icon: ImageVector,
+    title: String,
+    summary: String,
+    items: List<String>,
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
@@ -614,5 +675,35 @@ private fun DropdownPreferenceCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MiuixDropdownPreferenceCard(
+    icon: ImageVector,
+    title: String,
+    summary: String,
+    items: List<String>,
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit
+) {
+    MiuixCard(modifier = Modifier.fillMaxWidth()) {
+        OverlayDropdownPreference(
+            items = items,
+            selectedIndex = selectedIndex,
+            title = title,
+            summary = summary,
+            modifier = Modifier.fillMaxWidth(),
+            startAction = {
+                MiuixIcon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 6.dp),
+                    tint = MiuixTheme.colorScheme.primary
+                )
+            },
+            showValue = false,
+            onSelectedIndexChange = onSelectedIndexChange
+        )
     }
 }

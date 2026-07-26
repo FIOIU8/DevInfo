@@ -1,20 +1,31 @@
 package com.fioiu8.devinfo.ui.theme
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.os.Build
+import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import com.fioiu8.devinfo.model.ThemeColor
 import com.fioiu8.devinfo.model.ThemeMode
+import com.fioiu8.devinfo.model.UiStyle
+
+val LocalUiStyle = staticCompositionLocalOf { UiStyle.MATERIAL3 }
 
 // 静态 fallback — 用于非动态模式或 Android 12 以下
 private val DarkColorScheme = darkColorScheme(
@@ -95,12 +106,25 @@ private val LightColorScheme = lightColorScheme(
 fun DevInfoTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     themeColor: ThemeColor = ThemeColor.DEFAULT,
+    uiStyle: UiStyle = UiStyle.MATERIAL3,
     content: @Composable () -> Unit
 ) {
+    val materialOverscrollFactory = LocalOverscrollFactory.current
     val darkTheme = when (themeMode) {
         ThemeMode.LIGHT, ThemeMode.DYNAMIC_LIGHT -> false
         ThemeMode.DARK, ThemeMode.DYNAMIC_DARK -> true
         ThemeMode.SYSTEM, ThemeMode.DYNAMIC_SYSTEM -> isSystemInDarkTheme()
+    }
+
+    val context = LocalContext.current
+    val view = LocalView.current
+    SideEffect {
+        val window = (view.context.findActivity() ?: context.findActivity())?.window
+            ?: return@SideEffect
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = !darkTheme
+            isAppearanceLightNavigationBars = !darkTheme
+        }
     }
 
     val colorScheme: ColorScheme = when {
@@ -110,7 +134,6 @@ fun DevInfoTheme(
         }
 
         themeMode.isDynamic && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
             val dynamicScheme = if (darkTheme) {
                 dynamicDarkColorScheme(context)
             } else {
@@ -124,11 +147,16 @@ fun DevInfoTheme(
         else -> LightColorScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalUiStyle provides uiStyle) {
+        MiuixDevInfoTheme(
+            themeMode = themeMode,
+            themeColor = themeColor,
+            darkTheme = darkTheme,
+            materialColorScheme = colorScheme.takeIf { uiStyle == UiStyle.MATERIAL3 },
+            materialOverscrollFactory = materialOverscrollFactory,
+            content = content
+        )
+    }
 }
 
 private fun themedLightColorScheme(seed: Color): ColorScheme {
@@ -161,7 +189,13 @@ private fun themedDarkColorScheme(seed: Color): ColorScheme {
 
 private fun onColorFor(color: Color): Color = if (color.luminance() > 0.4f) Color.Black else Color.White
 
-// 保留兼容旧调用方（无参数 → 使用默认 SYSTEM + 动态色）
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+// 保留兼容旧调用方，并将传入的明暗值映射为显式主题模式。
 @Composable
 @Suppress("unused")
 fun DevInfoTheme(
@@ -169,7 +203,11 @@ fun DevInfoTheme(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val mode = if (dynamicColor) ThemeMode.DYNAMIC_SYSTEM else ThemeMode.SYSTEM
-    // 忽略 darkTheme 参数，由 SYSTEM 模式自行判断
+    val mode = when {
+        dynamicColor && darkTheme -> ThemeMode.DYNAMIC_DARK
+        dynamicColor -> ThemeMode.DYNAMIC_LIGHT
+        darkTheme -> ThemeMode.DARK
+        else -> ThemeMode.LIGHT
+    }
     DevInfoTheme(themeMode = mode, content = content)
 }

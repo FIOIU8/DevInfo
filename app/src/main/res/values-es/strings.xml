@@ -3,4 +3,7 @@
     <string name="module_export_name">Simulacion de dispositivo - %1$s</string>
     <string name="module_export_description">Este modulo de simulacion de dispositivo se genero automaticamente para simular un dispositivo %1$s %2$s.\nGenerado el: %3$s\nAdvertencia: use este modulo bajo su propia responsabilidad.</string>
     <string name="device_id_fetch_failed">No se pudo obtener: %1$s</string>
+    <string name="ui_style">Estilo de interfaz</string>
+    <string name="ui_style_material3">Material 3</string>
+    <string name="ui_style_miuix">Miuix</string>
 </resources>
