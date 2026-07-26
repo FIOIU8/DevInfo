@@ -49,6 +49,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,6 +80,17 @@ private enum class OverviewCardSize(val span: Int) {
     LARGE(2)
 }
 
+private enum class OverviewMetricId {
+    REALTIME_CPU,
+    CPU_FREQUENCY,
+    CPU_USAGE,
+    GPU_FREQUENCY,
+    GPU_USAGE,
+    MEMORY,
+    STORAGE,
+    BATTERY
+}
+
 data class OverviewSnapshot(
     val cpuFrequency: String? = null,
     val gpuFrequency: String? = null,
@@ -102,12 +114,15 @@ data class CpuUsageSample(
 )
 
 private data class OverviewMetric(
-    val title: String,
+    val id: OverviewMetricId,
+    val title: String? = null,
+    val titleResId: Int? = null,
     val value: String? = null,
     val category: InfoCategory,
     val icon: ImageVector,
     val size: OverviewCardSize,
-    val supportingText: String? = null,
+    val supportingTextResId: Int? = null,
+    val supportingTextSuffix: String? = null,
     val progress: Float? = null,
     val coreMetrics: List<CpuCoreMetric> = emptyList(),
     val history: List<CpuUsageSample> = emptyList()
@@ -134,9 +149,9 @@ fun DeviceInfoOverviewPage(
         }
     }
 
-    val metrics = buildOverviewMetrics(
-        snapshot = snapshot
-    )
+    val metrics by remember(snapshot) {
+        derivedStateOf { buildOverviewMetrics(snapshot) }
+    }
 
     if ((isLoading && itemsState.isEmpty()) || (isOverviewLoading && metrics.isEmpty())) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -169,7 +184,7 @@ fun DeviceInfoOverviewPage(
             ) {
                 items(
                     items = metrics,
-                    key = { metric -> metric.title },
+                    key = { metric -> metric.id },
                     span = { metric -> GridItemSpan(metric.size.span) }
                 ) { metric ->
                     OverviewMetricCard(
@@ -188,7 +203,6 @@ fun DeviceInfoOverviewPage(
     }
 }
 
-@Composable
 private fun buildOverviewMetrics(
     snapshot: OverviewSnapshot
 ): List<OverviewMetric> = buildList {
@@ -198,15 +212,14 @@ private fun buildOverviewMetrics(
             ?: availableCoreMetrics.mapNotNull { it.usagePercent }.average().toFloat().takeIf { !it.isNaN() }
         add(
             OverviewMetric(
-                title = stringResourceValue(R.string.overview_realtime_title),
+                id = OverviewMetricId.REALTIME_CPU,
+                titleResId = R.string.overview_realtime_title,
                 value = currentUsage?.let(::formatPercent),
                 category = InfoCategory.SYSTEM,
                 icon = itemIconByResId(R.string.system_cpu_arch),
                 size = OverviewCardSize.LARGE,
-                supportingText = listOfNotNull(
-                    stringResourceValue(R.string.overview_realtime_cpu),
-                    snapshot.cpuFrequency
-                ).joinToString(" · "),
+                supportingTextResId = R.string.overview_realtime_cpu,
+                supportingTextSuffix = snapshot.cpuFrequency,
                 coreMetrics = availableCoreMetrics,
                 history = snapshot.cpuUsageHistory
             )
@@ -215,19 +228,21 @@ private fun buildOverviewMetrics(
         snapshot.cpuFrequency?.let {
             add(
                 OverviewMetric(
+                    id = OverviewMetricId.CPU_FREQUENCY,
                     title = "CPU",
                     value = it,
                     category = InfoCategory.SYSTEM,
                     icon = itemIconByResId(R.string.system_cpu_arch),
                     size = OverviewCardSize.LARGE,
-                    supportingText = stringResourceValue(R.string.overview_cpu_frequency)
+                    supportingTextResId = R.string.overview_cpu_frequency
                 )
             )
         }
         snapshot.cpuUsage?.let {
             add(
                 OverviewMetric(
-                    title = stringResourceValue(R.string.overview_cpu_usage),
+                    id = OverviewMetricId.CPU_USAGE,
+                    titleResId = R.string.overview_cpu_usage,
                     value = formatPercent(it),
                     category = InfoCategory.SYSTEM,
                     icon = itemIconByResId(R.string.system_cpu_cores),
@@ -240,7 +255,8 @@ private fun buildOverviewMetrics(
     snapshot.gpuFrequency?.let {
         add(
             OverviewMetric(
-                title = stringResourceValue(R.string.overview_gpu_frequency),
+                id = OverviewMetricId.GPU_FREQUENCY,
+                titleResId = R.string.overview_gpu_frequency,
                 value = it,
                 category = InfoCategory.DISPLAY,
                 icon = categoryIcon(InfoCategory.DISPLAY),
@@ -251,7 +267,8 @@ private fun buildOverviewMetrics(
     snapshot.gpuUsage?.let {
         add(
             OverviewMetric(
-                title = stringResourceValue(R.string.overview_gpu_usage),
+                id = OverviewMetricId.GPU_USAGE,
+                titleResId = R.string.overview_gpu_usage,
                 value = formatPercent(it),
                 category = InfoCategory.DISPLAY,
                 icon = categoryIcon(InfoCategory.DISPLAY),
@@ -263,7 +280,8 @@ private fun buildOverviewMetrics(
     snapshot.memoryPercent?.let {
         add(
             OverviewMetric(
-                title = stringResourceValue(R.string.overview_memory),
+                id = OverviewMetricId.MEMORY,
+                titleResId = R.string.overview_memory,
                 value = formatPercent(it),
                 category = InfoCategory.STORAGE,
                 icon = categoryIcon(InfoCategory.STORAGE),
@@ -273,22 +291,51 @@ private fun buildOverviewMetrics(
         )
     }
     snapshot.storagePercent?.let {
-        add(OverviewMetric(stringResourceValue(R.string.overview_storage), formatPercent(it), InfoCategory.STORAGE, categoryIcon(InfoCategory.STORAGE), OverviewCardSize.SMALL, progress = it / 100f))
+        add(
+            OverviewMetric(
+                id = OverviewMetricId.STORAGE,
+                titleResId = R.string.overview_storage,
+                value = formatPercent(it),
+                category = InfoCategory.STORAGE,
+                icon = categoryIcon(InfoCategory.STORAGE),
+                size = OverviewCardSize.SMALL,
+                progress = it / 100f
+            )
+        )
     }
     snapshot.batteryLevel?.let { level ->
         val safeLevel = level.coerceIn(0, 100)
-        add(OverviewMetric(stringResourceValue(R.string.overview_battery), "$safeLevel%", InfoCategory.BATTERY, categoryIcon(InfoCategory.BATTERY), OverviewCardSize.SMALL, if (snapshot.batteryCharging) stringResourceValue(R.string.status_charging) else null, safeLevel / 100f))
+        add(
+            OverviewMetric(
+                id = OverviewMetricId.BATTERY,
+                titleResId = R.string.overview_battery,
+                value = "$safeLevel%",
+                category = InfoCategory.BATTERY,
+                icon = categoryIcon(InfoCategory.BATTERY),
+                size = OverviewCardSize.SMALL,
+                supportingTextResId = if (snapshot.batteryCharging) R.string.status_charging else null,
+                progress = safeLevel / 100f
+            )
+        )
     }
 }
-
-@Composable
-private fun stringResourceValue(resourceId: Int): String = stringResource(resourceId)
 
 private fun formatPercent(value: Float): String = "%.1f%%".format(Locale.US, value.coerceIn(0f, 100f))
 
 @Composable
 private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
-    var selectedCore by remember(metric.title) { mutableStateOf<Int?>(null) }
+    val titleResId = metric.titleResId
+    val title = if (titleResId == null) metric.title.orEmpty() else stringResource(titleResId)
+    val supportingTextResId = metric.supportingTextResId
+    val supportingText = if (supportingTextResId == null) {
+        null
+    } else {
+        listOfNotNull(
+            stringResource(supportingTextResId),
+            metric.supportingTextSuffix
+        ).joinToString(" · ")
+    }
+    var selectedCore by remember(metric.id) { mutableStateOf<Int?>(null) }
     val hasCoreControls = metric.history.isNotEmpty()
     Card(
         modifier = Modifier
@@ -311,7 +358,7 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = metric.title,
+                    text = title,
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -337,7 +384,7 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            metric.supportingText?.let {
+            supportingText?.let {
                 Text(
                     text = it,
                     style = MaterialTheme.typography.labelSmall,
@@ -361,10 +408,11 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
                 )
                 selectedCore?.let { coreIndex ->
                     val coreColor = if (coreIndex < 0) MaterialTheme.colorScheme.primary else cpuLineColor(coreIndex)
+                    val selectedMetric = metric.coreMetrics.firstOrNull { it.index == coreIndex }
                     CpuCoreSelectionDetails(
                         coreIndex = coreIndex,
-                        metric = metric.coreMetrics.firstOrNull { it.index == coreIndex },
-                        usagePercent = metric.coreMetrics.firstOrNull { it.index == coreIndex }?.usagePercent
+                        metric = selectedMetric,
+                        usagePercent = selectedMetric?.usagePercent
                             ?: metric.history.lastOrNull()?.valuesByCore?.get(coreIndex),
                         color = coreColor
                     )
@@ -388,6 +436,9 @@ private fun cpuLineColor(index: Int): Color = when (index % 8) {
 @Composable
 private fun CpuTrendChart(history: List<CpuUsageSample>, selectedCore: Int?) {
     val primaryColor = MaterialTheme.colorScheme.primary
+    val coreIndexes = remember(history) {
+        history.flatMap { it.valuesByCore.keys }.distinct().sorted()
+    }
     Canvas(modifier = Modifier.fillMaxWidth().height(142.dp)) {
         val left = 8.dp.toPx()
         val right = size.width - 8.dp.toPx()
@@ -404,7 +455,6 @@ private fun CpuTrendChart(history: List<CpuUsageSample>, selectedCore: Int?) {
                 strokeWidth = 1.dp.toPx()
             )
         }
-        val coreIndexes = history.flatMap { it.valuesByCore.keys }.distinct().sorted()
         coreIndexes.forEach { coreIndex ->
             val points = history.mapIndexed { pointIndex, sample ->
                 val x = if (history.size == 1) left + plotWidth / 2 else left + plotWidth * pointIndex / (history.size - 1)
@@ -464,8 +514,12 @@ private fun CpuTrendLegend(
     onCoreSelected: (Int) -> Unit
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val currentByCore = metric.coreMetrics.associate { it.index to it.usagePercent }
-    val coreIndexes = metric.history.flatMap { it.valuesByCore.keys }.distinct().sorted()
+    val currentByCore = remember(metric.coreMetrics) {
+        metric.coreMetrics.associate { it.index to it.usagePercent }
+    }
+    val coreIndexes = remember(metric.history) {
+        metric.history.flatMap { it.valuesByCore.keys }.distinct().sorted()
+    }
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)

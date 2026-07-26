@@ -50,6 +50,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,6 +75,9 @@ import com.fioiu8.devinfo.model.ItemWithVisibility
 /** 分类卡片每页显示的最大条目数 */
 private const val ITEMS_PER_PAGE = 8
 
+private fun List<ItemWithVisibility>.pageCount(): Int =
+    ((size + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE).coerceAtLeast(1)
+
 /**
  * 设备信息页 — 分类浏览 + 下拉刷新。
  *
@@ -96,6 +100,26 @@ fun DeviceInfoPage(
     val resources = LocalResources.current
     val clipboardManager = LocalClipboardManager.current
     val categories = InfoCategory.entries
+    val itemsByCategory = remember(itemsState) {
+        itemsState.groupBy { it.item.category }
+    }
+    val pageCountsByCategory = remember(itemsByCategory) {
+        itemsByCategory.mapValues { (_, categoryItems) -> categoryItems.pageCount() }
+    }
+    val onItemCopy: (ItemWithVisibility) -> Unit = remember(clipboardManager, ctx, resources) {
+        { item ->
+            clipboardManager.setText(AnnotatedString(item.item.value))
+            val itemLabel = resources.getString(item.item.keyResId)
+            Toast.makeText(
+                ctx,
+                resources.getString(
+                    com.fioiu8.devinfo.R.string.copied_to_clipboard,
+                    itemLabel
+                ),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
 
     var isRefreshing by remember { mutableStateOf(false) }
     var selectedCategoryIndex by remember(initialCategory) {
@@ -121,6 +145,8 @@ fun DeviceInfoPage(
         }
     } else {
         val selectedCategory = categories[selectedCategoryIndex]
+        val selectedCategoryItems = itemsByCategory[selectedCategory].orEmpty()
+        val totalPages = selectedCategoryItems.pageCount()
 
         PullToRefreshBox(
             isRefreshing = isRefreshing,
@@ -158,8 +184,6 @@ fun DeviceInfoPage(
 
                 // Category Hero Card with directional animation + pagination
                 item {
-                    val categoryItems = itemsState.filter { it.item.category == selectedCategory }
-                    val totalPages = ((categoryItems.size + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE).coerceAtLeast(1)
                     // 超出页码范围时自动修正
                     LaunchedEffect(selectedCategoryIndex, totalPages) {
                         if (currentPage >= totalPages) currentPage = 0
@@ -173,26 +197,15 @@ fun DeviceInfoPage(
                         },
                         label = "categoryPageSwitch"
                     ) { (category, page) ->
-                        val visibleCategoryItems = itemsState.filter { it.item.category == category }
-                        val visibleTotalPages = ((visibleCategoryItems.size + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE).coerceAtLeast(1)
+                        val visibleCategoryItems = itemsByCategory[category].orEmpty()
+                        val visibleTotalPages = pageCountsByCategory[category] ?: 1
                         CategoryCard(
                             category = category,
                             items = visibleCategoryItems,
                             currentPage = page,
                             totalPages = visibleTotalPages,
                             onPageChange = { currentPage = it },
-                            onItemCopy = { item ->
-                                clipboardManager.setText(AnnotatedString(item.item.value))
-                                val itemLabel = resources.getString(item.item.keyResId)
-                                Toast.makeText(
-                                    ctx,
-                                    resources.getString(
-                                        com.fioiu8.devinfo.R.string.copied_to_clipboard,
-                                        itemLabel
-                                    ),
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            },
+                            onItemCopy = onItemCopy,
                             storagePercent = storagePercent,
                             memoryPercent = memoryPercent,
                             batteryLevel = overviewSnapshot.batteryLevel,
@@ -350,7 +363,9 @@ private fun CategoryCard(
     cpuCoreMetrics: List<com.fioiu8.devinfo.CpuCoreMetric> = emptyList()
 ) {
     // 分页切片
-    val pagedItems = items.drop(currentPage * ITEMS_PER_PAGE).take(ITEMS_PER_PAGE)
+    val pagedItems = remember(items, currentPage) {
+        items.drop(currentPage * ITEMS_PER_PAGE).take(ITEMS_PER_PAGE)
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -455,26 +470,28 @@ private fun CategoryCard(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 pagedItems.forEachIndexed { index, item ->
-                    AnimatedVisibility(
-                        visible = item.visible.value,
-                        enter = fadeIn(tween(220, delayMillis = index * 40)) +
-                            slideInHorizontally(tween(220, delayMillis = index * 40))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .combinedClickable(
-                                    onLongClick = { onItemCopy(item) },
-                                    onClick = {}
-                                )
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                    key(item.item.key) {
+                        AnimatedVisibility(
+                            visible = item.visible.value,
+                            enter = fadeIn(tween(220, delayMillis = index * 40)) +
+                                slideInHorizontally(tween(220, delayMillis = index * 40))
                         ) {
-                            InfoRow(
-                                label = stringResource(item.item.keyResId) + ":",
-                                value = item.item.value,
-                                icon = item.item.icon
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .combinedClickable(
+                                        onLongClick = { onItemCopy(item) },
+                                        onClick = {}
+                                    )
+                                    .padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                InfoRow(
+                                    label = stringResource(item.item.keyResId) + ":",
+                                    value = item.item.value,
+                                    icon = item.item.icon
+                                )
+                            }
                         }
                     }
                 }
@@ -509,13 +526,14 @@ private fun CategoryCard(
 
 @Composable
 private fun CpuCoreDetailSection(metrics: List<com.fioiu8.devinfo.CpuCoreMetric>) {
+    val metricRows = remember(metrics) { metrics.chunked(2) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = stringResource(com.fioiu8.devinfo.R.string.overview_cpu_cores_detail),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold
         )
-        metrics.chunked(2).forEach { rowMetrics ->
+        metricRows.forEach { rowMetrics ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 rowMetrics.forEach { metric -> CpuCoreDetailItem(metric, Modifier.weight(1f)) }
                 if (rowMetrics.size == 1) Spacer(Modifier.weight(1f))
