@@ -108,6 +108,9 @@
     <string name="export_success">エクスポート成功</string>
     <string name="export_saved_to">ファイルの保存先:</string>
     <string name="export_long_press_hint">長押しでパスをコピー</string>
+    <string name="module_export_name">端末シミュレーション - %1$s</string>
+    <string name="module_export_description">これは %1$s %2$s 端末をシミュレートするために自動生成された端末シミュレーションモジュールです。\n生成時刻: %3$s\n注意: このモジュールの使用にはリスクがあります。自己責任でご利用ください。</string>
+    <string name="device_id_fetch_failed">取得に失敗しました: %1$s</string>
     <string name="cancel">キャンセル</string>
     <string name="confirm_export">エクスポート確認</string>
     <string name="confirm">OK</string>

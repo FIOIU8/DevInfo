@@ -84,7 +84,7 @@ class ModuleExportHelper(private val context: Context) {
             val deviceName = getDeviceDisplayName(itemsState)
 
             // 模块显示名称：用户可见的模块名称
-            val moduleName = "机型模拟-$deviceName"
+            val moduleName = context.getString(R.string.module_export_name, deviceName)
 
             // Use the same persisted identifier shown by the app for stable exports.
             val author = deviceId.take(8).ifBlank { "DevInfo" }
@@ -93,9 +93,13 @@ class ModuleExportHelper(private val context: Context) {
             val version = "v$versionRelease"
 
             // 模块描述：包含设备信息和生成时间
-            val description = "这是一个自动化程序生成的机型模拟模块，用于模拟 $brand $model 设备。\n" +
-                    "生成时间: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}\n" +
-                    "注意: 使用此模块具有一定风险，请自行评估。"
+            val generatedAt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+            val description = context.getString(
+                R.string.module_export_description,
+                brand,
+                model,
+                generatedAt
+            )
 
             // ==================== 3. 创建临时构建目录 ====================
             // 在应用缓存目录下创建临时目录，格式：magisk_module_时间戳

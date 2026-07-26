@@ -108,6 +108,9 @@
     <string name="export_success">Export Successful</string>
     <string name="export_saved_to">File saved to:</string>
     <string name="export_long_press_hint">Long press to copy path</string>
+    <string name="module_export_name">Device simulation - %1$s</string>
+    <string name="module_export_description">This device simulation module was generated automatically to simulate a %1$s %2$s device.\nGenerated at: %3$s\nWarning: Use this module at your own risk.</string>
+    <string name="device_id_fetch_failed">Failed to retrieve: %1$s</string>
     <string name="cancel">Cancel</string>
     <string name="confirm_export">Confirm Export</string>
     <string name="confirm">OK</string>

@@ -55,7 +55,7 @@ class MainActivity : ComponentActivity() {
         val deviceId = try {
             DeviceIdManager(this).getOrCreateDeviceId()
         } catch (e: Exception) {
-            "获取失败: ${e.message}"
+            getString(R.string.device_id_fetch_failed, e.message.orEmpty())
         }
 
         // 模块导出助手
