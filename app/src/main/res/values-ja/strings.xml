@@ -22,6 +22,11 @@
     <string name="category_about">バージョン情報</string>
     <string name="category_language">言語</string>
 
+    <!-- UI style settings -->
+    <string name="ui_style">インターフェーススタイル</string>
+    <string name="ui_style_material3">Material 3</string>
+    <string name="ui_style_miuix">Miuix</string>
+
     <!-- Theme settings -->
     <string name="theme_mode">テーマモード</string>
     <string name="theme_follow_system">システムに従う</string>

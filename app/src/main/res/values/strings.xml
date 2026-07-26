@@ -21,6 +21,11 @@
     <string name="category_about">关于</string>
     <string name="category_language">语言</string>
 
+    <!-- UI style settings -->
+    <string name="ui_style">界面风格</string>
+    <string name="ui_style_material3">Material 3</string>
+    <string name="ui_style_miuix">Miuix</string>
+
     <!-- Theme settings -->
     <string name="theme_mode">主题模式</string>
     <string name="theme_follow_system">跟随系统</string>

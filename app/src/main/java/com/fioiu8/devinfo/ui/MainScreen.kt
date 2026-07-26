@@ -13,14 +13,23 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
@@ -50,8 +59,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -73,9 +84,22 @@ import com.fioiu8.devinfo.model.AppLanguage
 import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ThemeColor
 import com.fioiu8.devinfo.model.ThemeMode
+import com.fioiu8.devinfo.model.UiStyle
+import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
+import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
+import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar
+import top.yukonga.miuix.kmp.basic.NavigationBarItem as MiuixNavigationBarItem
+import top.yukonga.miuix.kmp.basic.NavigationRail as MiuixNavigationRail
+import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem
+import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
+import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.math.roundToInt
 
 /** App-owned settings and callbacks required by the main UI. */
@@ -85,6 +109,8 @@ data class MainScreenSettings(
     val onThemeModeChange: (ThemeMode) -> Unit,
     val themeColor: ThemeColor,
     val onThemeColorChange: (ThemeColor) -> Unit,
+    val uiStyle: UiStyle,
+    val onUiStyleChange: (UiStyle) -> Unit,
     val appLanguage: AppLanguage,
     val customLocaleTag: String,
     val onAppLanguageChange: (AppLanguage) -> Unit,
@@ -121,6 +147,8 @@ fun MainScreen(
 
     val configuration = LocalConfiguration.current
     val useNavigationRail = configuration.screenWidthDp >= TABLET_NAVIGATION_RAIL_MIN_WIDTH_DP
+    val navigationRailStartInsets =
+        WindowInsets.systemBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Start)
     val density = LocalDensity.current
     val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
     val aboutOffsetX = remember { Animatable(0f) }
@@ -204,7 +232,14 @@ fun MainScreen(
         if (index == SETTINGS_TAB_INDEX) showDetailsPage = false
     }
 
-    Box(Modifier.fillMaxSize()) {
+    val topBarTitle = when {
+        selectedIndex == SETTINGS_TAB_INDEX -> stringResource(R.string.title_settings)
+        showDetailsPage -> stringResource(R.string.title_device_details)
+        else -> stringResource(R.string.title_device_info)
+    }
+    val showTopBarBackButton = selectedIndex == INFO_TAB_INDEX && showDetailsPage
+
+    MainRootScaffold(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize()) {
             if (useNavigationRail) {
                 MainNavigationRail(
@@ -215,55 +250,20 @@ fun MainScreen(
                 )
             }
 
-            Scaffold(
+            MainScaffold(
                 modifier = Modifier.weight(1f),
-                topBar = {
-                    Column {
-                        TopAppBar(
-                            navigationIcon = {
-                                if (selectedIndex == INFO_TAB_INDEX && showDetailsPage) {
-                                    IconButton(onClick = { showDetailsPage = false }) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = stringResource(R.string.back)
-                                        )
-                                    }
-                                }
-                            },
-                            title = {
-                                Text(
-                                    text = when {
-                                        selectedIndex == SETTINGS_TAB_INDEX -> stringResource(R.string.title_settings)
-                                        showDetailsPage -> stringResource(R.string.title_device_details)
-                                        else -> stringResource(R.string.title_device_info)
-                                    },
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                titleContentColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        )
-                        if (!BuildConfig.IS_OFFICIAL) {
-                            TestVersionWarningCard(
-                                versionName = BuildConfig.VERSION_NAME,
-                                buildType = BuildConfig.BUILD_TYPE_NAME,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
+                consumedStartInsets = if (useNavigationRail) {
+                    navigationRailStartInsets
+                } else {
+                    WindowInsets(0, 0, 0, 0)
                 },
-                bottomBar = {
-                    if (!useNavigationRail) {
-                        MainNavigationBar(
-                            items = navigationItems,
-                            selectedIndex = selectedIndex,
-                            onItemSelected = ::selectNavigationItem
-                        )
-                    }
-                },
-                containerColor = MaterialTheme.colorScheme.background
+                title = topBarTitle,
+                showBackButton = showTopBarBackButton,
+                onBack = { showDetailsPage = false },
+                items = navigationItems,
+                selectedIndex = selectedIndex,
+                onItemSelected = ::selectNavigationItem,
+                showBottomBar = !useNavigationRail
             ) { paddingValues ->
                 Box(
                     modifier = Modifier
@@ -338,6 +338,8 @@ fun MainScreen(
                                     },
                                     themeColor = settings.themeColor,
                                     onThemeColorChange = settings.onThemeColorChange,
+                                    uiStyle = settings.uiStyle,
+                                    onUiStyleChange = settings.onUiStyleChange,
                                     onExportClick = { showExportDialog = true },
                                     onAboutClick = { showAboutPage = true },
                                     appLanguage = settings.appLanguage,
@@ -482,7 +484,195 @@ private data class MainNavigationItem(
 )
 
 @Composable
+private fun MainRootScaffold(
+    modifier: Modifier,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val contentStateHolder = rememberSaveableStateHolder()
+
+    when (LocalUiStyle.current) {
+        UiStyle.MATERIAL3 -> {
+            Box(modifier = modifier) {
+                contentStateHolder.SaveableStateProvider(MAIN_CONTENT_STATE_KEY) {
+                    content()
+                }
+            }
+        }
+
+        UiStyle.MIUIX -> {
+            MiuixScaffold(
+                modifier = modifier,
+                containerColor = Color.Transparent,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0)
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    contentStateHolder.SaveableStateProvider(MAIN_CONTENT_STATE_KEY) {
+                        content()
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainScaffold(
+    modifier: Modifier,
+    consumedStartInsets: WindowInsets,
+    title: String,
+    showBackButton: Boolean,
+    onBack: () -> Unit,
+    items: List<MainNavigationItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit,
+    showBottomBar: Boolean,
+    content: @Composable (PaddingValues) -> Unit
+) {
+    val topBar: @Composable () -> Unit = {
+        MainTopBar(
+            title = title,
+            showBackButton = showBackButton,
+            onBack = onBack
+        )
+    }
+    val bottomBar: @Composable () -> Unit = {
+        if (showBottomBar) {
+            MainNavigationBar(
+                items = items,
+                selectedIndex = selectedIndex,
+                onItemSelected = onItemSelected
+            )
+        }
+    }
+
+    Box(modifier = modifier.consumeWindowInsets(consumedStartInsets)) {
+        when (LocalUiStyle.current) {
+            UiStyle.MATERIAL3 -> {
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    topBar = topBar,
+                    bottomBar = bottomBar,
+                    containerColor = MaterialTheme.colorScheme.background,
+                    content = content
+                )
+            }
+
+            UiStyle.MIUIX -> {
+                MiuixScaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    topBar = topBar,
+                    bottomBar = bottomBar,
+                    popupHost = {},
+                    content = content
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainTopBar(
+    title: String,
+    showBackButton: Boolean,
+    onBack: () -> Unit
+) {
+    Column {
+        when (LocalUiStyle.current) {
+            UiStyle.MATERIAL3 -> {
+                MaterialMainTopBar(
+                    title = title,
+                    showBackButton = showBackButton,
+                    onBack = onBack
+                )
+            }
+
+            UiStyle.MIUIX -> {
+                MiuixMainTopBar(
+                    title = title,
+                    showBackButton = showBackButton,
+                    onBack = onBack
+                )
+            }
+        }
+
+        if (!BuildConfig.IS_OFFICIAL) {
+            TestVersionWarningCard(
+                versionName = BuildConfig.VERSION_NAME,
+                buildType = BuildConfig.BUILD_TYPE_NAME,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MaterialMainTopBar(
+    title: String,
+    showBackButton: Boolean,
+    onBack: () -> Unit
+) {
+    TopAppBar(
+        navigationIcon = {
+            if (showBackButton) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.back)
+                    )
+                }
+            }
+        },
+        title = {
+            Text(
+                text = title,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface
+        )
+    )
+}
+
+@Composable
+private fun MiuixMainTopBar(
+    title: String,
+    showBackButton: Boolean,
+    onBack: () -> Unit
+) {
+    MiuixTopAppBar(
+        title = title,
+        navigationIcon = {
+            if (showBackButton) {
+                MiuixIconButton(onClick = onBack) {
+                    MiuixIcon(
+                        imageVector = MiuixIcons.Back,
+                        contentDescription = stringResource(R.string.back),
+                        tint = MiuixTheme.colorScheme.onBackground
+                    )
+                }
+            }
+        },
+        color = MiuixTheme.colorScheme.surface
+    )
+}
+
+@Composable
 private fun MainNavigationBar(
+    items: List<MainNavigationItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit
+) {
+    when (LocalUiStyle.current) {
+        UiStyle.MATERIAL3 -> MaterialMainNavigationBar(items, selectedIndex, onItemSelected)
+        UiStyle.MIUIX -> MiuixMainNavigationBar(items, selectedIndex, onItemSelected)
+    }
+}
+
+@Composable
+private fun MaterialMainNavigationBar(
     items: List<MainNavigationItem>,
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit
@@ -520,7 +710,41 @@ private fun MainNavigationBar(
 }
 
 @Composable
+private fun MiuixMainNavigationBar(
+    items: List<MainNavigationItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit
+) {
+    MiuixNavigationBar(
+        color = MiuixTheme.colorScheme.surface
+    ) {
+        items.forEachIndexed { index, item ->
+            MiuixNavigationBarItem(
+                modifier = Modifier.weight(1f),
+                icon = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
+                label = item.label,
+                selected = selectedIndex == index,
+                onClick = { onItemSelected(index) }
+            )
+        }
+    }
+}
+
+@Composable
 private fun MainNavigationRail(
+    items: List<MainNavigationItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    when (LocalUiStyle.current) {
+        UiStyle.MATERIAL3 -> MaterialMainNavigationRail(items, selectedIndex, onItemSelected, modifier)
+        UiStyle.MIUIX -> MiuixMainNavigationRail(items, selectedIndex, onItemSelected, modifier)
+    }
+}
+
+@Composable
+private fun MaterialMainNavigationRail(
     items: List<MainNavigationItem>,
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
@@ -561,6 +785,31 @@ private fun MainNavigationRail(
     }
 }
 
+@Composable
+private fun MiuixMainNavigationRail(
+    items: List<MainNavigationItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    MiuixNavigationRail(
+        modifier = modifier.fillMaxHeight(),
+        color = MiuixTheme.colorScheme.surface
+    ) {
+        Spacer(modifier = Modifier.weight(1f))
+        items.forEachIndexed { index, item ->
+            MiuixNavigationRailItem(
+                icon = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
+                label = item.label,
+                selected = selectedIndex == index,
+                onClick = { onItemSelected(index) },
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
+    }
+}
+
 private fun openUrl(context: Context, url: String) {
     try {
         context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
@@ -571,6 +820,7 @@ private fun openUrl(context: Context, url: String) {
 
 private const val INFO_TAB_INDEX = 0
 private const val SETTINGS_TAB_INDEX = 1
+private const val MAIN_CONTENT_STATE_KEY = "main_content"
 private const val FORWARD_DIRECTION = 1
 private const val BACKWARD_DIRECTION = -1
 private const val TABLET_NAVIGATION_RAIL_MIN_WIDTH_DP = 600

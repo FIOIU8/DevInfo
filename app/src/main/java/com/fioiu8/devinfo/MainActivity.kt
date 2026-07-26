@@ -13,8 +13,6 @@ import androidx.compose.runtime.remember
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fioiu8.devinfo.model.AppLanguage
-import com.fioiu8.devinfo.model.ThemeColor
-import com.fioiu8.devinfo.model.ThemeMode
 import com.fioiu8.devinfo.ui.MainScreen
 import com.fioiu8.devinfo.ui.MainScreenSettings
 import com.fioiu8.devinfo.ui.MainViewModel
@@ -77,8 +75,9 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
-            val themeMode by themePrefs.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
-            val themeColor by themePrefs.themeColor.collectAsState(initial = ThemeColor.DEFAULT)
+            val themeMode by themePrefs.themeMode.collectAsState()
+            val themeColor by themePrefs.themeColor.collectAsState()
+            val uiStyle by themePrefs.uiStyle.collectAsState()
             val appLanguage by languagePrefs.appLanguage.collectAsState(initial = AppLanguage.SYSTEM)
             val customLocaleTag by languagePrefs.customLocaleTag.collectAsState(initial = "")
             val mainViewModel: MainViewModel = viewModel(factory = mainViewModelFactory)
@@ -86,6 +85,7 @@ class MainActivity : ComponentActivity() {
                 deviceId,
                 themeMode,
                 themeColor,
+                uiStyle,
                 appLanguage,
                 customLocaleTag
             ) {
@@ -95,6 +95,8 @@ class MainActivity : ComponentActivity() {
                     onThemeModeChange = themePrefs::setThemeMode,
                     themeColor = themeColor,
                     onThemeColorChange = themePrefs::setThemeColor,
+                    uiStyle = uiStyle,
+                    onUiStyleChange = themePrefs::setUiStyle,
                     appLanguage = appLanguage,
                     customLocaleTag = customLocaleTag,
                     onAppLanguageChange = { selected ->
@@ -109,7 +111,7 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            DevInfoTheme(themeMode = themeMode, themeColor = themeColor) {
+            DevInfoTheme(themeMode = themeMode, themeColor = themeColor, uiStyle = uiStyle) {
                 MainScreen(
                     viewModel = mainViewModel,
                     settings = mainScreenSettings,
