@@ -10,5 +10,6 @@
 local.properties
 /NEXT_AI
 *.log
+*.bak
 replay_*
 
