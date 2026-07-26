@@ -74,11 +74,6 @@ set CLASSPATH=
 
 
 @rem Execute Gradle
-if "%GITHUB_ACTIONS%"=="true" (
-    powershell -Command "(Get-Content -Encoding UTF8 gradle/wrapper/gradle-wrapper.properties) -replace 'https\\://mirrors.cloud.tencent.com/gradle', 'https\\://services.gradle.org' | Set-Content -Encoding UTF8 gradle/wrapper/gradle-wrapper.properties"
-) else (
-    powershell -Command "(Get-Content -Encoding UTF8 gradle/wrapper/gradle-wrapper.properties) -replace 'https\\://services.gradle.org', 'https\\://mirrors.cloud.tencent.com/gradle' | Set-Content -Encoding UTF8 gradle/wrapper/gradle-wrapper.properties"
-)
 "%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" -jar "%APP_HOME%\gradle\wrapper\gradle-wrapper.jar" %*
 
 :end
