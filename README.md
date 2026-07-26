@@ -1,5 +1,9 @@
 # 📱 DevInfo - 设备信息查看器
 
+<p align="center">
+  <a href="README.md">简体中文</a> | <a href="README.en.md">English</a> | <a href="README.ja.md">日本語</a>
+</p>
+
 > 🤖 本项目由 AI 辅助生成。
 
 [![License](https://img.shields.io/github/license/FIOIU8/DevInfo?color=blue)](LICENSE)
