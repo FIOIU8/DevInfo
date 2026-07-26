@@ -15,9 +15,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -61,9 +63,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.CpuCoreMetric
 import com.fioiu8.devinfo.LiveHardwareSnapshot
@@ -169,6 +173,9 @@ fun DeviceInfoOverviewPage(
     onOpenDetails: (InfoCategory) -> Unit
 ) {
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val fontScale = LocalDensity.current.fontScale
+    val compactLayout = screenWidthDp < 600
+    val useSingleColumn = screenWidthDp < 360 || fontScale >= 1.3f
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
 
@@ -205,23 +212,34 @@ fun DeviceInfoOverviewPage(
             modifier = Modifier.fillMaxSize()
         ) {
             LazyVerticalGrid(
-                columns = if (screenWidthDp < 600) {
+                columns = if (useSingleColumn) {
+                    GridCells.Fixed(1)
+                } else if (compactLayout) {
                     GridCells.Fixed(2)
                 } else {
                     GridCells.Adaptive(minSize = 148.dp)
                 },
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                contentPadding = PaddingValues(if (compactLayout) 12.dp else 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp)
             ) {
                 items(
                     items = metrics,
                     key = { metric -> metric.id },
-                    span = { metric -> GridItemSpan(metric.size.span) }
+                    span = { metric ->
+                        GridItemSpan(
+                            if (useSingleColumn || (!compactLayout && metric.id == OverviewMetricId.REALTIME_CPU)) {
+                                maxLineSpan
+                            } else {
+                                metric.size.span
+                            }
+                        )
+                    }
                 ) { metric ->
                     OverviewMetricCard(
                         metric = metric,
+                        wideLayout = !compactLayout,
                         onClick = { onOpenDetails(metric.category) }
                     )
                 }
@@ -236,7 +254,10 @@ fun DeviceInfoOverviewPage(
                     )
                 }
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    HardwareSensorsCard(snapshot.hardware)
+                    HardwareSensorsCard(
+                        snapshot = snapshot.hardware,
+                        stackValues = useSingleColumn
+                    )
                 }
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     SecuritySummaryCard(snapshot)
@@ -366,7 +387,11 @@ private fun buildOverviewMetrics(
 private fun formatPercent(value: Float): String = "%.1f%%".format(Locale.US, value.coerceIn(0f, 100f))
 
 @Composable
-private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
+private fun OverviewMetricCard(
+    metric: OverviewMetric,
+    wideLayout: Boolean,
+    onClick: () -> Unit
+) {
     val titleResId = metric.titleResId
     val title = if (titleResId == null) metric.title.orEmpty() else stringResource(titleResId)
     val supportingTextResId = metric.supportingTextResId
@@ -383,14 +408,20 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (metric.coreMetrics.isNotEmpty()) Modifier else Modifier.height(if (metric.size == OverviewCardSize.LARGE) 156.dp else 132.dp))
+            .then(
+                if (hasCoreControls) {
+                    Modifier
+                } else {
+                    Modifier.height(if (metric.size == OverviewCardSize.LARGE) 148.dp else 124.dp)
+                }
+            )
             .then(if (hasCoreControls) Modifier else Modifier.clickable(onClick = onClick)),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         androidx.compose.foundation.layout.Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(if (hasCoreControls) 14.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (hasCoreControls) 6.dp else 8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -408,6 +439,17 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (hasCoreControls && !wideLayout) {
+                    metric.value?.let { value ->
+                        Text(
+                            text = value,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1
+                        )
+                    }
+                }
                 if (metric.category == InfoCategory.SYSTEM) {
                     IconButton(onClick = onClick) {
                         Icon(
@@ -417,50 +459,141 @@ private fun OverviewMetricCard(metric: OverviewMetric, onClick: () -> Unit) {
                     }
                 }
             }
+            if (wideLayout && hasCoreControls) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    MetricValueBlock(
+                        metric = metric,
+                        supportingText = supportingText,
+                        modifier = Modifier.widthIn(min = 132.dp, max = 184.dp)
+                    )
+                    CpuTrendChart(
+                        history = metric.history,
+                        selectedCore = selectedCore,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Column(
+                        modifier = Modifier.widthIn(min = 220.dp, max = 300.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        CpuTrendLegend(
+                            metric = metric,
+                            selectedCore = selectedCore,
+                            onCoreSelected = { core ->
+                                selectedCore = core.takeUnless { it == selectedCore }
+                            }
+                        )
+                        CpuCoreSelectionSlot(
+                            metric = metric,
+                            selectedCore = selectedCore,
+                            reserveSpace = true
+                        )
+                    }
+                }
+            } else {
+                MetricValueBlock(
+                    metric = metric,
+                    supportingText = supportingText,
+                    showValue = !hasCoreControls
+                )
+                if (hasCoreControls) {
+                    CpuTrendChart(
+                        history = metric.history,
+                        selectedCore = selectedCore,
+                        chartHeight = 88.dp
+                    )
+                    CpuTrendLegend(
+                        metric = metric,
+                        selectedCore = selectedCore,
+                        onCoreSelected = { core ->
+                            selectedCore = core.takeUnless { it == selectedCore }
+                        }
+                    )
+                    CpuCoreSelectionSlot(
+                        metric = metric,
+                        selectedCore = selectedCore,
+                        reserveSpace = false
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricValueBlock(
+    metric: OverviewMetric,
+    supportingText: String?,
+    modifier: Modifier = Modifier,
+    showValue: Boolean = true
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        if (showValue) {
             metric.value?.let {
                 Text(
                     text = it,
-                    style = if (metric.size == OverviewCardSize.LARGE) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
+                    style = if (metric.size == OverviewCardSize.LARGE) {
+                        MaterialTheme.typography.headlineSmall
+                    } else {
+                        MaterialTheme.typography.titleLarge
+                    },
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            supportingText?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            metric.progress?.let {
-                LinearProgressIndicator(
-                    progress = { it.coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            }
-            if (metric.history.isNotEmpty()) {
-                CpuTrendChart(metric.history, selectedCore)
-                CpuTrendLegend(
-                    metric = metric,
-                    selectedCore = selectedCore,
-                    onCoreSelected = { selectedCore = it }
-                )
-                selectedCore?.let { coreIndex ->
-                    val coreColor = if (coreIndex < 0) MaterialTheme.colorScheme.primary else cpuLineColor(coreIndex)
-                    val selectedMetric = metric.coreMetrics.firstOrNull { it.index == coreIndex }
-                    CpuCoreSelectionDetails(
-                        coreIndex = coreIndex,
-                        metric = selectedMetric,
-                        usagePercent = selectedMetric?.usagePercent
-                            ?: metric.history.lastOrNull()?.valuesByCore?.get(coreIndex),
-                        color = coreColor
-                    )
-                }
-            }
+        }
+        supportingText?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        metric.progress?.let {
+            LinearProgressIndicator(
+                progress = { it.coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun CpuCoreSelectionSlot(
+    metric: OverviewMetric,
+    selectedCore: Int?,
+    reserveSpace: Boolean
+) {
+    if (selectedCore == null && !reserveSpace) return
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(24.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        selectedCore?.let { coreIndex ->
+            val coreColor = if (coreIndex < 0) MaterialTheme.colorScheme.primary else cpuLineColor(coreIndex)
+            val selectedMetric = metric.coreMetrics.firstOrNull { it.index == coreIndex }
+            CpuCoreSelectionDetails(
+                coreIndex = coreIndex,
+                metric = selectedMetric,
+                usagePercent = selectedMetric?.usagePercent
+                    ?: metric.history.lastOrNull()?.valuesByCore?.get(coreIndex),
+                color = coreColor
+            )
         }
     }
 }
@@ -471,29 +604,29 @@ private fun StaticInfoCard(card: StaticInfoCardData, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(132.dp)
+            .height(124.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = card.icon,
                     contentDescription = null,
-                    modifier = Modifier.size(26.dp),
+                    modifier = Modifier.size(24.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
                     text = stringResource(card.keyResId),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -521,12 +654,17 @@ private fun cpuLineColor(index: Int): Color = when (index % 8) {
 }
 
 @Composable
-private fun CpuTrendChart(history: List<CpuUsageSample>, selectedCore: Int?) {
+private fun CpuTrendChart(
+    history: List<CpuUsageSample>,
+    selectedCore: Int?,
+    modifier: Modifier = Modifier,
+    chartHeight: Dp = 104.dp
+) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val coreIndexes = remember(history) {
         history.flatMap { it.valuesByCore.keys }.distinct().sorted()
     }
-    Canvas(modifier = Modifier.fillMaxWidth().height(142.dp)) {
+    Canvas(modifier = modifier.fillMaxWidth().height(chartHeight)) {
         val left = 8.dp.toPx()
         val right = size.width - 8.dp.toPx()
         val top = 8.dp.toPx()
@@ -573,15 +711,22 @@ private fun CpuTrendChart(history: List<CpuUsageSample>, selectedCore: Int?) {
                 } else {
                     cpuLineColor(coreIndex)
                 }
+                val isMuted = selectedCore != null && selectedCore != coreIndex
                 drawPath(
                     path = areaPath,
-                    color = lineColor.copy(alpha = if (selectedCore == coreIndex) 0.24f else 0.14f)
+                    color = lineColor.copy(
+                        alpha = when {
+                            isMuted -> 0.03f
+                            selectedCore == coreIndex -> 0.22f
+                            else -> 0.1f
+                        }
+                    )
                 )
                 drawPath(
                     path = path,
-                    color = lineColor,
+                    color = lineColor.copy(alpha = if (isMuted) 0.3f else 1f),
                     style = androidx.compose.ui.graphics.drawscope.Stroke(
-                        width = 2.5.dp.toPx(),
+                        width = if (selectedCore == coreIndex) 3.dp.toPx() else 2.25.dp.toPx(),
                         pathEffect = if (coreIndex >= 0 && coreIndex % 2 == 1) {
                             androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 5.dp.toPx()))
                         } else {
@@ -618,7 +763,8 @@ private fun CpuTrendLegend(
                     .clip(RoundedCornerShape(12.dp))
                     .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
                     .clickable { onCoreSelected(core) }
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .heightIn(min = 44.dp)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -648,8 +794,7 @@ private fun CpuCoreSelectionDetails(
     val title = if (coreIndex < 0) "CPU" else "CPU$coreIndex"
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 2.dp),
+            .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -677,10 +822,13 @@ private fun CpuCoreSelectionDetails(
 }
 
 @Composable
-private fun HardwareSensorsCard(snapshot: LiveHardwareSnapshot) {
+private fun HardwareSensorsCard(
+    snapshot: LiveHardwareSnapshot,
+    stackValues: Boolean
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -689,17 +837,28 @@ private fun HardwareSensorsCard(snapshot: LiveHardwareSnapshot) {
                 Spacer(Modifier.width(10.dp))
                 Text(stringResource(R.string.overview_hardware_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                SensorValue(Icons.Outlined.Refresh, stringResource(R.string.overview_motion), when {
+            val sensorValues = listOf(
+                Triple(Icons.Outlined.Refresh, stringResource(R.string.overview_motion), when {
                     !snapshot.motionAvailable -> stringResource(R.string.status_unavailable)
                     snapshot.moving -> stringResource(R.string.status_moving)
                     else -> stringResource(R.string.status_stationary)
-                }, Modifier.weight(1f))
-                SensorValue(Icons.Outlined.Brightness6, stringResource(R.string.overview_brightness), snapshot.brightnessPercent?.let { "$it%" } ?: "--", Modifier.weight(1f))
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                SensorValue(Icons.Outlined.Storage, stringResource(R.string.overview_storage_read), snapshot.storageReadSpeedMbps?.let { "$it MB/s" } ?: "--", Modifier.weight(1f))
-                SensorValue(Icons.Outlined.Wifi, stringResource(R.string.overview_wifi_signal), snapshot.wifiRssiDbm?.let { "$it dBm" } ?: "--", Modifier.weight(1f))
+                }),
+                Triple(Icons.Outlined.Brightness6, stringResource(R.string.overview_brightness), snapshot.brightnessPercent?.let { "$it%" } ?: "--"),
+                Triple(Icons.Outlined.Storage, stringResource(R.string.overview_storage_read), snapshot.storageReadSpeedMbps?.let { "$it MB/s" } ?: "--"),
+                Triple(Icons.Outlined.Wifi, stringResource(R.string.overview_wifi_signal), snapshot.wifiRssiDbm?.let { "$it dBm" } ?: "--")
+            )
+            if (stackValues) {
+                sensorValues.forEach { (icon, label, value) ->
+                    SensorValue(icon, label, value, Modifier.fillMaxWidth())
+                }
+            } else {
+                sensorValues.chunked(2).forEach { rowValues ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        rowValues.forEach { (icon, label, value) ->
+                            SensorValue(icon, label, value, Modifier.weight(1f))
+                        }
+                    }
+                }
             }
             Text(
                 text = stringResource(R.string.overview_storage_average, snapshot.storageAverageReadSpeedMbps ?: 0).takeIf { snapshot.storageAverageReadSpeedMbps != null } ?: stringResource(R.string.overview_storage_average_unknown),
@@ -727,7 +886,7 @@ private fun SecuritySummaryCard(snapshot: OverviewSnapshot) {
     var showUsbDialog by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

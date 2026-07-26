@@ -18,15 +18,71 @@ import com.fioiu8.devinfo.model.ThemeMode
 
 // 静态 fallback — 用于非动态模式或 Android 12 以下
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = Teal80,
+    onPrimary = Color(0xFF003731),
+    primaryContainer = Color(0xFF005048),
+    onPrimaryContainer = Color(0xFF74F8E5),
+    secondary = BlueGrey80,
+    onSecondary = Color(0xFF1B3530),
+    secondaryContainer = Color(0xFF324B47),
+    onSecondaryContainer = Color(0xFFCCE8E2),
+    tertiary = Sky80,
+    onTertiary = Color(0xFF143349),
+    tertiaryContainer = Color(0xFF2C4960),
+    onTertiaryContainer = Color(0xFFCBE6FF),
+    background = Color(0xFF101413),
+    onBackground = Color(0xFFE0E3E1),
+    surface = Color(0xFF101413),
+    onSurface = Color(0xFFE0E3E1),
+    surfaceVariant = Color(0xFF3F4946),
+    onSurfaceVariant = Color(0xFFBEC9C5),
+    outline = Color(0xFF89938F),
+    outlineVariant = Color(0xFF3F4946),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005),
+    errorContainer = Color(0xFF93000A),
+    onErrorContainer = Color(0xFFFFDAD6),
+    surfaceDim = Color(0xFF101413),
+    surfaceBright = Color(0xFF363A38),
+    surfaceContainerLowest = Color(0xFF0B0F0E),
+    surfaceContainerLow = Color(0xFF191C1B),
+    surfaceContainer = Color(0xFF1D201F),
+    surfaceContainerHigh = Color(0xFF272B29),
+    surfaceContainerHighest = Color(0xFF323634)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = Teal40,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF74F8E5),
+    onPrimaryContainer = Color(0xFF00201C),
+    secondary = BlueGrey40,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFCCE8E2),
+    onSecondaryContainer = Color(0xFF06201C),
+    tertiary = Sky40,
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFCBE6FF),
+    onTertiaryContainer = Color(0xFF001E30),
+    background = Color(0xFFF8FAF8),
+    onBackground = Color(0xFF191C1B),
+    surface = Color(0xFFF8FAF8),
+    onSurface = Color(0xFF191C1B),
+    surfaceVariant = Color(0xFFDAE5E1),
+    onSurfaceVariant = Color(0xFF3F4946),
+    outline = Color(0xFF6F7976),
+    outlineVariant = Color(0xFFBEC9C5),
+    error = Color(0xFFBA1A1A),
+    onError = Color.White,
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF410002),
+    surfaceDim = Color(0xFFD8DBD9),
+    surfaceBright = Color(0xFFF8FAF8),
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = Color(0xFFF2F4F2),
+    surfaceContainer = Color(0xFFECEEEB),
+    surfaceContainerHigh = Color(0xFFE6E9E7),
+    surfaceContainerHighest = Color(0xFFE0E3E1)
 )
 
 /**
@@ -82,8 +138,8 @@ private fun themedLightColorScheme(seed: Color): ColorScheme {
         onPrimary = onColorFor(seed),
         primaryContainer = primaryContainer,
         onPrimaryContainer = seed,
-        secondary = lerp(seed, PurpleGrey40, 0.45f),
-        tertiary = lerp(seed, Pink40, 0.45f),
+        secondary = lerp(seed, BlueGrey40, 0.45f),
+        tertiary = lerp(seed, Sky40, 0.45f),
         secondaryContainer = lerp(seed, Color.White, 0.86f),
         tertiaryContainer = lerp(seed, Color.White, 0.86f)
     )
@@ -96,8 +152,8 @@ private fun themedDarkColorScheme(seed: Color): ColorScheme {
         onPrimary = onColorFor(primary),
         primaryContainer = lerp(seed, Color.Black, 0.55f),
         onPrimaryContainer = Color.White,
-        secondary = lerp(seed, PurpleGrey80, 0.45f),
-        tertiary = lerp(seed, Pink80, 0.45f),
+        secondary = lerp(seed, BlueGrey80, 0.45f),
+        tertiary = lerp(seed, Sky80, 0.45f),
         secondaryContainer = lerp(seed, Color.Black, 0.58f),
         tertiaryContainer = lerp(seed, Color.Black, 0.58f)
     )
