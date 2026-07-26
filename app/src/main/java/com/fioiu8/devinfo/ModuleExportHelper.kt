@@ -65,165 +65,198 @@ class ModuleExportHelper(private val context: Context) {
         onError: (String) -> Unit
     ) {
         try {
-            // ==================== 1. 获取设备信息 ====================
-            val model = Build.MODEL                    // 设备型号
-            val manufacturer = Build.MANUFACTURER      // 制造商
-            val brand = Build.BRAND                    // 品牌
-            val device = Build.DEVICE                  // 设备代号
-            val product = Build.PRODUCT                // 产品名称
-            val fingerprint = Build.FINGERPRINT        // 构建指纹
-            val versionRelease = Build.VERSION.RELEASE // Android 版本
-            val versionSdk = Build.VERSION.SDK_INT.toString()  // SDK 版本
-            val securityPatch = Build.VERSION.SECURITY_PATCH.orEmpty()
+            val buildInfo = readDeviceBuildInfo()
+            val metadata = createModuleMetadata(deviceId, itemsState, buildInfo)
+            val directories = createModuleDirectories()
 
-            // ==================== 2. 生成模块元数据 ====================
-            // 模块 ID：用于唯一标识模块，只能包含字母数字和下划线
-            val moduleId = "Device_${model.replace(Regex("[^a-zA-Z0-9_]"), "_")}"
-
-            // 设备显示名称：制造商 + 型号
-            val deviceName = getDeviceDisplayName(itemsState)
-
-            // 模块显示名称：用户可见的模块名称
-            val moduleName = context.getString(R.string.module_export_name, deviceName)
-
-            // Use the same persisted identifier shown by the app for stable exports.
-            val author = deviceId.take(8).ifBlank { "DevInfo" }
-
-            // 模块版本：基于 Android 版本号
-            val version = "v$versionRelease"
-
-            // 模块描述：包含设备信息和生成时间
-            val generatedAt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-            val description = context.getString(
-                R.string.module_export_description,
-                brand,
-                model,
-                generatedAt
-            )
-
-            // ==================== 3. 创建临时构建目录 ====================
-            // 在应用缓存目录下创建临时目录，格式：magisk_module_时间戳
-            val tempDir = File(context.cacheDir, "magisk_module_${System.currentTimeMillis()}")
-            tempDir.mkdirs()
-
-            // ==================== 4. 创建模块目录结构 ====================
-
-            // 4.1 创建 META-INF 目录结构（Magisk/KernelSU 必需）
-            // 路径: META-INF/com/google/android/
-            val metaInfDir = File(tempDir, "META-INF/com/google/android")
-            metaInfDir.mkdirs()
-
-            // 4.2 创建 common 目录（存放公共脚本和属性文件）
-            val commonDir = File(tempDir, "common")
-            commonDir.mkdirs()
-
-            // 4.3 创建 system 目录（存放要替换的系统文件）
-            val systemDir = File(tempDir, "system")
-            systemDir.mkdirs()
-
-            // ==================== 5. 生成模块配置文件 ====================
-
-            // 5.1 生成 module.prop（必需）
-            // 该文件定义了模块的基本信息，Magisk/KernelSU 会读取此文件
-            val modulePropFile = File(tempDir, "module.prop")
-            modulePropFile.writeText(buildModuleProp(
-                id = moduleId,
-                name = moduleName,
-                author = author,
-                version = version,
-                description = description
-            ))
-
-            // 5.2 生成 common/system.prop（必需）
-            // 该文件包含要注入系统的属性，Magisk 会在启动时自动加载
-            val systemPropFile = File(commonDir, "system.prop")
-            systemPropFile.writeText(buildSystemProp(
-                brand = brand,
-                manufacturer = manufacturer,
-                model = model,
-                device = device,
-                product = product,
-                fingerprint = fingerprint,
-                versionRelease = versionRelease,
-                versionSdk = versionSdk,
-                securityPatch = securityPatch
-            ))
-
-            // 5.3 生成 install.sh（可选但推荐）
-            // 模块安装时执行的 Shell 脚本，用于设置权限、显示安装信息等
-            val installShFile = File(tempDir, "install.sh")
-            installShFile.writeText(buildInstallScript(
-                brand = brand,
-                manufacturer = manufacturer,
-                model = model
-            ))
-
-            // 5.4 生成 update-binary（根目录版本，备用）
-            // 当 META-INF 中的脚本找不到时使用
-            val updateBinaryFile = File(tempDir, "update-binary")
-            updateBinaryFile.writeText(buildUpdateBinary())
-
-            // 5.5 生成 META-INF/com/google/android/updater-script
-            // 刷机脚本描述文件，通常只是注释或指向 update-binary
-            val updaterScriptFile = File(metaInfDir, "updater-script")
-            updaterScriptFile.writeText(buildUpdaterScript())
-
-            // 5.6 生成 META-INF/com/google/android/update-binary
-            // 实际执行的刷机脚本，Magisk/KernelSU 会首先执行这个文件
-            val metaUpdateBinaryFile = File(metaInfDir, "update-binary")
-            metaUpdateBinaryFile.writeText(buildMetaUpdateBinary())
-
-            // 5.7 生成 system/placeholder
-            // 占位文件，提示用户可以在此目录放置需要替换的系统文件
-            File(systemDir, "placeholder").writeText("# 此目录用于存放需要替换的系统文件\n" +
-                    "# 例如：将文件放在 system/build.prop 会替换 /system/build.prop")
-
-            // 5.8 生成 common/post-fs-data.sh（可选）
-            // 在文件系统挂载后、系统服务启动前执行的脚本（早期启动阶段）
-            val postFsDataFile = File(commonDir, "post-fs-data.sh")
-            postFsDataFile.writeText(buildPostFsDataScript(manufacturer, model))
-
-            // 5.9 生成 common/service.sh（可选）
-            // 在系统完全启动后以后台服务方式运行的脚本（晚期启动阶段）
-            val serviceFile = File(commonDir, "service.sh")
-            serviceFile.writeText(buildServiceScript())
-
-            // ==================== 6. 打包为 ZIP 文件 ====================
-            // 生成时间戳：yyyyMMdd_HHmmss
-            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-
-            // 清理文件名中的特殊字符，避免文件系统问题
-            val safeModel = model.replace(Regex("[^a-zA-Z0-9_-]"), "_")
-            val zipFileName = "${safeModel}_${timestamp}.zip"
-
-            // 获取公共下载目录作为保存位置
-            val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-
-            // 确保下载目录存在
-            if (!downloadDir.exists()) {
-                downloadDir.mkdirs()
-            }
-
-            val zipFile = File(downloadDir, zipFileName)
-
-            // 使用 ZipOutputStream 将临时目录的所有内容递归打包
-            ZipOutputStream(FileOutputStream(zipFile)).use { zipOut ->
-                // 递归遍历临时目录，将所有文件和子目录添加到 ZIP 中
-                zipDirectory(tempDir, "", zipOut)
-            }
-
-            // ==================== 7. 清理临时文件 ====================
-            // 打包完成后，递归删除临时目录及其所有内容
-            tempDir.deleteRecursively()
-
-            // ==================== 8. 回调成功结果 ====================
+            writeModuleFiles(directories, metadata, buildInfo)
+            val zipFile = createModuleArchive(directories.root, buildInfo.model)
+            directories.root.deleteRecursively()
             onSuccess(zipFile.absolutePath)
-
         } catch (e: Exception) {
-            // 捕获任何异常，打印堆栈跟踪并回调错误信息
             e.printStackTrace()
             onError(e.message ?: "未知错误")
         }
+    }
+
+    private data class DeviceBuildInfo(
+        val model: String,
+        val manufacturer: String,
+        val brand: String,
+        val device: String,
+        val product: String,
+        val fingerprint: String,
+        val versionRelease: String,
+        val versionSdk: String,
+        val securityPatch: String
+    )
+
+    private data class ModuleMetadata(
+        val id: String,
+        val name: String,
+        val author: String,
+        val version: String,
+        val description: String
+    )
+
+    private data class ModuleDirectories(
+        val root: File,
+        val metaInf: File,
+        val common: File,
+        val system: File
+    )
+
+    private fun readDeviceBuildInfo(): DeviceBuildInfo = DeviceBuildInfo(
+        model = Build.MODEL,
+        manufacturer = Build.MANUFACTURER,
+        brand = Build.BRAND,
+        device = Build.DEVICE,
+        product = Build.PRODUCT,
+        fingerprint = Build.FINGERPRINT,
+        versionRelease = Build.VERSION.RELEASE,
+        versionSdk = Build.VERSION.SDK_INT.toString(),
+        securityPatch = Build.VERSION.SECURITY_PATCH.orEmpty()
+    )
+
+    private fun createModuleMetadata(
+        deviceId: String,
+        itemsState: List<ItemWithVisibility>,
+        buildInfo: DeviceBuildInfo
+    ): ModuleMetadata {
+        val moduleId = "Device_${buildInfo.model.replace(Regex("[^a-zA-Z0-9_]"), "_")}"
+        val deviceName = getDeviceDisplayName(itemsState)
+        val moduleName = context.getString(R.string.module_export_name, deviceName)
+        val author = deviceId.take(8).ifBlank { "DevInfo" }
+        val version = "v${buildInfo.versionRelease}"
+        val generatedAt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        val description = context.getString(
+            R.string.module_export_description,
+            buildInfo.brand,
+            buildInfo.model,
+            generatedAt
+        )
+        return ModuleMetadata(
+            id = moduleId,
+            name = moduleName,
+            author = author,
+            version = version,
+            description = description
+        )
+    }
+
+    private fun createModuleDirectories(): ModuleDirectories {
+        val root = File(context.cacheDir, "magisk_module_${System.currentTimeMillis()}")
+        root.mkdirs()
+
+        val metaInf = File(root, "META-INF/com/google/android")
+        metaInf.mkdirs()
+
+        val common = File(root, "common")
+        common.mkdirs()
+
+        val system = File(root, "system")
+        system.mkdirs()
+
+        return ModuleDirectories(root, metaInf, common, system)
+    }
+
+    private fun writeModuleFiles(
+        directories: ModuleDirectories,
+        metadata: ModuleMetadata,
+        buildInfo: DeviceBuildInfo
+    ) {
+        writeModuleProp(directories.root, metadata)
+        writeSystemProp(directories.common, buildInfo)
+        writeInstallScript(directories.root, buildInfo)
+        writeRootUpdateBinary(directories.root)
+        writeUpdaterScript(directories.metaInf)
+        writeMetaUpdateBinary(directories.metaInf)
+        writeSystemPlaceholder(directories.system)
+        writePostFsData(directories.common, buildInfo)
+        writeServiceScript(directories.common)
+    }
+
+    private fun writeModuleProp(directory: File, metadata: ModuleMetadata) {
+        File(directory, "module.prop").writeText(
+            buildModuleProp(
+                id = metadata.id,
+                name = metadata.name,
+                author = metadata.author,
+                version = metadata.version,
+                description = metadata.description
+            )
+        )
+    }
+
+    private fun writeSystemProp(directory: File, buildInfo: DeviceBuildInfo) {
+        File(directory, "system.prop").writeText(
+            buildSystemProp(
+                brand = buildInfo.brand,
+                manufacturer = buildInfo.manufacturer,
+                model = buildInfo.model,
+                device = buildInfo.device,
+                product = buildInfo.product,
+                fingerprint = buildInfo.fingerprint,
+                versionRelease = buildInfo.versionRelease,
+                versionSdk = buildInfo.versionSdk,
+                securityPatch = buildInfo.securityPatch
+            )
+        )
+    }
+
+    private fun writeInstallScript(directory: File, buildInfo: DeviceBuildInfo) {
+        File(directory, "install.sh").writeText(
+            buildInstallScript(
+                brand = buildInfo.brand,
+                manufacturer = buildInfo.manufacturer,
+                model = buildInfo.model
+            )
+        )
+    }
+
+    private fun writeRootUpdateBinary(directory: File) {
+        File(directory, "update-binary").writeText(buildUpdateBinary())
+    }
+
+    private fun writeUpdaterScript(directory: File) {
+        File(directory, "updater-script").writeText(buildUpdaterScript())
+    }
+
+    private fun writeMetaUpdateBinary(directory: File) {
+        File(directory, "update-binary").writeText(buildMetaUpdateBinary())
+    }
+
+    private fun writeSystemPlaceholder(directory: File) {
+        File(directory, "placeholder").writeText(
+            "# 此目录用于存放需要替换的系统文件\n" +
+                "# 例如：将文件放在 system/build.prop 会替换 /system/build.prop"
+        )
+    }
+
+    private fun writePostFsData(directory: File, buildInfo: DeviceBuildInfo) {
+        File(directory, "post-fs-data.sh").writeText(
+            buildPostFsDataScript(buildInfo.manufacturer, buildInfo.model)
+        )
+    }
+
+    private fun writeServiceScript(directory: File) {
+        File(directory, "service.sh").writeText(buildServiceScript())
+    }
+
+    private fun createModuleArchive(tempDir: File, model: String): File {
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val safeModel = model.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+        val zipFileName = "${safeModel}_${timestamp}.zip"
+        val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        if (!downloadDir.exists()) {
+            downloadDir.mkdirs()
+        }
+
+        val zipFile = File(downloadDir, zipFileName)
+        ZipOutputStream(FileOutputStream(zipFile)).use { zipOut ->
+            zipDirectory(tempDir, "", zipOut)
+        }
+        return zipFile
     }
 
     /**
