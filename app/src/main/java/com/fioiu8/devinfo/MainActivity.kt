@@ -9,11 +9,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fioiu8.devinfo.model.AppLanguage
 import com.fioiu8.devinfo.model.ThemeColor
 import com.fioiu8.devinfo.model.ThemeMode
 import com.fioiu8.devinfo.ui.MainScreen
+import com.fioiu8.devinfo.ui.MainScreenSettings
+import com.fioiu8.devinfo.ui.MainViewModel
 import com.fioiu8.devinfo.ui.theme.DevInfoTheme
 
 class MainActivity : ComponentActivity() {
@@ -62,34 +66,54 @@ class MainActivity : ComponentActivity() {
         val exportHelper = ModuleExportHelper(this)
         val themePrefs = ThemePreferences(this)
         val languagePrefs = LanguagePreferences(this)
+        val appContext = applicationContext
+        val collector = DeviceInfoCollector(appContext)
+        val mainViewModelFactory = MainViewModel.factory(
+            collector = collector,
+            cpuUsageSampler = CpuUsageSampler(collector),
+            liveHardwareMonitor = LiveHardwareMonitor(appContext),
+            batteryObserver = BatteryObserver(appContext),
+            updateChecker = UpdateChecker(appContext)
+        )
 
         setContent {
             val themeMode by themePrefs.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
             val themeColor by themePrefs.themeColor.collectAsState(initial = ThemeColor.DEFAULT)
             val appLanguage by languagePrefs.appLanguage.collectAsState(initial = AppLanguage.SYSTEM)
             val customLocaleTag by languagePrefs.customLocaleTag.collectAsState(initial = "")
-
-            DevInfoTheme(themeMode = themeMode, themeColor = themeColor) {
-                MainScreen(
+            val mainViewModel: MainViewModel = viewModel(factory = mainViewModelFactory)
+            val mainScreenSettings = remember(
+                deviceId,
+                themeMode,
+                themeColor,
+                appLanguage,
+                customLocaleTag
+            ) {
+                MainScreenSettings(
                     deviceId = deviceId,
                     themeMode = themeMode,
-                    onThemeModeChange = { themePrefs.setThemeMode(it) },
+                    onThemeModeChange = themePrefs::setThemeMode,
                     themeColor = themeColor,
-                    onThemeColorChange = { themePrefs.setThemeColor(it) },
-                    exportHelper = exportHelper,
+                    onThemeColorChange = themePrefs::setThemeColor,
                     appLanguage = appLanguage,
-                    languageOptions = AppLanguage.entries.map { getString(it.displayNameResId) },
-                    onLanguageChange = { index ->
-                        val selected = AppLanguage.entries[index]
+                    customLocaleTag = customLocaleTag,
+                    onAppLanguageChange = { selected ->
                         languagePrefs.setAppLanguage(selected)
                         if (!selected.isCustom) recreate()
                     },
-                    customLocaleTag = customLocaleTag,
                     onCustomLocaleTagChange = { tag ->
                         languagePrefs.setCustomLocaleTag(tag)
                         languagePrefs.setAppLanguage(AppLanguage.CUSTOM)
                         recreate()
                     }
+                )
+            }
+
+            DevInfoTheme(themeMode = themeMode, themeColor = themeColor) {
+                MainScreen(
+                    viewModel = mainViewModel,
+                    settings = mainScreenSettings,
+                    exportHelper = exportHelper
                 )
             }
         }
