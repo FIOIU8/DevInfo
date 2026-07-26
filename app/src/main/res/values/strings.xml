@@ -107,6 +107,9 @@
     <string name="export_success">导出成功</string>
     <string name="export_saved_to">文件已保存至：</string>
     <string name="export_long_press_hint">长按路径可复制</string>
+    <string name="module_export_name">机型模拟-%1$s</string>
+    <string name="module_export_description">这是一个自动化程序生成的机型模拟模块，用于模拟 %1$s %2$s 设备。\n生成时间: %3$s\n注意: 使用此模块具有一定风险，请自行评估。</string>
+    <string name="device_id_fetch_failed">获取失败: %1$s</string>
     <string name="cancel">取消</string>
     <string name="confirm_export">确认导出</string>
     <string name="confirm">确定</string>
