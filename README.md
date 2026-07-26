@@ -159,6 +159,8 @@ DevInfo/
 | `READ_PHONE_STATE` | 📞 运营商信息 |
 | `READ_EXTERNAL_STORAGE` / `READ_MEDIA_*` | 💾 存储信息读取 |
 
+在 Android 12+ 上，`BLUETOOTH_SCAN` 不需要位置权限；但为支持较低 API 级别的蓝牙扫描，仍可能需要位置权限。
+
 ## 🔗 快捷链接
 
 | 资源 | 链接 |
