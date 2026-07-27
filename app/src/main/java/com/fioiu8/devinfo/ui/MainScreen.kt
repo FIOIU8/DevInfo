@@ -537,15 +537,26 @@ private fun MainRootScaffold(
 ) {
     val contentStateHolder = rememberSaveableStateHolder()
 
-    // OverlayDropdownPreference needs a Miuix popup host even while Material 3 is active.
-    MiuixScaffold(
-        modifier = modifier,
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            contentStateHolder.SaveableStateProvider(MAIN_CONTENT_STATE_KEY) {
-                content()
+    when (LocalUiStyle.current) {
+        UiStyle.MATERIAL3 -> {
+            Box(modifier = modifier) {
+                contentStateHolder.SaveableStateProvider(MAIN_CONTENT_STATE_KEY) {
+                    content()
+                }
+            }
+        }
+
+        UiStyle.MIUIX -> {
+            MiuixScaffold(
+                modifier = modifier,
+                containerColor = Color.Transparent,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    contentStateHolder.SaveableStateProvider(MAIN_CONTENT_STATE_KEY) {
+                        content()
+                    }
+                }
             }
         }
     }
