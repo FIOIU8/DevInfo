@@ -438,10 +438,6 @@ fun MainScreen(
                                     appLanguage = settings.appLanguage,
                                     checkUpdate = settings.checkUpdate,
                                     onCheckUpdateChange = settings.onCheckUpdateChange,
-                                    enableBlur = settings.enableBlur,
-                                    onEnableBlurChange = settings.onEnableBlurChange,
-                                    enablePredictiveBack = settings.enablePredictiveBack,
-                                    onEnablePredictiveBackChange = settings.onEnablePredictiveBackChange,
                                     languageOptions = languageOptions,
                                     onLanguageChange = { index ->
                                         settings.onAppLanguageChange(AppLanguage.entries[index])
@@ -484,6 +480,10 @@ fun MainScreen(
                     onPaletteStyleChange = settings.onPaletteStyleChange,
                     colorSpec = settings.colorSpec,
                     onColorSpecChange = settings.onColorSpecChange,
+                    enableBlur = settings.enableBlur,
+                    onEnableBlurChange = settings.onEnableBlurChange,
+                    enablePredictiveBack = settings.enablePredictiveBack,
+                    onEnablePredictiveBackChange = settings.onEnablePredictiveBackChange,
                     onBack = ::dismissThemeSettingsPage,
                 )
             }
