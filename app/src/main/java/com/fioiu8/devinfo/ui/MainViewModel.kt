@@ -149,14 +149,24 @@ class MainViewModel(
 
     private suspend fun loadDeviceInfo() {
         withContext(Dispatchers.Default) {
+            // Accumulate into a single buffer and publish in batches. This avoids
+            // the previous per-item `delay` (which pushed full-load time to ~3s) and
+            // the O(n^2) `list + item` copy that reallocated the whole list each item.
+            // Entrance animation is handled by the UI layer (AnimatedVisibility), so
+            // no artificial delay is needed here.
+            val buffer = ArrayList<ItemWithVisibility>(EXPECTED_ITEM_COUNT)
             collector.collectDeviceInfo { item ->
-                withContext(Dispatchers.Main.immediate) {
-                    _deviceInfoItems.value = _deviceInfoItems.value + ItemWithVisibility(
-                        item = item,
-                        visible = mutableStateOf(true)
-                    )
+                buffer.add(ItemWithVisibility(item = item, visible = mutableStateOf(true)))
+                if (buffer.size % ITEM_BATCH_SIZE == 0) {
+                    val snapshot = buffer.toList()
+                    withContext(Dispatchers.Main.immediate) {
+                        _deviceInfoItems.value = snapshot
+                    }
                 }
-                delay(ITEM_APPEAR_DELAY_MS)
+            }
+            val finalSnapshot = buffer.toList()
+            withContext(Dispatchers.Main.immediate) {
+                _deviceInfoItems.value = finalSnapshot
             }
         }
     }
@@ -305,7 +315,12 @@ class MainViewModel(
 
     companion object {
         private const val DYNAMIC_REFRESH_INTERVAL_MS = 2_000L
-        private const val ITEM_APPEAR_DELAY_MS = 30L
+
+        /** Publish loaded items in batches so the UI updates a few times, not once per item. */
+        private const val ITEM_BATCH_SIZE = 8
+
+        /** Rough initial capacity for the item buffer to avoid ArrayList regrowth. */
+        private const val EXPECTED_ITEM_COUNT = 110
 
         fun factory(
             collector: DeviceInfoCollector,
