@@ -180,6 +180,46 @@ fun SettingsPage(
             )
         }
         item {
+            // 检查更新开关（置于顶部）
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Update,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_check_update),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_check_update_summary),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = checkUpdate,
+                        onCheckedChange = onCheckUpdateChange,
+                    )
+                }
+            }
+        }
+        item {
             PreferenceAction(
                 icon = Icons.Outlined.Palette,
                 title = stringResource(R.string.theme_settings_title),
@@ -237,46 +277,6 @@ fun SettingsPage(
                 summary = stringResource(R.string.about_summary),
                 onClick = onAboutClick,
             )
-        }
-        // 检查更新开关
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Update,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.settings_check_update),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Text(
-                            text = stringResource(R.string.settings_check_update_summary),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = checkUpdate,
-                        onCheckedChange = onCheckUpdateChange,
-                    )
-                }
-            }
         }
 
         item {
@@ -448,6 +448,24 @@ private fun MiuixSettingsPage(
                 )
             }
         }
+        item {
+            MiuixCard(modifier = Modifier.fillMaxWidth()) {
+                SwitchPreference(
+                    title = stringResource(R.string.settings_check_update),
+                    summary = stringResource(R.string.settings_check_update_summary),
+                    checked = checkUpdate,
+                    onCheckedChange = onCheckUpdateChange,
+                    startAction = {
+                        MiuixIcon(
+                            imageVector = Icons.Outlined.Update,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 6.dp),
+                            tint = MiuixTheme.colorScheme.onBackground,
+                        )
+                    },
+                )
+            }
+        }
 
         item { MiuixCategoryHeader(stringResource(R.string.category_tools)) }
         item {
@@ -478,20 +496,6 @@ private fun MiuixSettingsPage(
                     startAction = {
                         MiuixIcon(
                             imageVector = Icons.Outlined.Info,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 6.dp),
-                            tint = MiuixTheme.colorScheme.onBackground,
-                        )
-                    },
-                )
-                SwitchPreference(
-                    title = stringResource(R.string.settings_check_update),
-                    summary = stringResource(R.string.settings_check_update_summary),
-                    checked = checkUpdate,
-                    onCheckedChange = onCheckUpdateChange,
-                    startAction = {
-                        MiuixIcon(
-                            imageVector = Icons.Outlined.Update,
                             contentDescription = null,
                             modifier = Modifier.padding(end = 6.dp),
                             tint = MiuixTheme.colorScheme.onBackground,
