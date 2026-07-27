@@ -60,6 +60,25 @@ enum class UiStyle {
     MIUIX,
 }
 
+enum class PaletteStyle {
+    DEFAULT,
+    TONAL_SPOT,
+    VIBRANT,
+    EXPRESSIVE,
+    FIDELITY,
+    CONTENT,
+    NEUTRAL,
+    MONOCHROME,
+    RAINBOW,
+    FRUIT_SALAD,
+}
+
+enum class ColorSpec {
+    DEFAULT,
+    V0,
+    V1,
+}
+
 enum class ThemeColor(
     val displayNameResId: Int,
     val color: Color,
