@@ -28,6 +28,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.R
+import com.fioiu8.devinfo.model.UiStyle
+import com.fioiu8.devinfo.ui.theme.LocalUiStyle
+import top.yukonga.miuix.kmp.basic.BasicComponent as MiuixBasicComponent
+import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** 分类标题文本 */
 @Composable
@@ -121,6 +127,23 @@ fun TestVersionWarningCard(
     versionName: String = "",
     buildType: String = "dev"
 ) {
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixCard(modifier = modifier.padding(horizontal = 12.dp)) {
+            MiuixBasicComponent(
+                title = stringResource(R.string.test_version_warning),
+                summary = stringResource(R.string.test_version_desc),
+                startAction = {
+                    MiuixIcon(
+                        imageVector = Icons.Outlined.Warning,
+                        contentDescription = stringResource(R.string.warning_icon_desc),
+                        tint = MiuixTheme.colorScheme.error,
+                    )
+                },
+            )
+        }
+        return
+    }
+
     val bgColor = MaterialTheme.colorScheme.surfaceContainerHigh
     val textColor = MaterialTheme.colorScheme.onSurfaceVariant
 

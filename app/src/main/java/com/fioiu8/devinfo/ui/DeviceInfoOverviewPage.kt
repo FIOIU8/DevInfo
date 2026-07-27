@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items as lazyItems
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -42,7 +44,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
@@ -74,8 +75,14 @@ import com.fioiu8.devinfo.LiveHardwareSnapshot
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ItemWithVisibility
+import com.fioiu8.devinfo.model.UiStyle
+import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import top.yukonga.miuix.kmp.basic.BasicComponent as MiuixBasicComponent
+import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -172,6 +179,18 @@ fun DeviceInfoOverviewPage(
     onRefresh: suspend () -> Unit,
     onOpenDetails: (InfoCategory) -> Unit
 ) {
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixDeviceInfoOverviewPage(
+            itemsState = itemsState,
+            isLoading = isLoading,
+            isOverviewLoading = isOverviewLoading,
+            snapshot = snapshot,
+            onRefresh = onRefresh,
+            onOpenDetails = onOpenDetails,
+        )
+        return
+    }
+
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
     val fontScale = LocalDensity.current.fontScale
     val compactLayout = screenWidthDp < 600
@@ -195,7 +214,7 @@ fun DeviceInfoOverviewPage(
 
     if ((isLoading && itemsState.isEmpty()) || (isOverviewLoading && metrics.isEmpty())) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            LoadingIndicator(color = MaterialTheme.colorScheme.primary)
+            DevInfoLoadingIndicator()
         }
     } else {
         PullToRefreshBox(
@@ -264,6 +283,104 @@ fun DeviceInfoOverviewPage(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MiuixDeviceInfoOverviewPage(
+    itemsState: List<ItemWithVisibility>,
+    isLoading: Boolean,
+    isOverviewLoading: Boolean,
+    snapshot: OverviewSnapshot,
+    onRefresh: suspend () -> Unit,
+    onOpenDetails: (InfoCategory) -> Unit,
+) {
+    var isRefreshing by remember { mutableStateOf(false) }
+    val metrics by remember(snapshot) {
+        derivedStateOf { buildOverviewMetrics(snapshot) }
+    }
+    val staticCards by remember(itemsState) {
+        derivedStateOf { buildStaticInfoCards(itemsState) }
+    }
+
+    LaunchedEffect(isRefreshing) {
+        if (isRefreshing) {
+            onRefresh()
+            isRefreshing = false
+        }
+    }
+
+    if ((isLoading && itemsState.isEmpty()) || (isOverviewLoading && metrics.isEmpty())) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            InfiniteProgressIndicator(color = MiuixTheme.colorScheme.primary)
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            MiuixCard(modifier = Modifier.fillMaxWidth()) {
+                MiuixBasicComponent(
+                    title = stringResource(R.string.overview_title),
+                    summary = if (isRefreshing) {
+                        stringResource(R.string.overview_loading)
+                    } else {
+                        stringResource(R.string.overview_realtime_title)
+                    },
+                    onClick = { isRefreshing = true },
+                )
+            }
+        }
+        lazyItems(metrics, key = { it.id }) { metric ->
+            val title = metric.title ?: metric.titleResId?.let { stringResource(it) }.orEmpty()
+            val summary = listOfNotNull(
+                metric.value,
+                metric.supportingTextResId?.let { stringResource(it) },
+                metric.supportingTextSuffix,
+            ).joinToString(" · ")
+            MiuixOverviewItem(
+                title = title,
+                summary = summary,
+                onClick = { onOpenDetails(metric.category) },
+            )
+        }
+        lazyItems(staticCards, key = { it.keyResId }) { card ->
+            MiuixOverviewItem(
+                title = stringResource(card.keyResId),
+                summary = card.value,
+                onClick = { onOpenDetails(card.category) },
+            )
+        }
+        item {
+            MiuixOverviewItem(
+                title = stringResource(R.string.overview_security_title),
+                summary = listOfNotNull(
+                    snapshot.securityPatch,
+                    snapshot.lockScreenEnabled?.let { stringResource(R.string.system_lock_screen) },
+                    snapshot.usbDebuggingEnabled?.let { stringResource(R.string.system_usb_debugging) },
+                ).joinToString(" · "),
+                onClick = { onOpenDetails(InfoCategory.SYSTEM) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MiuixOverviewItem(
+    title: String,
+    summary: String,
+    onClick: () -> Unit,
+) {
+    MiuixCard(modifier = Modifier.fillMaxWidth()) {
+        MiuixBasicComponent(
+            title = title,
+            summary = summary,
+            onClick = onClick,
+        )
     }
 }
 

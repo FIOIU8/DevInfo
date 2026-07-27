@@ -39,7 +39,6 @@ import androidx.compose.material3.Scaffold as MaterialScaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text as MaterialText
 import androidx.compose.material3.TopAppBar as MaterialTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -117,7 +116,6 @@ private fun MaterialThemeSettingsPage(
     onThemeColorChange: (ThemeColor) -> Unit,
     onBack: () -> Unit,
 ) {
-    var colorMenuExpanded by rememberSaveable { mutableStateOf(false) }
     val selectedThemeIndex = themeMode.baseIndex
     val themeTabs = listOf(
         stringResource(R.string.theme_mode_system),
@@ -210,7 +208,7 @@ private fun MaterialThemeSettingsPage(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Switch(
+                            DevInfoExpressiveSwitch(
                                 checked = themeMode.isDynamic,
                                 onCheckedChange = { enabled ->
                                     onThemeModeChange(themeMode.withMonet(enabled))
@@ -218,62 +216,22 @@ private fun MaterialThemeSettingsPage(
                             )
                         }
 
-                        AnimatedVisibility(visible = themeMode.isDynamic) {
-                            androidx.compose.foundation.layout.Box(modifier = Modifier.padding(top = 12.dp)) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { colorMenuExpanded = true }
-                                        .padding(vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(themeColor.color),
-                                    )
-                                    Spacer(Modifier.width(16.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        MaterialText(
-                                            text = stringResource(R.string.theme_key_color),
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            fontWeight = FontWeight.Medium,
-                                        )
-                                        MaterialText(
-                                            text = stringResource(themeColor.displayNameResId),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-
-                                DropdownMenu(
-                                    expanded = colorMenuExpanded,
-                                    onDismissRequest = { colorMenuExpanded = false },
-                                ) {
-                                    colorItems.forEachIndexed { index, item ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                MaterialText(
-                                                    text = item,
-                                                    fontWeight = if (ThemeColor.entries[index] == themeColor) {
-                                                        FontWeight.Bold
-                                                    } else {
-                                                        FontWeight.Normal
-                                                    },
-                                                )
-                                            },
-                                            onClick = {
-                                                onThemeColorChange(ThemeColor.entries[index])
-                                                colorMenuExpanded = false
-                                            },
-                                        )
-                                    }
-                                }
-                            }
-                        }
                     }
+                }
+            }
+
+            if (themeMode.isDynamic) {
+                item {
+                    DevInfoSegmentedDropdownItem(
+                        icon = Icons.Rounded.Wallpaper,
+                        title = stringResource(R.string.theme_key_color),
+                        summary = stringResource(themeColor.displayNameResId),
+                        items = colorItems,
+                        selectedIndex = ThemeColor.entries.indexOf(themeColor).coerceAtLeast(0),
+                        onItemSelected = { index ->
+                            ThemeColor.entries.getOrNull(index)?.let(onThemeColorChange)
+                        },
+                    )
                 }
             }
 

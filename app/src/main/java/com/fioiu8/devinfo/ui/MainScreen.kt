@@ -2,7 +2,6 @@ package com.fioiu8.devinfo.ui
 
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
@@ -18,11 +17,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -40,13 +41,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -61,9 +60,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -91,8 +90,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
-import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar
-import top.yukonga.miuix.kmp.basic.NavigationBarItem as MiuixNavigationBarItem
 import top.yukonga.miuix.kmp.basic.NavigationRail as MiuixNavigationRail
 import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
@@ -158,6 +155,11 @@ fun MainScreen(
     val detailOffsetX = remember { Animatable(0f) }
     val alreadyLatestMessage = stringResource(R.string.already_latest)
     val exportFailedLabel = stringResource(R.string.export_failed)
+    val snackbarHostState = remember { SnackbarHostState() }
+    val showMessage = rememberDevInfoMessageHandler(snackbarHostState)
+    val snackbarBottomPadding =
+        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
+            if (useNavigationRail) 16.dp else 92.dp
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
@@ -206,7 +208,7 @@ fun MainScreen(
     LaunchedEffect(updateState) {
         when (updateState) {
             UpdateState.UP_TO_DATE -> {
-                Toast.makeText(context, alreadyLatestMessage, Toast.LENGTH_SHORT).show()
+                showMessage(alreadyLatestMessage)
                 viewModel.resetUpdateState()
             }
 
@@ -261,7 +263,9 @@ fun MainScreen(
     }
     val showTopBarBackButton = selectedIndex == INFO_TAB_INDEX && showDetailsPage
 
-    MainRootScaffold(Modifier.fillMaxSize()) {
+    DevInfoFeedbackScope(hostState = snackbarHostState) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            MainRootScaffold(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize()) {
             if (useNavigationRail) {
                 MainNavigationRail(
@@ -398,7 +402,16 @@ fun MainScreen(
                 )
             }
         }
-    }
+            }
+
+            DevInfoSnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = snackbarBottomPadding),
+            )
+        }
 
     PredictiveBackHandler(
         enabled = showThemeSettingsPage || showAboutPage || showDetailsPage,
@@ -474,7 +487,11 @@ fun MainScreen(
         isError = updateState == UpdateState.ERROR,
         currentVersion = BuildConfig.VERSION_NAME,
         onDownload = {
-            openUrl(context, releaseInfo?.htmlUrl ?: RELEASES_URL)
+            openUrl(
+                context = context,
+                url = releaseInfo?.htmlUrl ?: RELEASES_URL,
+                onFailure = showMessage,
+            )
             showUpdateDialog = false
             viewModel.resetUpdateState()
         },
@@ -503,13 +520,7 @@ fun MainScreen(
                         }
                     },
                     onError = { error ->
-                        scope.launch {
-                            Toast.makeText(
-                                context,
-                                "$exportFailedLabel: $error",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
+                        showMessage("$exportFailedLabel: $error")
                     }
                 )
             }
@@ -522,13 +533,10 @@ fun MainScreen(
         filePath = exportedFilePath,
         onDismiss = { showExportSuccessDialog = false }
     )
+    }
 }
 
-private data class MainNavigationItem(
-    val label: String,
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector
-)
+private typealias MainNavigationItem = DevInfoNavigationItem
 
 @Composable
 private fun MainRootScaffold(
@@ -584,14 +592,24 @@ private fun MainScaffold(
     }
     val bottomBar: @Composable () -> Unit = {
         if (showBottomBar) {
-            MainNavigationBar(
-                items = items,
-                selectedIndex = selectedIndex,
-                onItemSelected = onItemSelected
-            )
+            Box(modifier = Modifier.fillMaxWidth()) {
+                DevInfoFloatingNavigationBar(
+                    items = items,
+                    selectedIndex = selectedIndex,
+                    onItemSelected = onItemSelected,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 20.dp)
+                        .padding(
+                            bottom = 12.dp +
+                                WindowInsets.navigationBars
+                                    .asPaddingValues()
+                                    .calculateBottomPadding(),
+                        ),
+                )
+            }
         }
     }
-
     Box(modifier = modifier.consumeWindowInsets(consumedStartInsets)) {
         when (LocalUiStyle.current) {
             UiStyle.MATERIAL3 -> {
@@ -600,7 +618,7 @@ private fun MainScaffold(
                     topBar = topBar,
                     bottomBar = bottomBar,
                     containerColor = MaterialTheme.colorScheme.background,
-                    content = content
+                    content = content,
                 )
             }
 
@@ -610,7 +628,7 @@ private fun MainScaffold(
                     topBar = topBar,
                     bottomBar = bottomBar,
                     popupHost = {},
-                    content = content
+                    content = content,
                 )
             }
         }
@@ -707,77 +725,6 @@ private fun MiuixMainTopBar(
 }
 
 @Composable
-private fun MainNavigationBar(
-    items: List<MainNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit
-) {
-    when (LocalUiStyle.current) {
-        UiStyle.MATERIAL3 -> MaterialMainNavigationBar(items, selectedIndex, onItemSelected)
-        UiStyle.MIUIX -> MiuixMainNavigationBar(items, selectedIndex, onItemSelected)
-    }
-}
-
-@Composable
-private fun MaterialMainNavigationBar(
-    items: List<MainNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit
-) {
-    NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 0.dp
-    ) {
-        items.forEachIndexed { index, item ->
-            NavigationBarItem(
-                selected = selectedIndex == index,
-                onClick = { onItemSelected(index) },
-                icon = {
-                    Icon(
-                        imageVector = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
-                        contentDescription = item.label
-                    )
-                },
-                label = {
-                    Text(
-                        text = item.label,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            )
-        }
-    }
-}
-
-@Composable
-private fun MiuixMainNavigationBar(
-    items: List<MainNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit
-) {
-    MiuixNavigationBar(
-        color = MiuixTheme.colorScheme.surface
-    ) {
-        items.forEachIndexed { index, item ->
-            MiuixNavigationBarItem(
-                modifier = Modifier.weight(1f),
-                icon = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
-                label = item.label,
-                selected = selectedIndex == index,
-                onClick = { onItemSelected(index) }
-            )
-        }
-    }
-}
-
-@Composable
 private fun MainNavigationRail(
     items: List<MainNavigationItem>,
     selectedIndex: Int,
@@ -857,11 +804,15 @@ private fun MiuixMainNavigationRail(
     }
 }
 
-private fun openUrl(context: Context, url: String) {
+private fun openUrl(
+    context: Context,
+    url: String,
+    onFailure: (String) -> Unit,
+) {
     try {
         context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
     } catch (_: Exception) {
-        Toast.makeText(context, context.getString(R.string.cannot_open_link), Toast.LENGTH_SHORT).show()
+        onFailure(context.getString(R.string.cannot_open_link))
     }
 }
 

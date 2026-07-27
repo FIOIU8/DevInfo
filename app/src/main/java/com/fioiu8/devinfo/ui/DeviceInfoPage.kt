@@ -1,6 +1,5 @@
 ﻿package com.fioiu8.devinfo.ui
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -25,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -33,7 +33,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
@@ -54,13 +53,13 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -71,6 +70,14 @@ import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ItemWithVisibility
+import com.fioiu8.devinfo.model.UiStyle
+import com.fioiu8.devinfo.ui.theme.LocalUiStyle
+import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.BasicComponent as MiuixBasicComponent
+import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
+import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** 分类卡片每页显示的最大条目数 */
 private const val ITEMS_PER_PAGE = 8
@@ -96,9 +103,19 @@ fun DeviceInfoPage(
     onRefresh: suspend () -> Unit,
     initialCategory: InfoCategory = InfoCategory.DEVICE
 ) {
-    val ctx = LocalContext.current
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixDeviceInfoPage(
+            itemsState = itemsState,
+            isLoading = isLoading,
+            onRefresh = onRefresh,
+            initialCategory = initialCategory,
+        )
+        return
+    }
+
     val resources = LocalResources.current
     val clipboardManager = LocalClipboardManager.current
+    val showMessage = rememberDevInfoMessageHandler()
     val categories = InfoCategory.entries
     val itemsByCategory = remember(itemsState) {
         itemsState.groupBy { it.item.category }
@@ -106,18 +123,16 @@ fun DeviceInfoPage(
     val pageCountsByCategory = remember(itemsByCategory) {
         itemsByCategory.mapValues { (_, categoryItems) -> categoryItems.pageCount() }
     }
-    val onItemCopy: (ItemWithVisibility) -> Unit = remember(clipboardManager, ctx, resources) {
+    val onItemCopy: (ItemWithVisibility) -> Unit = remember(clipboardManager, resources, showMessage) {
         { item ->
             clipboardManager.setText(AnnotatedString(item.item.value))
             val itemLabel = resources.getString(item.item.keyResId)
-            Toast.makeText(
-                ctx,
+            showMessage(
                 resources.getString(
                     com.fioiu8.devinfo.R.string.copied_to_clipboard,
-                    itemLabel
+                    itemLabel,
                 ),
-                Toast.LENGTH_SHORT
-            ).show()
+            )
         }
     }
 
@@ -141,7 +156,7 @@ fun DeviceInfoPage(
 
     if (isLoading && itemsState.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            LoadingIndicator(color = MaterialTheme.colorScheme.primary)
+            DevInfoLoadingIndicator()
         }
     } else {
         val selectedCategory = categories[selectedCategoryIndex]
@@ -216,6 +231,90 @@ fun DeviceInfoPage(
                 }
 
                 item { Spacer(modifier = Modifier.height(4.dp)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiuixDeviceInfoPage(
+    itemsState: List<ItemWithVisibility>,
+    isLoading: Boolean,
+    onRefresh: suspend () -> Unit,
+    initialCategory: InfoCategory,
+) {
+    val resources = LocalResources.current
+    val clipboardManager = LocalClipboardManager.current
+    val showMessage = rememberDevInfoMessageHandler()
+    val scope = rememberCoroutineScope()
+    val categories = InfoCategory.entries
+    var selectedCategoryIndex by remember(initialCategory) {
+        mutableIntStateOf(categories.indexOf(initialCategory).coerceAtLeast(0))
+    }
+    var isRefreshing by remember { mutableStateOf(false) }
+    val itemsByCategory = remember(itemsState) {
+        itemsState.groupBy { it.item.category }
+    }
+    val selectedCategory = categories[selectedCategoryIndex]
+    val selectedItems = itemsByCategory[selectedCategory].orEmpty()
+
+    if (isLoading && itemsState.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            InfiniteProgressIndicator(color = MiuixTheme.colorScheme.primary)
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            MiuixTabRow(
+                tabs = categories.map { stringResource(it.displayNameResId) },
+                selectedTabIndex = selectedCategoryIndex,
+                onTabSelected = { selectedCategoryIndex = it },
+            )
+        }
+        item {
+            MiuixCard(modifier = Modifier.fillMaxWidth()) {
+                MiuixBasicComponent(
+                    title = stringResource(R.string.title_device_details),
+                    summary = if (isRefreshing) {
+                        stringResource(R.string.overview_loading)
+                    } else {
+                        stringResource(selectedCategory.descriptionResId)
+                    },
+                    onClick = {
+                        if (isRefreshing) return@MiuixBasicComponent
+                        scope.launch {
+                            isRefreshing = true
+                            try {
+                                onRefresh()
+                            } finally {
+                                isRefreshing = false
+                            }
+                        }
+                    },
+                )
+            }
+        }
+        items(selectedItems, key = { it.item.keyResId }) { item ->
+            MiuixCard(modifier = Modifier.fillMaxWidth()) {
+                MiuixBasicComponent(
+                    title = resources.getString(item.item.keyResId),
+                    summary = item.item.value,
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(item.item.value))
+                        showMessage(
+                            resources.getString(
+                                R.string.copied_to_clipboard,
+                                resources.getString(item.item.keyResId),
+                            ),
+                        )
+                    },
+                )
             }
         }
     }

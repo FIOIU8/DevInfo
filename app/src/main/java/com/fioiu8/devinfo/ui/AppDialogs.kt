@@ -1,7 +1,6 @@
 package com.fioiu8.devinfo.ui
 
 import android.os.Environment
-import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -44,13 +43,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.fioiu8.devinfo.R
+import com.fioiu8.devinfo.model.UiStyle
+import com.fioiu8.devinfo.ui.theme.LocalUiStyle
+import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.Text as MiuixText
+import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
+import top.yukonga.miuix.kmp.window.WindowDialog
 
 /**
  * 导出确认对话框 — 展示导出摘要（格式、路径、文件名）。
@@ -66,6 +71,17 @@ fun ExportConfirmDialog(
     onDismiss: () -> Unit
 ) {
     if (!show) return
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixActionDialog(
+            title = stringResource(R.string.export_title),
+            message = stringResource(R.string.export_confirm_text),
+            confirmLabel = stringResource(R.string.confirm_export),
+            onConfirm = onConfirm,
+            dismissLabel = stringResource(R.string.cancel),
+            onDismiss = onDismiss,
+        )
+        return
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -155,9 +171,14 @@ fun ExportSuccessDialog(
 ) {
     if (!show) return
 
-    val context = LocalContext.current
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixExportSuccessDialog(filePath = filePath, onDismiss = onDismiss)
+        return
+    }
+
     val clipboardManager = LocalClipboardManager.current
     val pathCopiedMessage = stringResource(com.fioiu8.devinfo.R.string.path_copied)
+    val showMessage = rememberDevInfoMessageHandler()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -196,7 +217,7 @@ fun ExportSuccessDialog(
                             onClick = {},
                             onLongClick = {
                                 clipboardManager.setText(AnnotatedString(filePath))
-                                Toast.makeText(context, pathCopiedMessage, Toast.LENGTH_SHORT).show()
+                                showMessage(pathCopiedMessage)
                             }
                         ),
                     shape = RoundedCornerShape(8.dp),
@@ -249,6 +270,17 @@ fun ExternalLinkConfirmDialog(
     onDismiss: () -> Unit
 ) {
     if (!show) return
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixActionDialog(
+            title = title,
+            message = "$description\n\n${stringResource(R.string.external_link_open_browser)}",
+            confirmLabel = stringResource(R.string.open),
+            onConfirm = onConfirm,
+            dismissLabel = stringResource(R.string.cancel),
+            onDismiss = onDismiss,
+        )
+        return
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -316,6 +348,26 @@ fun UpdateAvailableDialog(
     onDismiss: () -> Unit
 ) {
     if (!show) return
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        val title = stringResource(if (isError) R.string.update_check_failed else R.string.update_found)
+        val message = if (isError) {
+            stringResource(R.string.update_network_error)
+        } else {
+            listOfNotNull(
+                info?.let { "${it.name} (${it.tagName})" },
+                info?.body?.takeIf { it.isNotBlank() },
+            ).joinToString("\n\n")
+        }
+        MiuixActionDialog(
+            title = title,
+            message = message,
+            confirmLabel = stringResource(if (isError) R.string.retry else R.string.go_to_download),
+            onConfirm = if (isError) onRetry else onDownload,
+            dismissLabel = stringResource(if (isError) R.string.close else R.string.later),
+            onDismiss = onDismiss,
+        )
+        return
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -382,6 +434,7 @@ fun UpdateAvailableDialog(
                             MarkdownText(markdown = info.body)
                         }
                     }
+
                 }
             }
         },
@@ -429,4 +482,82 @@ fun UpdateAvailableDialog(
             }
         }
     )
+}
+
+@Composable
+private fun MiuixActionDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    dismissLabel: String,
+    onDismiss: () -> Unit,
+) {
+    WindowDialog(
+        show = true,
+        title = title,
+        onDismissRequest = onDismiss,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            if (message.isNotBlank()) {
+                MiuixText(text = message)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                MiuixTextButton(text = dismissLabel, onClick = onDismiss)
+                MiuixTextButton(text = confirmLabel, onClick = onConfirm)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MiuixExportSuccessDialog(
+    filePath: String,
+    onDismiss: () -> Unit,
+) {
+    val clipboardManager = LocalClipboardManager.current
+    val showMessage = rememberDevInfoMessageHandler()
+    val pathCopiedMessage = stringResource(R.string.path_copied)
+
+    WindowDialog(
+        show = true,
+        title = stringResource(R.string.export_success),
+        onDismissRequest = onDismiss,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            MiuixText(text = stringResource(R.string.export_saved_to))
+            MiuixCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = {
+                            clipboardManager.setText(AnnotatedString(filePath))
+                            showMessage(pathCopiedMessage)
+                        },
+                    ),
+            ) {
+                MiuixText(
+                    text = filePath,
+                    modifier = Modifier.padding(14.dp),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            MiuixText(text = stringResource(R.string.export_long_press_hint))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                MiuixTextButton(
+                    text = stringResource(R.string.confirm),
+                    onClick = onDismiss,
+                )
+            }
+        }
+    }
 }

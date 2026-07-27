@@ -29,7 +29,7 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
     private val uiStylePreference =
         enumPreference(
             key = KEY_UI_STYLE,
-            defaultValue = UiStyle.MATERIAL3,
+            defaultValue = UiStyle.MIUIX,
             values = UiStyle.entries,
         )
 
