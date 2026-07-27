@@ -19,7 +19,11 @@ package com.fioiu8.devinfo.ui
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.PredictiveBackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -159,7 +163,7 @@ fun MainScreen(
     var isThemeSettingsVisible by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showExportSuccessDialog by remember { mutableStateOf(false) }
-    var exportedFilePath by remember { mutableStateOf("") }
+    var exportedFileUri by remember { mutableStateOf<Uri?>(null) }
     var showUpdateDialog by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
@@ -179,6 +183,38 @@ fun MainScreen(
         materialHostState = materialSnackbarHostState,
         miuixHostState = miuixSnackbarHostState,
     )
+
+    // SAF 导出 — 用户选择保存位置后将 ZIP 写入 ContentResolver 提供的输出流
+    val saveExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult // 用户取消
+        scope.launch(Dispatchers.IO) {
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    exportHelper.exportModuleToStream(
+                        deviceId = settings.deviceId,
+                        itemsState = deviceInfoItems,
+                        outputStream = outputStream,
+                        onSuccess = {
+                            scope.launch {
+                                exportedFileUri = uri
+                                showExportSuccessDialog = true
+                            }
+                        },
+                        onError = { error ->
+                            showMessage("$exportFailedLabel: $error")
+                        }
+                    )
+                } ?: run {
+                    showMessage("$exportFailedLabel: 无法打开文件")
+                }
+            } catch (e: Exception) {
+                showMessage("$exportFailedLabel: ${e.message}")
+            }
+        }
+    }
+
     val snackbarBottomPadding =
         WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
             if (useNavigationRail) 16.dp else 92.dp
@@ -535,28 +571,14 @@ fun MainScreen(
         show = showExportDialog,
         onConfirm = {
             showExportDialog = false
-            scope.launch(Dispatchers.IO) {
-                exportHelper.exportModule(
-                    deviceId = settings.deviceId,
-                    itemsState = deviceInfoItems,
-                    onSuccess = { path ->
-                        scope.launch {
-                            exportedFilePath = path
-                            showExportSuccessDialog = true
-                        }
-                    },
-                    onError = { error ->
-                        showMessage("$exportFailedLabel: $error")
-                    }
-                )
-            }
+            saveExportLauncher.launch("DevInfo_${Build.MODEL}.zip")
         },
         onDismiss = { showExportDialog = false }
     )
 
     ExportSuccessDialog(
         show = showExportSuccessDialog,
-        filePath = exportedFilePath,
+        fileUri = exportedFileUri,
         onDismiss = { showExportSuccessDialog = false }
     )
     }
