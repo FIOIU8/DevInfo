@@ -120,6 +120,7 @@ import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHostState as MiuixSnackbarHostState
 import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
+import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
@@ -143,6 +144,10 @@ data class MainScreenSettings(
     val onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
     val enableBlur: Boolean,
     val onEnableBlurChange: (Boolean) -> Unit,
+    val enableFloatingBottomBar: Boolean,
+    val onEnableFloatingBottomBarChange: (Boolean) -> Unit,
+    val enableFloatingBottomBarBlur: Boolean,
+    val onEnableFloatingBottomBarBlurChange: (Boolean) -> Unit,
     val pageScale: Float,
     val onPageScaleChange: (Float) -> Unit,
     val enablePredictiveBack: Boolean,
@@ -367,7 +372,10 @@ fun MainScreen(
                 items = navigationItems,
                 selectedIndex = selectedIndex,
                 onItemSelected = ::selectNavigationItem,
-                showBottomBar = !useNavigationRail
+                showBottomBar = !useNavigationRail,
+                enableBlur = settings.enableBlur,
+                enableFloatingBottomBar = settings.enableFloatingBottomBar,
+                enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
             ) { paddingValues ->
                 Box(
                     modifier = Modifier
@@ -484,6 +492,10 @@ fun MainScreen(
                     onColorSpecChange = settings.onColorSpecChange,
                     enableBlur = settings.enableBlur,
                     onEnableBlurChange = settings.onEnableBlurChange,
+                    enableFloatingBottomBar = settings.enableFloatingBottomBar,
+                    onEnableFloatingBottomBarChange = settings.onEnableFloatingBottomBarChange,
+                    enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
+                    onEnableFloatingBottomBarBlurChange = settings.onEnableFloatingBottomBarBlurChange,
                     pageScale = settings.pageScale,
                     onPageScaleChange = settings.onPageScaleChange,
                     enablePredictiveBack = settings.enablePredictiveBack,
@@ -658,6 +670,9 @@ private fun MainScaffold(
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
     showBottomBar: Boolean,
+    enableBlur: Boolean,
+    enableFloatingBottomBar: Boolean,
+    enableFloatingBottomBarBlur: Boolean,
     content: @Composable (PaddingValues) -> Unit
 ) {
     val topBar: @Composable () -> Unit = {
@@ -668,29 +683,13 @@ private fun MainScaffold(
         )
     }
 
-    val bottomBar: @Composable () -> Unit = {
+    val standardBottomBar: @Composable () -> Unit = {
         if (showBottomBar) {
-            Box(modifier = Modifier.fillMaxWidth()) {
-                val bottomNavigationModifier = when (LocalUiStyle.current) {
-                    UiStyle.MATERIAL3 -> Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(horizontal = 20.dp)
-                        .padding(
-                            bottom = 12.dp +
-                                WindowInsets.navigationBars
-                                    .asPaddingValues()
-                                    .calculateBottomPadding(),
-                        )
-
-                    UiStyle.MIUIX -> Modifier
-                }
-                DevInfoFloatingNavigationBar(
-                    items = items,
-                    selectedIndex = selectedIndex,
-                    onItemSelected = onItemSelected,
-                    modifier = bottomNavigationModifier,
-                )
-            }
+            DevInfoNavigationBar(
+                items = items,
+                selectedIndex = selectedIndex,
+                onItemSelected = onItemSelected,
+            )
         }
     }
 
@@ -698,53 +697,132 @@ private fun MainScaffold(
         when (LocalUiStyle.current) {
             UiStyle.MATERIAL3 -> {
                 // Material3：保留原始 Scaffold + bottomBar slot，不干涉，保留原始悬浮样式
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    topBar = topBar,
-                    bottomBar = bottomBar,
-                    containerColor = MaterialTheme.colorScheme.background,
-                    content = content,
-                )
+                if (enableFloatingBottomBar) {
+                    val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
+                    val blurBackdrop = rememberBlurBackdrop(
+                        enableBlur = enableBlur,
+                        surfaceColor = surfaceColor,
+                    )
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(if (blurBackdrop != null) Modifier.layerBackdrop(blurBackdrop) else Modifier),
+                        ) {
+                            Scaffold(
+                                modifier = Modifier.fillMaxSize(),
+                                topBar = topBar,
+                                containerColor = MaterialTheme.colorScheme.background,
+                                content = content,
+                            )
+                        }
+                        if (showBottomBar) {
+                            FloatingMainNavigationBar(
+                                items = items,
+                                selectedIndex = selectedIndex,
+                                onItemSelected = onItemSelected,
+                                blurBackdrop = blurBackdrop,
+                                enableBlur = enableBlur && enableFloatingBottomBarBlur,
+                                surfaceColor = surfaceColor,
+                            )
+                        }
+                    }
+                } else {
+                    Scaffold(
+                        modifier = Modifier.fillMaxSize(),
+                        topBar = topBar,
+                        bottomBar = standardBottomBar,
+                        containerColor = MaterialTheme.colorScheme.background,
+                        content = content,
+                    )
+                }
             }
 
             UiStyle.MIUIX -> {
                 // Miuix：使用 Box + blur 叠加，实现悬浮毛玻璃效果
-                val blurBackdrop = rememberBlurBackdrop(true)
-                val enableBlur = blurBackdrop != null
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .then(if (enableBlur) Modifier.layerBackdrop(blurBackdrop) else Modifier)
-                    ) {
-                        MiuixScaffold(
-                            topBar = topBar,
-                            popupHost = {},
-                            content = content,
-                        )
-                    }
-                    if (showBottomBar) {
+                if (enableFloatingBottomBar) {
+                    val surfaceColor = MiuixTheme.colorScheme.surfaceContainer
+                    val blurBackdrop = rememberBlurBackdrop(
+                        enableBlur = enableBlur,
+                        surfaceColor = surfaceColor,
+                    )
+                    Box(modifier = Modifier.fillMaxSize()) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.BottomCenter)
-                                .padding(
-                                    bottom = 12.dp +
-                                        WindowInsets.navigationBars
-                                            .asPaddingValues()
-                                            .calculateBottomPadding(),
-                                ),
+                                .fillMaxSize()
+                                .then(if (blurBackdrop != null) Modifier.layerBackdrop(blurBackdrop) else Modifier),
                         ) {
-                            BlurredBar(backdrop = blurBackdrop) {
-                                DevInfoFloatingNavigationBar(
-                                    items = items,
-                                    selectedIndex = selectedIndex,
-                                    onItemSelected = onItemSelected,
-                                )
-                            }
+                            MiuixScaffold(
+                                topBar = topBar,
+                                popupHost = {},
+                                content = content,
+                            )
+                        }
+                        if (showBottomBar) {
+                            FloatingMainNavigationBar(
+                                items = items,
+                                selectedIndex = selectedIndex,
+                                onItemSelected = onItemSelected,
+                                blurBackdrop = blurBackdrop,
+                                enableBlur = enableBlur && enableFloatingBottomBarBlur,
+                                surfaceColor = surfaceColor,
+                            )
                         }
                     }
+                } else {
+                    MiuixScaffold(
+                        topBar = topBar,
+                        bottomBar = standardBottomBar,
+                        popupHost = {},
+                        content = content,
+                    )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.FloatingMainNavigationBar(
+    items: List<MainNavigationItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit,
+    blurBackdrop: LayerBackdrop?,
+    enableBlur: Boolean,
+    surfaceColor: Color,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .align(Alignment.BottomCenter)
+            .padding(
+                bottom = 12.dp +
+                    WindowInsets.navigationBars
+                        .asPaddingValues()
+                        .calculateBottomPadding(),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (LocalUiStyle.current == UiStyle.MIUIX) {
+            DevInfoFloatingNavigationBar(
+                items = items,
+                selectedIndex = selectedIndex,
+                onItemSelected = onItemSelected,
+                glassEffect = enableBlur,
+                blurBackdrop = blurBackdrop,
+            )
+        } else {
+            BlurredBar(
+                backdrop = blurBackdrop,
+                blurActive = enableBlur,
+                surfaceColor = surfaceColor,
+            ) {
+                DevInfoFloatingNavigationBar(
+                    items = items,
+                    selectedIndex = selectedIndex,
+                    onItemSelected = onItemSelected,
+                    glassEffect = enableBlur,
+                )
             }
         }
     }

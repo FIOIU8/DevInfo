@@ -163,6 +163,10 @@ fun ThemeSettingsPage(
     onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
     enableBlur: Boolean,
     onEnableBlurChange: (Boolean) -> Unit,
+    enableFloatingBottomBar: Boolean,
+    onEnableFloatingBottomBarChange: (Boolean) -> Unit,
+    enableFloatingBottomBarBlur: Boolean,
+    onEnableFloatingBottomBarBlurChange: (Boolean) -> Unit,
     pageScale: Float,
     onPageScaleChange: (Float) -> Unit,
     enablePredictiveBack: Boolean,
@@ -181,6 +185,10 @@ fun ThemeSettingsPage(
             onColorSpecChange = onColorSpecChange,
             enableBlur = enableBlur,
             onEnableBlurChange = onEnableBlurChange,
+            enableFloatingBottomBar = enableFloatingBottomBar,
+            onEnableFloatingBottomBarChange = onEnableFloatingBottomBarChange,
+            enableFloatingBottomBarBlur = enableFloatingBottomBarBlur,
+            onEnableFloatingBottomBarBlurChange = onEnableFloatingBottomBarBlurChange,
             pageScale = pageScale,
             onPageScaleChange = onPageScaleChange,
             enablePredictiveBack = enablePredictiveBack,
@@ -199,6 +207,10 @@ fun ThemeSettingsPage(
             onColorSpecChange = onColorSpecChange,
             enableBlur = enableBlur,
             onEnableBlurChange = onEnableBlurChange,
+            enableFloatingBottomBar = enableFloatingBottomBar,
+            onEnableFloatingBottomBarChange = onEnableFloatingBottomBarChange,
+            enableFloatingBottomBarBlur = enableFloatingBottomBarBlur,
+            onEnableFloatingBottomBarBlurChange = onEnableFloatingBottomBarBlurChange,
             pageScale = pageScale,
             onPageScaleChange = onPageScaleChange,
             enablePredictiveBack = enablePredictiveBack,
@@ -221,6 +233,10 @@ private fun MaterialThemeSettingsPage(
     onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
     enableBlur: Boolean,
     onEnableBlurChange: (Boolean) -> Unit,
+    enableFloatingBottomBar: Boolean,
+    onEnableFloatingBottomBarChange: (Boolean) -> Unit,
+    enableFloatingBottomBarBlur: Boolean,
+    onEnableFloatingBottomBarBlurChange: (Boolean) -> Unit,
     pageScale: Float,
     onPageScaleChange: (Float) -> Unit,
     enablePredictiveBack: Boolean,
@@ -450,6 +466,24 @@ private fun MaterialThemeSettingsPage(
                 }
             }
             item {
+                MaterialThemeSwitchCard(
+                    title = stringResource(R.string.theme_floating_navigation_bar),
+                    summary = stringResource(R.string.theme_floating_navigation_bar_summary),
+                    checked = enableFloatingBottomBar,
+                    onCheckedChange = onEnableFloatingBottomBarChange,
+                )
+            }
+            if (enableFloatingBottomBar) {
+                item {
+                    MaterialThemeSwitchCard(
+                        title = stringResource(R.string.theme_floating_navigation_bar_blur),
+                        summary = stringResource(R.string.theme_floating_navigation_bar_blur_summary),
+                        checked = enableFloatingBottomBarBlur,
+                        onCheckedChange = onEnableFloatingBottomBarBlurChange,
+                    )
+                }
+            }
+            item {
                 MaterialPageScaleCard(
                     pageScale = pageScale,
                     onPageScaleChange = onPageScaleChange,
@@ -482,6 +516,45 @@ private fun MaterialThemeSettingsPage(
                     )
                 }
             }
+
+        }
+    }
+}
+
+@Composable
+private fun MaterialThemeSwitchCard(
+    title: String,
+    summary: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    MaterialCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = MaterialCardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                MaterialText(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                )
+                MaterialText(
+                    text = summary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+            )
         }
     }
 }
@@ -606,6 +679,10 @@ private fun MiuixThemeSettingsPage(
     onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
     enableBlur: Boolean,
     onEnableBlurChange: (Boolean) -> Unit,
+    enableFloatingBottomBar: Boolean,
+    onEnableFloatingBottomBarChange: (Boolean) -> Unit,
+    enableFloatingBottomBarBlur: Boolean,
+    onEnableFloatingBottomBarBlurChange: (Boolean) -> Unit,
     pageScale: Float,
     onPageScaleChange: (Float) -> Unit,
     enablePredictiveBack: Boolean,
@@ -760,6 +837,20 @@ private fun MiuixThemeSettingsPage(
                         checked = enablePredictiveBack,
                         onCheckedChange = onEnablePredictiveBackChange,
                     )
+                    SwitchPreference(
+                        title = stringResource(R.string.theme_floating_navigation_bar),
+                        summary = stringResource(R.string.theme_floating_navigation_bar_summary),
+                        checked = enableFloatingBottomBar,
+                        onCheckedChange = onEnableFloatingBottomBarChange,
+                    )
+                    if (enableFloatingBottomBar) {
+                        SwitchPreference(
+                            title = stringResource(R.string.theme_floating_navigation_bar_blur),
+                            summary = stringResource(R.string.theme_floating_navigation_bar_blur_summary),
+                            checked = enableFloatingBottomBarBlur,
+                            onCheckedChange = onEnableFloatingBottomBarBlurChange,
+                        )
+                    }
                 }
 
                 Card(modifier = Modifier.fillMaxWidth()) {

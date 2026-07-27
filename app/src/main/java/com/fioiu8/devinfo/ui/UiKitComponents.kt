@@ -20,22 +20,29 @@ package com.fioiu8.devinfo.ui
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar as MaterialNavigationBar
+import androidx.compose.material3.NavigationBarItem as MaterialNavigationBarItem
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
@@ -67,6 +74,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -78,11 +86,17 @@ import androidx.compose.ui.unit.sp
 import com.fioiu8.devinfo.model.UiStyle
 import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.FloatingNavigationBar as MiuixFloatingNavigationBar
-import top.yukonga.miuix.kmp.basic.FloatingNavigationBarItem as MiuixFloatingNavigationBarItem
+import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
+import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar
+import top.yukonga.miuix.kmp.basic.NavigationBarItem as MiuixNavigationBarItem
 import top.yukonga.miuix.kmp.basic.SnackbarHost as MiuixSnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState as MiuixSnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text as MiuixText
+import top.yukonga.miuix.kmp.blur.BlendColorEntry
+import top.yukonga.miuix.kmp.blur.BlurColors
+import top.yukonga.miuix.kmp.blur.LayerBackdrop
+import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val LocalMaterialSnackbarHostState = staticCompositionLocalOf<SnackbarHostState?> { null }
@@ -185,6 +199,8 @@ fun DevInfoFloatingNavigationBar(
     items: List<DevInfoNavigationItem>,
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
+    glassEffect: Boolean,
+    blurBackdrop: LayerBackdrop? = null,
     modifier: Modifier = Modifier,
 ) {
     when (LocalUiStyle.current) {
@@ -192,6 +208,7 @@ fun DevInfoFloatingNavigationBar(
             items = items,
             selectedIndex = selectedIndex,
             onItemSelected = onItemSelected,
+            glassEffect = glassEffect,
             modifier = modifier,
         )
 
@@ -199,6 +216,8 @@ fun DevInfoFloatingNavigationBar(
             items = items,
             selectedIndex = selectedIndex,
             onItemSelected = onItemSelected,
+            glassEffect = glassEffect,
+            blurBackdrop = blurBackdrop,
             modifier = modifier,
         )
     }
@@ -209,6 +228,7 @@ private fun MaterialFloatingNavigationBar(
     items: List<DevInfoNavigationItem>,
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
+    glassEffect: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(32.dp)
@@ -221,7 +241,10 @@ private fun MaterialFloatingNavigationBar(
             .fillMaxWidth()
             .height(64.dp)
             .shadow(elevation = 14.dp, shape = shape, clip = false)
-            .background(color = surfaceColor.copy(alpha = 0.82f), shape = shape)
+            .background(
+                color = surfaceColor.copy(alpha = if (glassEffect) 0.82f else 1f),
+                shape = shape,
+            )
             .border(width = 1.dp, color = glassBorder, shape = shape)
             .padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -302,22 +325,146 @@ private fun MiuixNativeFloatingNavigationBar(
     items: List<DevInfoNavigationItem>,
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
+    glassEffect: Boolean,
+    blurBackdrop: LayerBackdrop?,
     modifier: Modifier = Modifier,
 ) {
-    MiuixFloatingNavigationBar(
-        modifier = modifier.widthIn(max = 520.dp),
-        color = MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f),
-        cornerRadius = 28.dp,
-        horizontalOutSidePadding = 20.dp,
-        shadowElevation = 10.dp,
-        showDivider = true,
+    val shape = CircleShape
+    val surfaceColor = MiuixTheme.colorScheme.surfaceContainer
+
+    Row(
+        modifier = modifier
+            .width(IntrinsicSize.Min)
+            .height(64.dp)
+            .shadow(elevation = 10.dp, shape = shape, clip = false)
+            .then(
+                if (glassEffect && blurBackdrop != null) {
+                    Modifier.textureBlur(
+                        backdrop = blurBackdrop,
+                        shape = shape,
+                        blurRadius = 25f,
+                        colors = BlurColors(
+                            blendColors = listOf(
+                                BlendColorEntry(color = surfaceColor.copy(alpha = 0.4f)),
+                            ),
+                        ),
+                    )
+                } else {
+                    Modifier.background(surfaceColor, shape)
+                },
+            )
+            .clip(shape)
+            .padding(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         items.forEachIndexed { index, item ->
-            MiuixFloatingNavigationBarItem(
+            val selected = selectedIndex == index
+            Column(
+                modifier = Modifier
+                    .defaultMinSize(minWidth = 76.dp)
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(CircleShape)
+                    .background(
+                        color = if (selected) {
+                            MiuixTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        } else {
+                            Color.Transparent
+                        },
+                        shape = CircleShape,
+                    )
+                    .clickable(onClick = { onItemSelected(index) }),
+                verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                MiuixIcon(
+                    imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                    contentDescription = item.label,
+                    tint = MiuixTheme.colorScheme.onSurface,
+                )
+                MiuixText(
+                    text = item.label,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Visible,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DevInfoNavigationBar(
+    items: List<DevInfoNavigationItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when (LocalUiStyle.current) {
+        UiStyle.MATERIAL3 -> MaterialNavigationBar(
+            items = items,
+            selectedIndex = selectedIndex,
+            onItemSelected = onItemSelected,
+            modifier = modifier,
+        )
+
+        UiStyle.MIUIX -> MiuixNavigationBar(
+            items = items,
+            selectedIndex = selectedIndex,
+            onItemSelected = onItemSelected,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun MaterialNavigationBar(
+    items: List<DevInfoNavigationItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit,
+    modifier: Modifier,
+) {
+    MaterialNavigationBar(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        items.forEachIndexed { index, item ->
+            MaterialNavigationBarItem(
                 selected = selectedIndex == index,
                 onClick = { onItemSelected(index) },
+                icon = {
+                    Icon(
+                        imageVector = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
+                        contentDescription = item.label,
+                    )
+                },
+                label = { Text(text = item.label) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MiuixNavigationBar(
+    items: List<DevInfoNavigationItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit,
+    modifier: Modifier,
+) {
+    MiuixNavigationBar(
+        modifier = modifier,
+        color = MiuixTheme.colorScheme.surface,
+    ) {
+        items.forEachIndexed { index, item ->
+            MiuixNavigationBarItem(
+                modifier = Modifier.weight(1f),
                 icon = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
                 label = item.label,
+                selected = selectedIndex == index,
+                onClick = { onItemSelected(index) },
             )
         }
     }

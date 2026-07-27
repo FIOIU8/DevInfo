@@ -75,10 +75,10 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
         booleanPreference(key = KEY_ENABLE_BLUR, defaultValue = false)
 
     private val enableFloatingBottomBarPreference =
-        booleanPreference(key = KEY_ENABLE_FLOATING_BOTTOM_BAR, defaultValue = false)
+        booleanPreference(key = KEY_ENABLE_FLOATING_BOTTOM_BAR, defaultValue = true)
 
     private val enableFloatingBottomBarBlurPreference =
-        booleanPreference(key = KEY_ENABLE_FLOATING_BOTTOM_BAR_BLUR, defaultValue = false)
+        booleanPreference(key = KEY_ENABLE_FLOATING_BOTTOM_BAR_BLUR, defaultValue = true)
 
     private val pageScalePreference =
         floatPreference(key = KEY_PAGE_SCALE, defaultValue = DEFAULT_PAGE_SCALE)
