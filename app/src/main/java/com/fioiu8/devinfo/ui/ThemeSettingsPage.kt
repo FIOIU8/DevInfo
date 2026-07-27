@@ -60,6 +60,7 @@ import androidx.compose.material3.Scaffold as MaterialScaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text as MaterialText
 import androidx.compose.material3.TopAppBar as MaterialTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -102,7 +103,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
-/** 圆形颜色按钮（参考 KernelSU-Style-UI-Kit 的 ColorButtonMaterial） */
+/** 圆形颜色按钮（参�?KernelSU-Style-UI-Kit �?ColorButtonMaterial�?*/
 @Composable
 private fun ColorCircle(
     color: Color,
@@ -156,6 +157,10 @@ fun ThemeSettingsPage(
     onPaletteStyleChange: (PaletteStyle) -> Unit,
     colorSpec: com.fioiu8.devinfo.model.ColorSpec,
     onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
+    enableBlur: Boolean,
+    onEnableBlurChange: (Boolean) -> Unit,
+    enablePredictiveBack: Boolean,
+    onEnablePredictiveBackChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     when (LocalUiStyle.current) {
@@ -168,6 +173,10 @@ fun ThemeSettingsPage(
             onPaletteStyleChange = onPaletteStyleChange,
             colorSpec = colorSpec,
             onColorSpecChange = onColorSpecChange,
+            enableBlur = enableBlur,
+            onEnableBlurChange = onEnableBlurChange,
+            enablePredictiveBack = enablePredictiveBack,
+            onEnablePredictiveBackChange = onEnablePredictiveBackChange,
             onBack = onBack,
         )
 
@@ -180,6 +189,10 @@ fun ThemeSettingsPage(
             onPaletteStyleChange = onPaletteStyleChange,
             colorSpec = colorSpec,
             onColorSpecChange = onColorSpecChange,
+            enableBlur = enableBlur,
+            onEnableBlurChange = onEnableBlurChange,
+            enablePredictiveBack = enablePredictiveBack,
+            onEnablePredictiveBackChange = onEnablePredictiveBackChange,
             onBack = onBack,
         )
     }
@@ -196,6 +209,10 @@ private fun MaterialThemeSettingsPage(
     onPaletteStyleChange: (PaletteStyle) -> Unit,
     colorSpec: com.fioiu8.devinfo.model.ColorSpec,
     onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
+    enableBlur: Boolean,
+    onEnableBlurChange: (Boolean) -> Unit,
+    enablePredictiveBack: Boolean,
+    onEnablePredictiveBackChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     val selectedThemeIndex = themeMode.baseIndex
@@ -339,6 +356,87 @@ private fun MaterialThemeSettingsPage(
                 }
             }
 
+
+            item {
+                MaterialCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = MaterialCardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            MaterialIcon(
+                                imageVector = Icons.Rounded.Wallpaper,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                MaterialText(
+                                    text = "毛玻璃效果",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                MaterialText(
+                                    text = "底部导航栏背景模糊",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = enableBlur,
+                                onCheckedChange = onEnableBlurChange,
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                MaterialCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = MaterialCardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            MaterialIcon(
+                                imageVector = Icons.Rounded.Wallpaper,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                MaterialText(
+                                    text = "预测返回手势",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                MaterialText(
+                                    text = "返回时预览目标页面",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = enablePredictiveBack,
+                                onCheckedChange = onEnablePredictiveBackChange,
+                            )
+                        }
+                    }
+                }
+            }
             item { Spacer(Modifier.height(24.dp)) }
             if (themeMode.isDynamic) {
                 item {
@@ -441,6 +539,10 @@ private fun MiuixThemeSettingsPage(
     onPaletteStyleChange: (PaletteStyle) -> Unit,
     colorSpec: com.fioiu8.devinfo.model.ColorSpec,
     onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
+    enableBlur: Boolean,
+    onEnableBlurChange: (Boolean) -> Unit,
+    enablePredictiveBack: Boolean,
+    onEnablePredictiveBackChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     val scrollBehavior = MiuixScrollBehavior()
@@ -575,6 +677,22 @@ private fun MiuixThemeSettingsPage(
                             },
                         )
                     }
+                }
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    SwitchPreference(
+                        title = "毛玻璃效果",
+                        summary = "底部导航栏背景模糊",
+                        checked = enableBlur,
+                        onCheckedChange = onEnableBlurChange,
+                    )
+                    SwitchPreference(
+                        title = "预测返回手势",
+                        summary = "返回时预览目标页面",
+                        checked = enablePredictiveBack,
+                        onCheckedChange = onEnablePredictiveBackChange,
+                    )
                 }
 
                 Spacer(Modifier.height(24.dp))

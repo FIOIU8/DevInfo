@@ -37,9 +37,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Lock
+
 import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.RestartAlt
+
 import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.Translate
@@ -93,10 +93,10 @@ fun SettingsPage(
     onAboutClick: () -> Unit,
     checkUpdate: Boolean,
     onCheckUpdateChange: (Boolean) -> Unit,
-    enableBlur: Boolean = false,
-    onEnableBlurChange: (Boolean) -> Unit = {},
-    enablePredictiveBack: Boolean = true,
-    onEnablePredictiveBackChange: (Boolean) -> Unit = {},
+
+
+
+
     appLanguage: AppLanguage = AppLanguage.SYSTEM,
     languageOptions: List<String> = emptyList(),
     onLanguageChange: (Int) -> Unit = {},
@@ -226,84 +226,6 @@ fun SettingsPage(
             }
         }
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Lock,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "毛玻璃效果",
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Text(
-                            text = "底部导航栏背景模糊",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = enableBlur,
-                        onCheckedChange = onEnableBlurChange,
-                    )
-                }
-            }
-        }
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.RestartAlt,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "预测返回手势",
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Text(
-                            text = "返回时预览目标页面",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = enablePredictiveBack,
-                        onCheckedChange = onEnablePredictiveBackChange,
-                    )
-                }
-            }
-        }
-        item {
             PreferenceAction(
                 icon = Icons.Outlined.Palette,
                 title = stringResource(R.string.theme_settings_title),
@@ -401,10 +323,10 @@ private fun MiuixSettingsPage(
     onAboutClick: () -> Unit,
     checkUpdate: Boolean,
     onCheckUpdateChange: (Boolean) -> Unit,
-    enableBlur: Boolean = false,
-    onEnableBlurChange: (Boolean) -> Unit = {},
-    enablePredictiveBack: Boolean = true,
-    onEnablePredictiveBackChange: (Boolean) -> Unit = {},
+
+
+
+
     appLanguage: AppLanguage,
     languageOptions: List<String>,
     onLanguageChange: (Int) -> Unit,
@@ -511,34 +433,6 @@ private fun MiuixSettingsPage(
                     startAction = {
                         MiuixIcon(
                             imageVector = Icons.Outlined.Update,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 6.dp),
-                            tint = MiuixTheme.colorScheme.onBackground,
-                        )
-                    },
-                )
-                SwitchPreference(
-                    title = "毛玻璃效果",
-                    summary = "底部导航栏背景模糊",
-                    checked = enableBlur,
-                    onCheckedChange = onEnableBlurChange,
-                    startAction = {
-                        MiuixIcon(
-                            imageVector = Icons.Outlined.Lock,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 6.dp),
-                            tint = MiuixTheme.colorScheme.onBackground,
-                        )
-                    },
-                )
-                SwitchPreference(
-                    title = "预测返回手势",
-                    summary = "返回时预览目标页面",
-                    checked = enablePredictiveBack,
-                    onCheckedChange = onEnablePredictiveBackChange,
-                    startAction = {
-                        MiuixIcon(
-                            imageVector = Icons.Outlined.RestartAlt,
                             contentDescription = null,
                             modifier = Modifier.padding(end = 6.dp),
                             tint = MiuixTheme.colorScheme.onBackground,
