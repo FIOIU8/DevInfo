@@ -15,12 +15,5 @@
         <item name="windowSplashScreenAnimationDuration">320</item>
     </style>
 
-    <!-- 启动屏主题（深色） -->
-    <style name="Theme.DevInfo.Splash.Dark" parent="Theme.SplashScreen">
-        <item name="postSplashScreenTheme">@style/Theme.DevInfo</item>
-        <item name="windowSplashScreenBackground">@color/splash_background_dark</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_animated</item>
-        <item name="windowSplashScreenAnimationDuration">320</item>
-    </style>
 
 </resources>
