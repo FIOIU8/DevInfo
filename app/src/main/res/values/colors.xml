@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-
     <!-- SplashScreen 背景色 — 浅色模式 -->
     <color name="splash_background">#FFF5F5F5</color>
     <color name="splash_background_dark">#FF1A1C1E</color>
