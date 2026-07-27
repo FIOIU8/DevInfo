@@ -3,6 +3,6 @@
     <!-- SplashScreen 背景色 — 浅色模式 -->
     <color name="splash_background">#FFF5F5F5</color>
     <color name="splash_background_dark">#FF1A1C1E</color>
-    <!-- 自适应图标背景色 -->
-    <color name="ic_launcher_bg">#00000000</color>
+    <!-- 自适应图标背景色 — 与 ic_launcher_foreground 蓝色圆形保持一致，防止透明区域在部分启动器上显示为黑色 -->
+    <color name="ic_launcher_bg">#FF4A90D9</color>
 </resources>
