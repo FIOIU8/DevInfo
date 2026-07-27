@@ -198,6 +198,8 @@ This project is open source under the [GNU General Public License v3.0 or later 
 
 - [Material 3](https://developer.android.com/jetpack/compose/designsystems/material3) - Material Design 3 design system
 - [Jetpack Compose](https://developer.android.com/jetpack/compose) - Modern Android UI toolkit
+- [MIUIX](https://github.com/compose-miuix-ui/miuix) - UI
+- [KernelSU-Style-UI-Kit](https://github.com/chenaizhang/KernelSU-Style-UI-Kit) - UI framework
 - All contributors and users
 
 ---

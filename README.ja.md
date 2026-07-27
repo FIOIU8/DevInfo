@@ -198,6 +198,8 @@ Issue とプルリクエストを歓迎します。
 
 - [Material 3](https://developer.android.com/jetpack/compose/designsystems/material3) - Material Design 3 のデザインシステム
 - [Jetpack Compose](https://developer.android.com/jetpack/compose) - モダンな Android UI ツールキット
+- [MIUIX](https://github.com/compose-miuix-ui/miuix) - UI
+- [KernelSU-Style-UI-Kit](https://github.com/chenaizhang/KernelSU-Style-UI-Kit) - UI フレームワーク
 - すべてのコントリビューターとユーザー
 
 ---
