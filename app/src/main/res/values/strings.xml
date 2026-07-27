@@ -59,6 +59,14 @@
     <string name="mount_color_purple">紫色</string>
     <string name="mount_color_pink">粉色</string>
     <string name="mount_color_dark">深色</string>
+    <string name="mount_color_yellow">黄色</string>
+    <string name="mount_color_cyan">青色</string>
+    <string name="mount_color_blue">蓝色</string>
+    <string name="mount_color_indigo">靛蓝</string>
+    <string name="mount_color_deep_purple">深紫</string>
+    <string name="mount_color_brown">棕色</string>
+    <string name="mount_color_blue_grey">蓝灰</string>
+    <string name="mount_color_sakura">樱花粉</string>
     <string name="mount_color_desc_default">清新蓝色</string>
     <string name="mount_color_desc_red">热情红色</string>
     <string name="mount_color_desc_orange">活力橙色</string>
@@ -67,6 +75,14 @@
     <string name="mount_color_desc_purple">优雅紫色</string>
     <string name="mount_color_desc_pink">甜美粉色</string>
     <string name="mount_color_desc_dark">沉稳深色</string>
+    <string name="mount_color_desc_yellow">明亮黄色</string>
+    <string name="mount_color_desc_cyan">清新青色</string>
+    <string name="mount_color_desc_blue">沉稳蓝色</string>
+    <string name="mount_color_desc_indigo">深邃靛蓝</string>
+    <string name="mount_color_desc_deep_purple">优雅深紫</string>
+    <string name="mount_color_desc_brown">自然棕色</string>
+    <string name="mount_color_desc_blue_grey">低调蓝灰</string>
+    <string name="mount_color_desc_sakura">温柔樱花粉</string>
 
     <!-- InfoCategory display names -->
     <string name="category_device">设备</string>

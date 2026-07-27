@@ -68,10 +68,18 @@ enum class ThemeColor(
     DEFAULT(com.fioiu8.devinfo.R.string.mount_color_default, Color(0xFF6750A4), com.fioiu8.devinfo.R.string.mount_color_desc_default),
     RED(com.fioiu8.devinfo.R.string.mount_color_red, Color(0xFFB3261E), com.fioiu8.devinfo.R.string.mount_color_desc_red),
     ORANGE(com.fioiu8.devinfo.R.string.mount_color_orange, Color(0xFF9A4600), com.fioiu8.devinfo.R.string.mount_color_desc_orange),
+    YELLOW(com.fioiu8.devinfo.R.string.mount_color_yellow, Color(0xFFFBC02D), com.fioiu8.devinfo.R.string.mount_color_desc_yellow),
     GREEN(com.fioiu8.devinfo.R.string.mount_color_green, Color(0xFF386A20), com.fioiu8.devinfo.R.string.mount_color_desc_green),
     TEAL(com.fioiu8.devinfo.R.string.mount_color_teal, Color(0xFF006A6A), com.fioiu8.devinfo.R.string.mount_color_desc_teal),
+    CYAN(com.fioiu8.devinfo.R.string.mount_color_cyan, Color(0xFF0097A7), com.fioiu8.devinfo.R.string.mount_color_desc_cyan),
+    BLUE(com.fioiu8.devinfo.R.string.mount_color_blue, Color(0xFF1976D2), com.fioiu8.devinfo.R.string.mount_color_desc_blue),
+    INDIGO(com.fioiu8.devinfo.R.string.mount_color_indigo, Color(0xFF303F9F), com.fioiu8.devinfo.R.string.mount_color_desc_indigo),
+    DEEP_PURPLE(com.fioiu8.devinfo.R.string.mount_color_deep_purple, Color(0xFF512DA8), com.fioiu8.devinfo.R.string.mount_color_desc_deep_purple),
     PURPLE(com.fioiu8.devinfo.R.string.mount_color_purple, Color(0xFF6750A4), com.fioiu8.devinfo.R.string.mount_color_desc_purple),
     PINK(com.fioiu8.devinfo.R.string.mount_color_pink, Color(0xFF9C3D6D), com.fioiu8.devinfo.R.string.mount_color_desc_pink),
+    BROWN(com.fioiu8.devinfo.R.string.mount_color_brown, Color(0xFF5D4037), com.fioiu8.devinfo.R.string.mount_color_desc_brown),
+    BLUE_GREY(com.fioiu8.devinfo.R.string.mount_color_blue_grey, Color(0xFF455A64), com.fioiu8.devinfo.R.string.mount_color_desc_blue_grey),
+    SAKURA(com.fioiu8.devinfo.R.string.mount_color_sakura, Color(0xFFF8BBD0), com.fioiu8.devinfo.R.string.mount_color_desc_sakura),
     DARK(com.fioiu8.devinfo.R.string.mount_color_dark, Color(0xFF415F91), com.fioiu8.devinfo.R.string.mount_color_desc_dark)
 }
 
