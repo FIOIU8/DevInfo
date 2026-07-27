@@ -525,6 +525,39 @@ private fun MiuixThemeSettingsPage(
 
                     AnimatedVisibility(visible = themeMode.isDynamic) {
                         OverlayDropdownPreference(
+                            title = stringResource(com.fioiu8.devinfo.R.string.theme_key_color),
+                            items = ThemeColor.entries.map { stringResource(it.displayNameResId) },
+                            selectedIndex = ThemeColor.entries.indexOf(themeColor).coerceAtLeast(0),
+                            onSelectedIndexChange = { index ->
+                                ThemeColor.entries.getOrNull(index)?.let(onThemeColorChange)
+                            },
+                            startAction = {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(end = 12.dp)
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(themeColor.color),
+                                )
+                            },
+                        )
+                        OverlayDropdownPreference(
+                            title = "色彩风格",
+                            items = PaletteStyle.entries.map { it.name },
+                            selectedIndex = PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0),
+                            onSelectedIndexChange = { index ->
+                                PaletteStyle.entries.getOrNull(index)?.let(onPaletteStyleChange)
+                            },
+                        )
+                        OverlayDropdownPreference(
+                            title = "色彩标准",
+                            items = com.fioiu8.devinfo.model.ColorSpec.entries.map { it.name },
+                            selectedIndex = com.fioiu8.devinfo.model.ColorSpec.entries.indexOf(colorSpec).coerceAtLeast(0),
+                            onSelectedIndexChange = { index ->
+                                com.fioiu8.devinfo.model.ColorSpec.entries.getOrNull(index)?.let(onColorSpecChange)
+                            },
+                        )
+                        OverlayDropdownPreference(
                             title = stringResource(R.string.theme_key_color),
                             items = colorItems,
                             selectedIndex = ThemeColor.entries.indexOf(themeColor).coerceAtLeast(0),
