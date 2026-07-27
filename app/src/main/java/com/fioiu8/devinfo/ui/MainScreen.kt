@@ -647,41 +647,12 @@ private fun MainScaffold(
         )
     }
 
-    // 毛玻璃：创建 LayerBackdrop 用于捕获内容并供底部导航栏模糊采样
-    val blurBackdrop = rememberBlurBackdrop(true)
-    val enableBlur = blurBackdrop != null
-
-    Box(modifier = modifier.fillMaxSize().consumeWindowInsets(consumedStartInsets)) {
-        // 内容层 — 用 layerBackdrop 捕获，底部无 padding，延伸至导航栏下方
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (enableBlur) Modifier.layerBackdrop(blurBackdrop) else Modifier)
-        ) {
-            when (LocalUiStyle.current) {
-                UiStyle.MATERIAL3 -> {
-                    Scaffold(
-                        topBar = topBar,
-                        containerColor = MaterialTheme.colorScheme.background,
-                        content = content,
-                    )
-                }
-
-                UiStyle.MIUIX -> {
-                    MiuixScaffold(
-                        topBar = topBar,
-                        popupHost = {},
-                        content = content,
-                    )
-                }
-            }
-        }
-
-        // 底部导航栏 — 叠加在内容之上，通过 BlurredBar 采样背后内容实现毛玻璃
+    val bottomBar: @Composable () -> Unit = {
         if (showBottomBar) {
-            Box(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter)) {
+            Box(modifier = Modifier.fillMaxWidth()) {
                 val bottomNavigationModifier = when (LocalUiStyle.current) {
                     UiStyle.MATERIAL3 -> Modifier
+                        .align(Alignment.BottomCenter)
                         .padding(horizontal = 20.dp)
                         .padding(
                             bottom = 12.dp +
@@ -692,13 +663,56 @@ private fun MainScaffold(
 
                     UiStyle.MIUIX -> Modifier
                 }
-                BlurredBar(backdrop = blurBackdrop) {
-                    DevInfoFloatingNavigationBar(
-                        items = items,
-                        selectedIndex = selectedIndex,
-                        onItemSelected = onItemSelected,
-                        modifier = bottomNavigationModifier,
-                    )
+                DevInfoFloatingNavigationBar(
+                    items = items,
+                    selectedIndex = selectedIndex,
+                    onItemSelected = onItemSelected,
+                    modifier = bottomNavigationModifier,
+                )
+            }
+        }
+    }
+
+    Box(modifier = modifier.consumeWindowInsets(consumedStartInsets)) {
+        when (LocalUiStyle.current) {
+            UiStyle.MATERIAL3 -> {
+                // Material3：保留原始 Scaffold + bottomBar slot，不干涉，保留原始悬浮样式
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    topBar = topBar,
+                    bottomBar = bottomBar,
+                    containerColor = MaterialTheme.colorScheme.background,
+                    content = content,
+                )
+            }
+
+            UiStyle.MIUIX -> {
+                // Miuix：使用 Box + blur 叠加，实现悬浮毛玻璃效果
+                val blurBackdrop = rememberBlurBackdrop(true)
+                val enableBlur = blurBackdrop != null
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(if (enableBlur) Modifier.layerBackdrop(blurBackdrop) else Modifier)
+                    ) {
+                        MiuixScaffold(
+                            topBar = topBar,
+                            popupHost = {},
+                            content = content,
+                        )
+                    }
+                    if (showBottomBar) {
+                        Box(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter)) {
+                            BlurredBar(backdrop = blurBackdrop) {
+                                DevInfoFloatingNavigationBar(
+                                    items = items,
+                                    selectedIndex = selectedIndex,
+                                    onItemSelected = onItemSelected,
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
