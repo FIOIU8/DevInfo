@@ -198,6 +198,8 @@ DevInfo/
 
 - [Material 3](https://developer.android.com/jetpack/compose/designsystems/material3) - Material Design 3 设计系统
 - [Jetpack Compose](https://developer.android.com/jetpack/compose) - 现代 Android UI 工具包
+- [MIUIX](https://github.com/compose-miuix-ui/miuix) - UI
+- [KernelSU-Style-UI-Kit](https://github.com/chenaizhang/KernelSU-Style-UI-Kit) - UI 框架
 - 所有贡献者和用户
 
 ---
