@@ -35,31 +35,15 @@
     <string name="theme_preview_summary">Preview the current theme appearance</string>
 
     <!-- Theme settings -->
-    <string name="theme_mode">Theme Mode</string>
-    <string name="theme_follow_system">Follow system</string>
-    <string name="theme_follow_system_summary">Use the system light or dark appearance</string>
-    <string name="theme_dynamic_color">Dynamic color</string>
-    <string name="theme_dynamic_color_summary">Use the system dynamic theme colors</string>
-    <string name="theme_color">Theme Color</string>
-    <string name="theme_mode_summary">Follow System</string>
-    <string name="theme_color_enabled">Custom color enabled</string>
-    <string name="theme_color_disabled">Switch to dynamic color mode first</string>
-    <string name="theme_color_select">Select a theme color</string>
 
     <!-- Language settings -->
     <string name="language_setting">Language</string>
-    <string name="language_summary">Choose app display language</string>
     <string name="custom_locale_hint">Enter locale tag (e.g. ja, ko, de)</string>
     <string name="custom_locale_apply">Apply</string>
     <string name="custom_locale_title">Custom Language</string>
     <string name="custom_locale_placeholder">Enter locale code…</string>
 
     <!-- Language names (displayed in dropdown) -->
-    <string name="lang_system_display">Follow System</string>
-    <string name="lang_zh_display">中文</string>
-    <string name="lang_en_display">English</string>
-    <string name="lang_custom_display">Custom</string>
-    <string name="lang_ja_display">日本語</string>
 
     <!-- Language display names for enum -->
     <string name="theme_mode_system">Follow System</string>
@@ -130,6 +114,7 @@
     <!-- External link dialog -->
     <string name="external_link_open_browser">An external browser will be opened</string>
     <string name="open">Open</string>
+    <string name="share">Share</string>
 
     <!-- Update dialog -->
     <string name="update_check_failed">Update check failed</string>
@@ -146,11 +131,9 @@
     <string name="already_latest">Already up-to-date</string>
     <string name="export_failed">Export failed</string>
     <string name="cannot_open_link">Cannot open link</string>
-    <string name="copied">Copied</string>
     <string name="path_copied">Path copied</string>
 
     <!-- About page -->
-    <string name="about_title">About</string>
     <string name="back">Back</string>
     <string name="app_description">Device Info Viewer</string>
     <string name="version">Version</string>
@@ -169,7 +152,6 @@
     <string name="join_community">Join Community</string>
     <string name="will_open_browser">Opening external browser</string>
     <string name="app_icon_label">Icon</string>
-    <string name="contributor_commits">commits</string>
     <string name="contributor_commits_count">%d commits</string>
     <string name="view_homepage">View %s\'s homepage</string>
 
@@ -183,17 +165,11 @@
     <string name="overview_cpu_usage">CPU usage</string>
     <string name="overview_gpu_frequency">GPU frequency</string>
     <string name="overview_gpu_usage">GPU usage</string>
-    <string name="storage_usage">Storage Usage</string>
-    <string name="memory_usage">Memory Usage</string>
-    <string name="battery_level_charging">Battery (Charging)</string>
-    <string name="battery_level">Battery Level</string>
     <string name="previous_page">Previous</string>
     <string name="next_page">Next</string>
     <string name="page_info">Page %1$d / %2$d</string>
     <string name="items_count">%d items</string>
     <string name="copied_to_clipboard">%s copied</string>
-    <string name="storage_usage_desc">Storage &amp; memory usage</string>
-    <string name="battery_desc">Battery level</string>
     <string name="overview_realtime_title">Live Activity</string>
     <string name="overview_realtime_cpu">CPU waveform · 2 s sampling</string>
     <string name="overview_cpu_cores_detail">Per-core usage</string>
@@ -341,7 +317,7 @@
     <string name="app_target_sdk">Target SDK</string>
     <string name="app_min_sdk">Min SDK</string>
     <string name="app_installer">Install Source</string>
-    <string name="app_installed_count">Installed Apps</string>
+    <string name="app_installed_count">Visible Apps</string>
     <string name="status_yes">Yes</string>
     <string name="status_no">No</string>
     <string name="status_landscape">Landscape</string>
@@ -352,10 +328,6 @@
     <string name="status_unplugged">Unplugged</string>
     <string name="status_none">None</string>
     <string name="status_sideloaded">Sideloaded</string>
-
-    <!-- Unit strings -->
-    <string name="unit_mb">MB</string>
-    <string name="unit_gb">GB</string>
 
     <!-- Status strings from collector -->
     <string name="status_charging">Charging</string>
