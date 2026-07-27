@@ -148,9 +148,10 @@
     <string name="app_description">デバイス情報ビューワー</string>
     <string name="version">バージョン</string>
     <string name="open_source_license">オープンソースライセンス</string>
-    <string name="mit_license_desc">本プロジェクトはMITライセンスの下でオープンソースです</string>
-    <string name="mit_allow_free">自由に使用、改変、再配布できます</string>
-    <string name="mit_require_notice">原著作者の著作権表示を保持する必要があります</string>
+    <string name="gpl_license_desc">本プロジェクトは GNU 一般公衆利用許諾書バージョン3以降（GPL-3.0-or-later）の下で公開されています</string>
+    <string name="gpl_allow_free">自由に実行、研究、改変、再配布できます</string>
+    <string name="gpl_require_source">改変版を配布する場合は、対応するソースコードを同じライセンスで提供する必要があります</string>
+    <string name="view_gpl_license">GPL-3.0 の全文を表示</string>
     <string name="contributors">コントリビューター</string>
     <string name="contributors_count">%d 人のコントリビューター</string>
     <string name="no_data">データなし</string>
@@ -379,5 +380,5 @@
     <string name="status_bluetooth">Bluetooth</string>
 
     <!-- Copyright -->
-    <string name="copyright">© 2026 OIU0</string>
+    <string name="copyright">© 2026 FIOIU8</string>
 </resources>

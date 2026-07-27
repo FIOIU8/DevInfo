@@ -155,9 +155,10 @@
     <string name="app_description">Device Info Viewer</string>
     <string name="version">Version</string>
     <string name="open_source_license">Open Source License</string>
-    <string name="mit_license_desc">This project is open source under the MIT License</string>
-    <string name="mit_allow_free">Free to use, modify and distribute</string>
-    <string name="mit_require_notice">Must retain original copyright notice</string>
+    <string name="gpl_license_desc">This project is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later)</string>
+    <string name="gpl_allow_free">Free to run, study, modify, and redistribute</string>
+    <string name="gpl_require_source">Distributions of modified versions must provide corresponding source code under the same license</string>
+    <string name="view_gpl_license">View GPL-3.0 text</string>
     <string name="contributors">Contributors</string>
     <string name="contributors_count">%d contributors</string>
     <string name="no_data">No data</string>
@@ -386,5 +387,5 @@
     <string name="status_bluetooth">Bluetooth</string>
 
     <!-- Copyright -->
-    <string name="copyright">© 2026 OIU0</string>
+    <string name="copyright">© 2026 FIOIU8</string>
 </resources>
