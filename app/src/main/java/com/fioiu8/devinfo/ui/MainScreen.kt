@@ -93,6 +93,7 @@ import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
 import top.yukonga.miuix.kmp.basic.NavigationRail as MiuixNavigationRail
 import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
+import top.yukonga.miuix.kmp.basic.SnackbarHostState as MiuixSnackbarHostState
 import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
@@ -155,8 +156,12 @@ fun MainScreen(
     val detailOffsetX = remember { Animatable(0f) }
     val alreadyLatestMessage = stringResource(R.string.already_latest)
     val exportFailedLabel = stringResource(R.string.export_failed)
-    val snackbarHostState = remember { SnackbarHostState() }
-    val showMessage = rememberDevInfoMessageHandler(snackbarHostState)
+    val materialSnackbarHostState = remember { SnackbarHostState() }
+    val miuixSnackbarHostState = remember { MiuixSnackbarHostState() }
+    val showMessage = rememberDevInfoMessageHandler(
+        materialHostState = materialSnackbarHostState,
+        miuixHostState = miuixSnackbarHostState,
+    )
     val snackbarBottomPadding =
         WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
             if (useNavigationRail) 16.dp else 92.dp
@@ -263,7 +268,10 @@ fun MainScreen(
     }
     val showTopBarBackButton = selectedIndex == INFO_TAB_INDEX && showDetailsPage
 
-    DevInfoFeedbackScope(hostState = snackbarHostState) {
+    DevInfoFeedbackScope(
+        materialHostState = materialSnackbarHostState,
+        miuixHostState = miuixSnackbarHostState,
+    ) {
         Box(modifier = Modifier.fillMaxSize()) {
             MainRootScaffold(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize()) {
@@ -405,7 +413,8 @@ fun MainScreen(
             }
 
             DevInfoSnackbarHost(
-                hostState = snackbarHostState,
+                materialHostState = materialSnackbarHostState,
+                miuixHostState = miuixSnackbarHostState,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(horizontal = 16.dp)
@@ -593,11 +602,8 @@ private fun MainScaffold(
     val bottomBar: @Composable () -> Unit = {
         if (showBottomBar) {
             Box(modifier = Modifier.fillMaxWidth()) {
-                DevInfoFloatingNavigationBar(
-                    items = items,
-                    selectedIndex = selectedIndex,
-                    onItemSelected = onItemSelected,
-                    modifier = Modifier
+                val bottomNavigationModifier = when (LocalUiStyle.current) {
+                    UiStyle.MATERIAL3 -> Modifier
                         .align(Alignment.BottomCenter)
                         .padding(horizontal = 20.dp)
                         .padding(
@@ -605,7 +611,15 @@ private fun MainScaffold(
                                 WindowInsets.navigationBars
                                     .asPaddingValues()
                                     .calculateBottomPadding(),
-                        ),
+                        )
+
+                    UiStyle.MIUIX -> Modifier
+                }
+                DevInfoFloatingNavigationBar(
+                    items = items,
+                    selectedIndex = selectedIndex,
+                    onItemSelected = onItemSelected,
+                    modifier = bottomNavigationModifier,
                 )
             }
         }

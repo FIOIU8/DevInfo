@@ -60,36 +60,45 @@ import androidx.compose.ui.unit.sp
 import com.fioiu8.devinfo.model.UiStyle
 import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.Card as MiuixCard
-import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
-import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
-import top.yukonga.miuix.kmp.basic.Text as MiuixText
+import top.yukonga.miuix.kmp.basic.FloatingNavigationBar as MiuixFloatingNavigationBar
+import top.yukonga.miuix.kmp.basic.FloatingNavigationBarItem as MiuixFloatingNavigationBarItem
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
+import top.yukonga.miuix.kmp.basic.SnackbarHost as MiuixSnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState as MiuixSnackbarHostState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-private val LocalDevInfoSnackbarHostState = staticCompositionLocalOf<SnackbarHostState?> { null }
+private val LocalMaterialSnackbarHostState = staticCompositionLocalOf<SnackbarHostState?> { null }
+private val LocalMiuixSnackbarHostState = staticCompositionLocalOf<MiuixSnackbarHostState?> { null }
 
 /** Provides the app-wide transient-message host to every DevInfo page. */
 @Composable
 fun DevInfoFeedbackScope(
-    hostState: SnackbarHostState,
+    materialHostState: SnackbarHostState,
+    miuixHostState: MiuixSnackbarHostState,
     content: @Composable () -> Unit,
 ) {
-    CompositionLocalProvider(LocalDevInfoSnackbarHostState provides hostState, content = content)
+    CompositionLocalProvider(
+        LocalMaterialSnackbarHostState provides materialHostState,
+        LocalMiuixSnackbarHostState provides miuixHostState,
+        content = content,
+    )
 }
 
 /** Returns a main-thread-safe callback for short, non-blocking feedback. */
 @Composable
 fun rememberDevInfoMessageHandler(
-    hostState: SnackbarHostState? = LocalDevInfoSnackbarHostState.current,
+    materialHostState: SnackbarHostState? = LocalMaterialSnackbarHostState.current,
+    miuixHostState: MiuixSnackbarHostState? = LocalMiuixSnackbarHostState.current,
 ): (String) -> Unit {
     val scope = rememberCoroutineScope()
+    val uiStyle = LocalUiStyle.current
 
-    return remember(hostState, scope) {
+    return remember(materialHostState, miuixHostState, scope, uiStyle) {
         { message ->
-            hostState?.let { state ->
-                scope.launch {
-                    state.showSnackbar(message)
+            scope.launch {
+                when (uiStyle) {
+                    UiStyle.MATERIAL3 -> materialHostState?.showSnackbar(message)
+                    UiStyle.MIUIX -> miuixHostState?.showSnackbar(message)
                 }
             }
         }
@@ -101,8 +110,27 @@ fun rememberDevInfoMessageHandler(
  */
 @Composable
 fun DevInfoSnackbarHost(
-    hostState: SnackbarHostState,
+    materialHostState: SnackbarHostState,
+    miuixHostState: MiuixSnackbarHostState,
     modifier: Modifier = Modifier,
+) {
+    when (LocalUiStyle.current) {
+        UiStyle.MATERIAL3 -> MaterialDevInfoSnackbarHost(
+            hostState = materialHostState,
+            modifier = modifier,
+        )
+
+        UiStyle.MIUIX -> MiuixSnackbarHost(
+            state = miuixHostState,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun MaterialDevInfoSnackbarHost(
+    hostState: SnackbarHostState,
+    modifier: Modifier,
 ) {
     val dismissState = rememberSwipeToDismissBoxState()
 
@@ -114,7 +142,7 @@ fun DevInfoSnackbarHost(
     ) {
         SnackbarHost(
             hostState = hostState,
-            snackbar = { data -> DevInfoSnackbar(data) },
+            snackbar = { data -> MaterialDevInfoSnackbar(data) },
         )
     }
 
@@ -126,30 +154,12 @@ fun DevInfoSnackbarHost(
 }
 
 @Composable
-private fun DevInfoSnackbar(data: SnackbarData) {
-    when (LocalUiStyle.current) {
-        UiStyle.MATERIAL3 -> Snackbar(
-            snackbarData = data,
-            shape = RoundedCornerShape(16.dp),
-            containerColor = MaterialTheme.colorScheme.inverseSurface,
-            contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-        )
-
-        UiStyle.MIUIX -> MiuixCard(
-            modifier = Modifier.fillMaxWidth(),
-            colors = MiuixCardDefaults.defaultColors(
-                color = MiuixTheme.colorScheme.surfaceContainer,
-            ),
-        ) {
-            MiuixText(
-                text = data.visuals.message,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
-                color = MiuixTheme.colorScheme.onSurface,
-                fontSize = 14.sp,
-            )
-        }
-    }
-}
+private fun MaterialDevInfoSnackbar(data: SnackbarData) = Snackbar(
+    snackbarData = data,
+    shape = RoundedCornerShape(16.dp),
+    containerColor = MaterialTheme.colorScheme.inverseSurface,
+    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+)
 
 /** A compact floating navigation surface based on KernelSU-Style-UI-Kit's Miuix bottom bar. */
 @Composable
@@ -167,7 +177,7 @@ fun DevInfoFloatingNavigationBar(
             modifier = modifier,
         )
 
-        UiStyle.MIUIX -> MiuixFloatingNavigationBar(
+        UiStyle.MIUIX -> MiuixNativeFloatingNavigationBar(
             items = items,
             selectedIndex = selectedIndex,
             onItemSelected = onItemSelected,
@@ -270,77 +280,27 @@ private fun MaterialFloatingNavigationItem(
 }
 
 @Composable
-private fun MiuixFloatingNavigationBar(
+private fun MiuixNativeFloatingNavigationBar(
     items: List<DevInfoNavigationItem>,
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(32.dp)
-    Row(
-        modifier = modifier
-            .widthIn(max = 520.dp)
-            .fillMaxWidth()
-            .height(64.dp)
-            .shadow(elevation = 14.dp, shape = shape, clip = false)
-            .background(
-                color = MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.82f),
-                shape = shape,
-            )
-            .border(
-                width = 1.dp,
-                color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                shape = shape,
-            )
-            .padding(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    MiuixFloatingNavigationBar(
+        modifier = modifier.widthIn(max = 520.dp),
+        color = MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f),
+        cornerRadius = 28.dp,
+        horizontalOutSidePadding = 20.dp,
+        shadowElevation = 10.dp,
+        showDivider = true,
     ) {
         items.forEachIndexed { index, item ->
-            val selected = selectedIndex == index
-            val tint by animateColorAsState(
-                targetValue = if (selected) {
-                    MiuixTheme.colorScheme.primary
-                } else {
-                    MiuixTheme.colorScheme.onSurfaceVariantSummary
-                },
-                label = "miuixFloatingNavigationTint",
+            MiuixFloatingNavigationBarItem(
+                selected = selectedIndex == index,
+                onClick = { onItemSelected(index) },
+                icon = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
+                label = item.label,
             )
-            val indicatorColor by animateColorAsState(
-                targetValue = if (selected) {
-                    MiuixTheme.colorScheme.primary.copy(alpha = 0.14f)
-                } else {
-                    Color.Transparent
-                },
-                label = "miuixFloatingNavigationIndicator",
-            )
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .background(indicatorColor, RoundedCornerShape(24.dp))
-                    .selectable(
-                        selected = selected,
-                        role = Role.Tab,
-                        onClick = { onItemSelected(index) },
-                    )
-                    .padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                MiuixIcon(
-                    imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                    contentDescription = item.label,
-                    tint = tint,
-                )
-                MiuixText(
-                    text = item.label,
-                    color = tint,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
         }
     }
 }
@@ -421,7 +381,9 @@ fun DevInfoSegmentedDropdownItem(
     SegmentedListItem(
         onClick = { expanded = true },
         modifier = modifier,
-        shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
+        shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1).copy(
+            shape = MaterialTheme.shapes.large,
+        ),
         colors = colors,
         leadingContent = {
             Icon(
