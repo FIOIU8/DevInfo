@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,8 +19,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
@@ -54,6 +54,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -378,50 +379,73 @@ fun DevInfoSegmentedDropdownItem(
         supportingContentColor = MaterialTheme.colorScheme.outline,
     )
 
-    SegmentedListItem(
-        onClick = { expanded = true },
-        modifier = modifier,
-        shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1).copy(
-            shape = MaterialTheme.shapes.large,
-        ),
-        colors = colors,
-        leadingContent = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-            )
-        },
-        supportingContent = {
-            if (summary.isNotBlank()) {
-                Text(text = summary)
-            }
-        },
-        trailingContent = {
-            Box(modifier = Modifier.wrapContentSize(Alignment.TopStart)) {
+    Box(modifier = modifier) {
+        SegmentedListItem(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth(),
+            shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1).copy(
+                shape = MaterialTheme.shapes.large,
+            ),
+            colors = colors,
+            leadingContent = {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                )
+            },
+            supportingContent = {
+                if (summary.isNotBlank()) {
+                    Text(text = summary)
+                }
+            },
+            trailingContent = {
                 Text(
                     text = items.getOrNull(safeIndex).orEmpty(),
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.fillMaxWidth(0.3f),
                 )
-                DropdownMenu(
-                    expanded = expanded,
+            },
+            content = { Text(title) },
+        )
+        if (expanded) {
+            // A compact anchor at the card's lower end makes the standard M3 menu expand
+            // below the whole setting row instead of covering its value text.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(1.dp),
+            ) {
+                DropdownMenuPopup(
+                    expanded = true,
                     onDismissRequest = { expanded = false },
                 ) {
-                    items.forEachIndexed { index, item ->
-                        DropdownMenuItem(
-                            text = { Text(item) },
-                            selected = index == safeIndex,
-                            shapes = MenuDefaults.itemShape(index = index, count = items.size),
-                            onClick = {
-                                onItemSelected(index)
-                                expanded = false
-                            },
-                        )
+                    DropdownMenuGroup(shapes = MenuDefaults.groupShapes()) {
+                        items.forEachIndexed { index, item ->
+                            DropdownMenuItem(
+                                text = { Text(item) },
+                                selected = index == safeIndex,
+                                shapes = MenuDefaults.itemShape(index = index, count = items.size),
+                                leadingIcon = {
+                                    if (index == safeIndex) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(MenuDefaults.LeadingIconSize),
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    onItemSelected(index)
+                                    expanded = false
+                                },
+                            )
+                        }
                     }
                 }
             }
-        },
-        content = { Text(title) },
-    )
+        }
+    }
 }
