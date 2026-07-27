@@ -88,7 +88,8 @@ class MainActivity : ComponentActivity() {
             cpuUsageSampler = CpuUsageSampler(collector),
             liveHardwareMonitor = LiveHardwareMonitor(appContext),
             batteryObserver = BatteryObserver(appContext),
-            updateChecker = UpdateChecker(appContext)
+            updateChecker = UpdateChecker(appContext),
+            themePreferences = themePrefs,
         )
 
         setContent {
@@ -98,13 +99,15 @@ class MainActivity : ComponentActivity() {
             val appLanguage by languagePrefs.appLanguage.collectAsState(initial = AppLanguage.SYSTEM)
             val customLocaleTag by languagePrefs.customLocaleTag.collectAsState(initial = "")
             val mainViewModel: MainViewModel = viewModel(factory = mainViewModelFactory)
+            val checkUpdate by themePrefs.checkUpdate.collectAsState(initial = true)
             val mainScreenSettings = remember(
                 deviceId,
                 themeMode,
                 themeColor,
                 uiStyle,
                 appLanguage,
-                customLocaleTag
+                customLocaleTag,
+                checkUpdate
             ) {
                 MainScreenSettings(
                     deviceId = deviceId,
@@ -114,6 +117,8 @@ class MainActivity : ComponentActivity() {
                     onThemeColorChange = themePrefs::setThemeColor,
                     uiStyle = uiStyle,
                     onUiStyleChange = themePrefs::setUiStyle,
+                    checkUpdate = checkUpdate,
+                    onCheckUpdateChange = themePrefs::setCheckUpdate,
                     appLanguage = appLanguage,
                     customLocaleTag = customLocaleTag,
                     onAppLanguageChange = { selected ->

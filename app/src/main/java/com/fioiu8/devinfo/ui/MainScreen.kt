@@ -134,6 +134,8 @@ data class MainScreenSettings(
     val onThemeColorChange: (ThemeColor) -> Unit,
     val uiStyle: UiStyle,
     val onUiStyleChange: (UiStyle) -> Unit,
+    val checkUpdate: Boolean,
+    val onCheckUpdateChange: (Boolean) -> Unit,
     val appLanguage: AppLanguage,
     val customLocaleTag: String,
     val onAppLanguageChange: (AppLanguage) -> Unit,
@@ -425,6 +427,8 @@ fun MainScreen(
                                     onExportClick = { showExportDialog = true },
                                     onAboutClick = { showAboutPage = true },
                                     appLanguage = settings.appLanguage,
+                                    checkUpdate = settings.checkUpdate,
+                                    onCheckUpdateChange = settings.onCheckUpdateChange,
                                     languageOptions = languageOptions,
                                     onLanguageChange = { index ->
                                         settings.onAppLanguageChange(AppLanguage.entries[index])

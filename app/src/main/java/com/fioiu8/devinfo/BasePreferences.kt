@@ -61,6 +61,16 @@ abstract class BasePreferences<T : CharSequence>(
             serialize = { it },
         )
 
+    protected fun booleanPreference(
+        key: T,
+        defaultValue: Boolean,
+    ): PersistentValue<Boolean> =
+        persistentValue(
+            key = key,
+            deserialize = { it?.toBooleanStrictOrNull() ?: defaultValue },
+            serialize = { it.toString() },
+        )
+
     private fun <V : Any> persistentValue(
         key: T,
         deserialize: (String?) -> V,

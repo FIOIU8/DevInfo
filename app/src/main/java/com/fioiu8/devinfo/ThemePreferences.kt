@@ -50,11 +50,19 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
             values = UiStyle.entries,
         )
 
+    private val checkUpdatePreference =
+        booleanPreference(
+            key = KEY_CHECK_UPDATE,
+            defaultValue = true,
+        )
+
     val themeMode: StateFlow<ThemeMode> = themeModePreference.flow
 
     val themeColor: StateFlow<ThemeColor> = themeColorPreference.flow
 
     val uiStyle: StateFlow<UiStyle> = uiStylePreference.flow
+
+    val checkUpdate: StateFlow<Boolean> = checkUpdatePreference.flow
 
     /** 设置并持久化主题模式 */
     fun setThemeMode(mode: ThemeMode) {
@@ -69,6 +77,10 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
         uiStylePreference.set(style)
     }
 
+    fun setCheckUpdate(enabled: Boolean) {
+        checkUpdatePreference.set(enabled)
+    }
+
     // ── snapshot getters ──
 
     /** 同步读取当前主题模式（非响应式，用于组合上下文之外） */
@@ -78,10 +90,13 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
 
     fun getUiStyleSnapshot(): UiStyle = uiStylePreference.snapshot
 
+    fun getCheckUpdateSnapshot(): Boolean = checkUpdatePreference.snapshot
+
     private companion object {
         const val PREFS_NAME = "devinfo_theme_prefs"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_THEME_COLOR = "theme_color"
         const val KEY_UI_STYLE = "ui_style"
+        const val KEY_CHECK_UPDATE = "check_update"
     }
 }
