@@ -720,7 +720,17 @@ private fun MainScaffold(
                         )
                     }
                     if (showBottomBar) {
-                        Box(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter)) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.BottomCenter)
+                                .padding(
+                                    bottom = 12.dp +
+                                        WindowInsets.navigationBars
+                                            .asPaddingValues()
+                                            .calculateBottomPadding(),
+                                ),
+                        ) {
                             BlurredBar(backdrop = blurBackdrop) {
                                 DevInfoFloatingNavigationBar(
                                     items = items,
