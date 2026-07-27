@@ -102,6 +102,7 @@ import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.UpdateState
 import com.fioiu8.devinfo.model.AppLanguage
 import com.fioiu8.devinfo.model.InfoCategory
+import com.fioiu8.devinfo.model.PaletteStyle
 import com.fioiu8.devinfo.model.ThemeColor
 import com.fioiu8.devinfo.model.ThemeMode
 import com.fioiu8.devinfo.model.UiStyle
@@ -136,6 +137,14 @@ data class MainScreenSettings(
     val onUiStyleChange: (UiStyle) -> Unit,
     val checkUpdate: Boolean,
     val onCheckUpdateChange: (Boolean) -> Unit,
+    val paletteStyle: PaletteStyle,
+    val onPaletteStyleChange: (PaletteStyle) -> Unit,
+    val colorSpec: com.fioiu8.devinfo.model.ColorSpec,
+    val onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
+    val enableBlur: Boolean,
+    val onEnableBlurChange: (Boolean) -> Unit,
+    val enablePredictiveBack: Boolean,
+    val onEnablePredictiveBackChange: (Boolean) -> Unit,
     val appLanguage: AppLanguage,
     val customLocaleTag: String,
     val onAppLanguageChange: (AppLanguage) -> Unit,
@@ -429,6 +438,10 @@ fun MainScreen(
                                     appLanguage = settings.appLanguage,
                                     checkUpdate = settings.checkUpdate,
                                     onCheckUpdateChange = settings.onCheckUpdateChange,
+                                    enableBlur = settings.enableBlur,
+                                    onEnableBlurChange = settings.onEnableBlurChange,
+                                    enablePredictiveBack = settings.enablePredictiveBack,
+                                    onEnablePredictiveBackChange = settings.onEnablePredictiveBackChange,
                                     languageOptions = languageOptions,
                                     onLanguageChange = { index ->
                                         settings.onAppLanguageChange(AppLanguage.entries[index])
@@ -467,6 +480,10 @@ fun MainScreen(
                     onThemeModeChange = settings.onThemeModeChange,
                     themeColor = settings.themeColor,
                     onThemeColorChange = settings.onThemeColorChange,
+                    paletteStyle = settings.paletteStyle,
+                    onPaletteStyleChange = settings.onPaletteStyleChange,
+                    colorSpec = settings.colorSpec,
+                    onColorSpecChange = settings.onColorSpecChange,
                     onBack = ::dismissThemeSettingsPage,
                 )
             }

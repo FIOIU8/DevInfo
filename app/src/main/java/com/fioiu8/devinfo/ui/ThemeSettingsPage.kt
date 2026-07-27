@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fioiu8.devinfo.R
+import com.fioiu8.devinfo.model.PaletteStyle
 import com.fioiu8.devinfo.model.ThemeColor
 import com.fioiu8.devinfo.model.ThemeMode
 import com.fioiu8.devinfo.model.UiStyle
@@ -151,6 +152,10 @@ fun ThemeSettingsPage(
     onThemeModeChange: (ThemeMode) -> Unit,
     themeColor: ThemeColor,
     onThemeColorChange: (ThemeColor) -> Unit,
+    paletteStyle: PaletteStyle,
+    onPaletteStyleChange: (PaletteStyle) -> Unit,
+    colorSpec: com.fioiu8.devinfo.model.ColorSpec,
+    onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
     onBack: () -> Unit,
 ) {
     when (LocalUiStyle.current) {
@@ -159,6 +164,10 @@ fun ThemeSettingsPage(
             onThemeModeChange = onThemeModeChange,
             themeColor = themeColor,
             onThemeColorChange = onThemeColorChange,
+            paletteStyle = paletteStyle,
+            onPaletteStyleChange = onPaletteStyleChange,
+            colorSpec = colorSpec,
+            onColorSpecChange = onColorSpecChange,
             onBack = onBack,
         )
 
@@ -167,6 +176,10 @@ fun ThemeSettingsPage(
             onThemeModeChange = onThemeModeChange,
             themeColor = themeColor,
             onThemeColorChange = onThemeColorChange,
+            paletteStyle = paletteStyle,
+            onPaletteStyleChange = onPaletteStyleChange,
+            colorSpec = colorSpec,
+            onColorSpecChange = onColorSpecChange,
             onBack = onBack,
         )
     }
@@ -179,6 +192,10 @@ private fun MaterialThemeSettingsPage(
     onThemeModeChange: (ThemeMode) -> Unit,
     themeColor: ThemeColor,
     onThemeColorChange: (ThemeColor) -> Unit,
+    paletteStyle: PaletteStyle,
+    onPaletteStyleChange: (PaletteStyle) -> Unit,
+    colorSpec: com.fioiu8.devinfo.model.ColorSpec,
+    onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
     onBack: () -> Unit,
 ) {
     val selectedThemeIndex = themeMode.baseIndex
@@ -323,6 +340,33 @@ private fun MaterialThemeSettingsPage(
             }
 
             item { Spacer(Modifier.height(24.dp)) }
+            if (themeMode.isDynamic) {
+                item {
+                    DevInfoSegmentedDropdownItem(
+                        icon = Icons.Rounded.Wallpaper,
+                        title = "色彩风格",
+                        summary = PaletteStyle.entries[PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0)].name,
+                        items = PaletteStyle.entries.map { it.name },
+                        selectedIndex = PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0),
+                        onItemSelected = { index ->
+                            PaletteStyle.entries.getOrNull(index)?.let(onPaletteStyleChange)
+                        },
+                    )
+                }
+                item {
+                    DevInfoSegmentedDropdownItem(
+                        icon = Icons.Rounded.Wallpaper,
+                        title = "色彩标准",
+                        summary = com.fioiu8.devinfo.model.ColorSpec.entries[com.fioiu8.devinfo.model.ColorSpec.entries.indexOf(colorSpec).coerceAtLeast(0)].name,
+                        items = com.fioiu8.devinfo.model.ColorSpec.entries.map { it.name },
+                        selectedIndex = com.fioiu8.devinfo.model.ColorSpec.entries.indexOf(colorSpec).coerceAtLeast(0),
+                        onItemSelected = { index ->
+                            com.fioiu8.devinfo.model.ColorSpec.entries.getOrNull(index)?.let(onColorSpecChange)
+                        },
+                    )
+                }
+            }
+
         }
     }
 }
@@ -393,6 +437,10 @@ private fun MiuixThemeSettingsPage(
     onThemeModeChange: (ThemeMode) -> Unit,
     themeColor: ThemeColor,
     onThemeColorChange: (ThemeColor) -> Unit,
+    paletteStyle: PaletteStyle,
+    onPaletteStyleChange: (PaletteStyle) -> Unit,
+    colorSpec: com.fioiu8.devinfo.model.ColorSpec,
+    onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
     onBack: () -> Unit,
 ) {
     val scrollBehavior = MiuixScrollBehavior()

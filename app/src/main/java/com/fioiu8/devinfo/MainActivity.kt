@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fioiu8.devinfo.model.AppLanguage
+import com.fioiu8.devinfo.model.PaletteStyle
 import com.fioiu8.devinfo.ui.MainScreen
 import com.fioiu8.devinfo.ui.MainScreenSettings
 import com.fioiu8.devinfo.ui.MainViewModel
@@ -100,6 +101,10 @@ class MainActivity : ComponentActivity() {
             val customLocaleTag by languagePrefs.customLocaleTag.collectAsState(initial = "")
             val mainViewModel: MainViewModel = viewModel(factory = mainViewModelFactory)
             val checkUpdate by themePrefs.checkUpdate.collectAsState(initial = true)
+            val paletteStyle by themePrefs.paletteStyle.collectAsState(initial = PaletteStyle.DEFAULT)
+            val colorSpec by themePrefs.colorSpec.collectAsState(initial = com.fioiu8.devinfo.model.ColorSpec.DEFAULT)
+            val enableBlur by themePrefs.enableBlur.collectAsState(initial = false)
+            val enablePredictiveBack by themePrefs.enablePredictiveBack.collectAsState(initial = true)
             val mainScreenSettings = remember(
                 deviceId,
                 themeMode,
@@ -107,7 +112,11 @@ class MainActivity : ComponentActivity() {
                 uiStyle,
                 appLanguage,
                 customLocaleTag,
-                checkUpdate
+                checkUpdate,
+                paletteStyle,
+                colorSpec,
+                enableBlur,
+                enablePredictiveBack,
             ) {
                 MainScreenSettings(
                     deviceId = deviceId,
@@ -119,6 +128,14 @@ class MainActivity : ComponentActivity() {
                     onUiStyleChange = themePrefs::setUiStyle,
                     checkUpdate = checkUpdate,
                     onCheckUpdateChange = themePrefs::setCheckUpdate,
+                    paletteStyle = paletteStyle,
+                    onPaletteStyleChange = themePrefs::setPaletteStyle,
+                    colorSpec = colorSpec,
+                    onColorSpecChange = themePrefs::setColorSpec,
+                    enableBlur = enableBlur,
+                    onEnableBlurChange = themePrefs::setEnableBlur,
+                    enablePredictiveBack = enablePredictiveBack,
+                    onEnablePredictiveBackChange = themePrefs::setEnablePredictiveBack,
                     appLanguage = appLanguage,
                     customLocaleTag = customLocaleTag,
                     onAppLanguageChange = { selected ->
