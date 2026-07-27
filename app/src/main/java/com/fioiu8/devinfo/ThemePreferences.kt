@@ -80,6 +80,9 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
     private val enableFloatingBottomBarBlurPreference =
         booleanPreference(key = KEY_ENABLE_FLOATING_BOTTOM_BAR_BLUR, defaultValue = false)
 
+    private val pageScalePreference =
+        floatPreference(key = KEY_PAGE_SCALE, defaultValue = DEFAULT_PAGE_SCALE)
+
     private val enablePredictiveBackPreference =
         booleanPreference(key = KEY_ENABLE_PREDICTIVE_BACK, defaultValue = true)
 
@@ -95,6 +98,7 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
     val enableBlur: StateFlow<Boolean> = enableBlurPreference.flow
     val enableFloatingBottomBar: StateFlow<Boolean> = enableFloatingBottomBarPreference.flow
     val enableFloatingBottomBarBlur: StateFlow<Boolean> = enableFloatingBottomBarBlurPreference.flow
+    val pageScale: StateFlow<Float> = pageScalePreference.flow
     val enablePredictiveBack: StateFlow<Boolean> = enablePredictiveBackPreference.flow
 
     /** 设置并持久化主题模式 */
@@ -134,6 +138,10 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
         enableFloatingBottomBarBlurPreference.set(enabled)
     }
 
+    fun setPageScale(scale: Float) {
+        pageScalePreference.set(scale.coerceIn(MIN_PAGE_SCALE, MAX_PAGE_SCALE))
+    }
+
     fun setEnablePredictiveBack(enabled: Boolean) {
         enablePredictiveBackPreference.set(enabled)
     }
@@ -160,6 +168,10 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
         const val KEY_ENABLE_BLUR = "enable_blur"
         const val KEY_ENABLE_FLOATING_BOTTOM_BAR = "enable_floating_bottom_bar"
         const val KEY_ENABLE_FLOATING_BOTTOM_BAR_BLUR = "enable_floating_bottom_bar_blur"
+        const val KEY_PAGE_SCALE = "page_scale"
         const val KEY_ENABLE_PREDICTIVE_BACK = "enable_predictive_back"
+        const val MIN_PAGE_SCALE = 0.8f
+        const val MAX_PAGE_SCALE = 1.1f
+        const val DEFAULT_PAGE_SCALE = 1.0f
     }
 }

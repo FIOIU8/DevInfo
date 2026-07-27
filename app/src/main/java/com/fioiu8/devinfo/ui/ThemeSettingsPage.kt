@@ -60,13 +60,16 @@ import androidx.compose.material3.Scaffold as MaterialScaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider as MaterialSlider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text as MaterialText
 import androidx.compose.material3.TopAppBar as MaterialTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -92,6 +95,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Slider as MiuixSlider
 import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TopAppBar
@@ -159,6 +163,8 @@ fun ThemeSettingsPage(
     onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
     enableBlur: Boolean,
     onEnableBlurChange: (Boolean) -> Unit,
+    pageScale: Float,
+    onPageScaleChange: (Float) -> Unit,
     enablePredictiveBack: Boolean,
     onEnablePredictiveBackChange: (Boolean) -> Unit,
     onBack: () -> Unit,
@@ -175,6 +181,8 @@ fun ThemeSettingsPage(
             onColorSpecChange = onColorSpecChange,
             enableBlur = enableBlur,
             onEnableBlurChange = onEnableBlurChange,
+            pageScale = pageScale,
+            onPageScaleChange = onPageScaleChange,
             enablePredictiveBack = enablePredictiveBack,
             onEnablePredictiveBackChange = onEnablePredictiveBackChange,
             onBack = onBack,
@@ -191,6 +199,8 @@ fun ThemeSettingsPage(
             onColorSpecChange = onColorSpecChange,
             enableBlur = enableBlur,
             onEnableBlurChange = onEnableBlurChange,
+            pageScale = pageScale,
+            onPageScaleChange = onPageScaleChange,
             enablePredictiveBack = enablePredictiveBack,
             onEnablePredictiveBackChange = onEnablePredictiveBackChange,
             onBack = onBack,
@@ -211,6 +221,8 @@ private fun MaterialThemeSettingsPage(
     onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
     enableBlur: Boolean,
     onEnableBlurChange: (Boolean) -> Unit,
+    pageScale: Float,
+    onPageScaleChange: (Float) -> Unit,
     enablePredictiveBack: Boolean,
     onEnablePredictiveBackChange: (Boolean) -> Unit,
     onBack: () -> Unit,
@@ -437,6 +449,12 @@ private fun MaterialThemeSettingsPage(
                     }
                 }
             }
+            item {
+                MaterialPageScaleCard(
+                    pageScale = pageScale,
+                    onPageScaleChange = onPageScaleChange,
+                )
+            }
             item { Spacer(Modifier.height(24.dp)) }
             if (themeMode.isDynamic) {
                 item {
@@ -464,7 +482,54 @@ private fun MaterialThemeSettingsPage(
                     )
                 }
             }
+        }
+    }
+}
 
+@Composable
+private fun MaterialPageScaleCard(
+    pageScale: Float,
+    onPageScaleChange: (Float) -> Unit,
+) {
+    var sliderValue by remember(pageScale) { mutableFloatStateOf(pageScale) }
+
+    MaterialCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = MaterialCardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    MaterialText(
+                        text = stringResource(R.string.theme_page_scale),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    MaterialText(
+                        text = stringResource(R.string.theme_page_scale_summary),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                MaterialText(
+                    text = "${(sliderValue * 100).toInt()}%",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            MaterialSlider(
+                value = sliderValue,
+                onValueChange = { sliderValue = it },
+                onValueChangeFinished = { onPageScaleChange(sliderValue) },
+                valueRange = 0.8f..1.1f,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -541,6 +606,8 @@ private fun MiuixThemeSettingsPage(
     onColorSpecChange: (com.fioiu8.devinfo.model.ColorSpec) -> Unit,
     enableBlur: Boolean,
     onEnableBlurChange: (Boolean) -> Unit,
+    pageScale: Float,
+    onPageScaleChange: (Float) -> Unit,
     enablePredictiveBack: Boolean,
     onEnablePredictiveBackChange: (Boolean) -> Unit,
     onBack: () -> Unit,
@@ -695,9 +762,56 @@ private fun MiuixThemeSettingsPage(
                     )
                 }
 
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    MiuixPageScalePreference(
+                        pageScale = pageScale,
+                        onPageScaleChange = onPageScaleChange,
+                    )
+                }
+
                 Spacer(Modifier.height(24.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun MiuixPageScalePreference(
+    pageScale: Float,
+    onPageScaleChange: (Float) -> Unit,
+) {
+    var sliderValue by remember(pageScale) { mutableFloatStateOf(pageScale) }
+
+    Column(modifier = Modifier.padding(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.theme_page_scale),
+                    fontSize = MiuixTheme.textStyles.main.fontSize,
+                    color = MiuixTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = stringResource(R.string.theme_page_scale_summary),
+                    fontSize = MiuixTheme.textStyles.body2.fontSize,
+                    color = MiuixTheme.colorScheme.onSurfaceSecondary,
+                )
+            }
+            Text(
+                text = "${(sliderValue * 100).toInt()}%",
+                fontSize = MiuixTheme.textStyles.body2.fontSize,
+                color = MiuixTheme.colorScheme.onSurfaceSecondary,
+            )
+        }
+        MiuixSlider(
+            value = sliderValue,
+            onValueChange = { sliderValue = it },
+            onValueChangeFinished = { onPageScaleChange(sliderValue) },
+            valueRange = 0.8f..1.1f,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

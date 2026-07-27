@@ -33,6 +33,8 @@
     <string name="theme_monet_summary">Use wallpaper colors or a custom key color</string>
     <string name="theme_key_color">Key color</string>
     <string name="theme_preview_summary">Preview the current theme appearance</string>
+    <string name="theme_page_scale">Page scale</string>
+    <string name="theme_page_scale_summary">Adjust the display scale of the app interface</string>
 
     <!-- Theme settings -->
 

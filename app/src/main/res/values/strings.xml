@@ -32,6 +32,8 @@
     <string name="theme_monet_summary">使用系统壁纸颜色或自定义主题色</string>
     <string name="theme_key_color">主题色</string>
     <string name="theme_preview_summary">预览当前主题外观</string>
+    <string name="theme_page_scale">页面缩放</string>
+    <string name="theme_page_scale_summary">调整应用界面的显示比例</string>
 
     <!-- Theme settings -->
 

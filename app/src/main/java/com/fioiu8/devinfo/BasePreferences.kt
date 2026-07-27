@@ -71,6 +71,16 @@ abstract class BasePreferences<T : CharSequence>(
             serialize = { it.toString() },
         )
 
+    protected fun floatPreference(
+        key: T,
+        defaultValue: Float,
+    ): PersistentValue<Float> =
+        persistentValue(
+            key = key,
+            deserialize = { it?.toFloatOrNull() ?: defaultValue },
+            serialize = { it.toString() },
+        )
+
     private fun <V : Any> persistentValue(
         key: T,
         deserialize: (String?) -> V,
