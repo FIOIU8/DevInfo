@@ -415,6 +415,20 @@ private fun MiuixSettingsPage(
                         )
                     },
                 )
+                SwitchPreference(
+                    title = stringResource(R.string.settings_check_update),
+                    summary = stringResource(R.string.settings_check_update_summary),
+                    checked = checkUpdate,
+                    onCheckedChange = onCheckUpdateChange,
+                    startAction = {
+                        MiuixIcon(
+                            imageVector = Icons.Outlined.Update,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 6.dp),
+                            tint = MiuixTheme.colorScheme.onBackground,
+                        )
+                    },
+                )
             }
         }
 
@@ -440,24 +454,6 @@ private fun MiuixSettingsPage(
                     startAction = {
                         MiuixIcon(
                             imageVector = Icons.Outlined.Translate,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 6.dp),
-                            tint = MiuixTheme.colorScheme.onBackground,
-                        )
-                    },
-                )
-            }
-        }
-        item {
-            MiuixCard(modifier = Modifier.fillMaxWidth()) {
-                SwitchPreference(
-                    title = stringResource(R.string.settings_check_update),
-                    summary = stringResource(R.string.settings_check_update_summary),
-                    checked = checkUpdate,
-                    onCheckedChange = onCheckUpdateChange,
-                    startAction = {
-                        MiuixIcon(
-                            imageVector = Icons.Outlined.Update,
                             contentDescription = null,
                             modifier = Modifier.padding(end = 6.dp),
                             tint = MiuixTheme.colorScheme.onBackground,

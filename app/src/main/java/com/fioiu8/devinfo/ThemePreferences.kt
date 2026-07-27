@@ -18,6 +18,7 @@
 package com.fioiu8.devinfo
 
 import android.content.Context
+import com.fioiu8.devinfo.model.PaletteStyle
 import com.fioiu8.devinfo.model.ThemeColor
 import com.fioiu8.devinfo.model.ThemeMode
 import com.fioiu8.devinfo.model.UiStyle
@@ -56,6 +57,32 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
             defaultValue = true,
         )
 
+    private val paletteStylePreference =
+        enumPreference(
+            key = KEY_PALETTE_STYLE,
+            defaultValue = PaletteStyle.DEFAULT,
+            values = PaletteStyle.entries,
+        )
+
+    private val colorSpecPreference =
+        enumPreference(
+            key = KEY_COLOR_SPEC,
+            defaultValue = com.fioiu8.devinfo.model.ColorSpec.DEFAULT,
+            values = com.fioiu8.devinfo.model.ColorSpec.entries,
+        )
+
+    private val enableBlurPreference =
+        booleanPreference(key = KEY_ENABLE_BLUR, defaultValue = false)
+
+    private val enableFloatingBottomBarPreference =
+        booleanPreference(key = KEY_ENABLE_FLOATING_BOTTOM_BAR, defaultValue = false)
+
+    private val enableFloatingBottomBarBlurPreference =
+        booleanPreference(key = KEY_ENABLE_FLOATING_BOTTOM_BAR_BLUR, defaultValue = false)
+
+    private val enablePredictiveBackPreference =
+        booleanPreference(key = KEY_ENABLE_PREDICTIVE_BACK, defaultValue = true)
+
     val themeMode: StateFlow<ThemeMode> = themeModePreference.flow
 
     val themeColor: StateFlow<ThemeColor> = themeColorPreference.flow
@@ -63,6 +90,12 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
     val uiStyle: StateFlow<UiStyle> = uiStylePreference.flow
 
     val checkUpdate: StateFlow<Boolean> = checkUpdatePreference.flow
+    val paletteStyle: StateFlow<PaletteStyle> = paletteStylePreference.flow
+    val colorSpec: StateFlow<com.fioiu8.devinfo.model.ColorSpec> = colorSpecPreference.flow
+    val enableBlur: StateFlow<Boolean> = enableBlurPreference.flow
+    val enableFloatingBottomBar: StateFlow<Boolean> = enableFloatingBottomBarPreference.flow
+    val enableFloatingBottomBarBlur: StateFlow<Boolean> = enableFloatingBottomBarBlurPreference.flow
+    val enablePredictiveBack: StateFlow<Boolean> = enablePredictiveBackPreference.flow
 
     /** 设置并持久化主题模式 */
     fun setThemeMode(mode: ThemeMode) {
@@ -79,6 +112,30 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
 
     fun setCheckUpdate(enabled: Boolean) {
         checkUpdatePreference.set(enabled)
+    }
+
+    fun setPaletteStyle(style: PaletteStyle) {
+        paletteStylePreference.set(style)
+    }
+
+    fun setColorSpec(spec: com.fioiu8.devinfo.model.ColorSpec) {
+        colorSpecPreference.set(spec)
+    }
+
+    fun setEnableBlur(enabled: Boolean) {
+        enableBlurPreference.set(enabled)
+    }
+
+    fun setEnableFloatingBottomBar(enabled: Boolean) {
+        enableFloatingBottomBarPreference.set(enabled)
+    }
+
+    fun setEnableFloatingBottomBarBlur(enabled: Boolean) {
+        enableFloatingBottomBarBlurPreference.set(enabled)
+    }
+
+    fun setEnablePredictiveBack(enabled: Boolean) {
+        enablePredictiveBackPreference.set(enabled)
     }
 
     // ── snapshot getters ──
@@ -98,5 +155,11 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
         const val KEY_THEME_COLOR = "theme_color"
         const val KEY_UI_STYLE = "ui_style"
         const val KEY_CHECK_UPDATE = "check_update"
+        const val KEY_PALETTE_STYLE = "palette_style"
+        const val KEY_COLOR_SPEC = "color_spec"
+        const val KEY_ENABLE_BLUR = "enable_blur"
+        const val KEY_ENABLE_FLOATING_BOTTOM_BAR = "enable_floating_bottom_bar"
+        const val KEY_ENABLE_FLOATING_BOTTOM_BAR_BLUR = "enable_floating_bottom_bar_blur"
+        const val KEY_ENABLE_PREDICTIVE_BACK = "enable_predictive_back"
     }
 }
