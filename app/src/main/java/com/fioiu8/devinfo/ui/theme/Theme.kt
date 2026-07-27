@@ -4,9 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.os.Build
-import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -109,7 +109,6 @@ fun DevInfoTheme(
     uiStyle: UiStyle = UiStyle.MATERIAL3,
     content: @Composable () -> Unit
 ) {
-    val materialOverscrollFactory = LocalOverscrollFactory.current
     val darkTheme = when (themeMode) {
         ThemeMode.LIGHT, ThemeMode.DYNAMIC_LIGHT -> false
         ThemeMode.DARK, ThemeMode.DYNAMIC_DARK -> true
@@ -148,14 +147,20 @@ fun DevInfoTheme(
     }
 
     CompositionLocalProvider(LocalUiStyle provides uiStyle) {
-        MiuixDevInfoTheme(
-            themeMode = themeMode,
-            themeColor = themeColor,
-            darkTheme = darkTheme,
-            materialColorScheme = colorScheme.takeIf { uiStyle == UiStyle.MATERIAL3 },
-            materialOverscrollFactory = materialOverscrollFactory,
-            content = content
-        )
+        when (uiStyle) {
+            UiStyle.MIUIX -> MiuixDevInfoTheme(
+                themeMode = themeMode,
+                themeColor = themeColor,
+                darkTheme = darkTheme,
+                content = content,
+            )
+
+            UiStyle.MATERIAL3 -> MaterialTheme(
+                colorScheme = colorScheme,
+                typography = Typography,
+                content = content,
+            )
+        }
     }
 }
 

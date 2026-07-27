@@ -1,7 +1,6 @@
 ﻿package com.fioiu8.devinfo.ui
 
 import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -102,6 +101,7 @@ fun AboutPage(
 ) {
     val context = LocalContext.current
     val cannotOpenLinkMessage = stringResource(com.fioiu8.devinfo.R.string.cannot_open_link)
+    val showMessage = rememberDevInfoMessageHandler()
 
     var contributors by remember { mutableStateOf<List<GitHubClient.Contributor>>(emptyList()) }
     var languages by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
@@ -444,11 +444,7 @@ fun AboutPage(
                 try {
                     context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
                 } catch (_: Exception) {
-                    Toast.makeText(
-                        context,
-                        cannotOpenLinkMessage,
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    showMessage(cannotOpenLinkMessage)
                 }
             },
             onDismiss = { confirmUrl = null }

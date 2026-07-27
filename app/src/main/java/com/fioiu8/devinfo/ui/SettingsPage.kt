@@ -1,6 +1,8 @@
 package com.fioiu8.devinfo.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,16 +43,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.AppLanguage
 import com.fioiu8.devinfo.model.UiStyle
 import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
+import top.yukonga.miuix.kmp.basic.Text as MiuixText
+import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.window.WindowDialog
 
 /** Settings entry page. Theme controls live on [ThemeSettingsPage]. */
 @Composable
@@ -68,6 +75,24 @@ fun SettingsPage(
     customLocaleTag: String = "",
     onCustomLocaleTagChange: (String) -> Unit = {},
 ) {
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixSettingsPage(
+            versionName = versionName,
+            versionCode = versionCode,
+            uiStyle = uiStyle,
+            onUiStyleChange = onUiStyleChange,
+            onThemeSettingsClick = onThemeSettingsClick,
+            onExportClick = onExportClick,
+            onAboutClick = onAboutClick,
+            appLanguage = appLanguage,
+            languageOptions = languageOptions,
+            onLanguageChange = onLanguageChange,
+            customLocaleTag = customLocaleTag,
+            onCustomLocaleTagChange = onCustomLocaleTagChange,
+        )
+        return
+    }
+
     var showCustomLocaleDialog by rememberSaveable { mutableStateOf(false) }
     var customLocaleInput by rememberSaveable { mutableStateOf(customLocaleTag) }
     val uiStyleEntries = listOf(
@@ -218,6 +243,222 @@ fun SettingsPage(
 }
 
 @Composable
+private fun MiuixSettingsPage(
+    versionName: String,
+    versionCode: Long,
+    uiStyle: UiStyle,
+    onUiStyleChange: (UiStyle) -> Unit,
+    onThemeSettingsClick: () -> Unit,
+    onExportClick: () -> Unit,
+    onAboutClick: () -> Unit,
+    appLanguage: AppLanguage,
+    languageOptions: List<String>,
+    onLanguageChange: (Int) -> Unit,
+    customLocaleTag: String,
+    onCustomLocaleTagChange: (String) -> Unit,
+) {
+    var showCustomLocaleDialog by rememberSaveable { mutableStateOf(false) }
+    var customLocaleInput by rememberSaveable { mutableStateOf(customLocaleTag) }
+    val uiStyleEntries = listOf(
+        UiStyle.MIUIX to stringResource(R.string.ui_style_miuix),
+        UiStyle.MATERIAL3 to stringResource(R.string.ui_style_material3),
+    )
+    val selectedUiStyleIndex = uiStyleEntries.indexOfFirst { it.first == uiStyle }.coerceAtLeast(0)
+
+    if (showCustomLocaleDialog) {
+        WindowDialog(
+            show = true,
+            title = stringResource(R.string.custom_locale_title),
+            onDismissRequest = { showCustomLocaleDialog = false },
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                MiuixText(
+                    text = stringResource(R.string.custom_locale_hint),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+                BasicTextField(
+                    value = customLocaleInput,
+                    onValueChange = { customLocaleInput = it },
+                    singleLine = true,
+                    textStyle = TextStyle(color = MiuixTheme.colorScheme.onSurface),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = MiuixTheme.colorScheme.surfaceContainerHigh,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        .padding(14.dp),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    MiuixTextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { showCustomLocaleDialog = false },
+                    )
+                    MiuixTextButton(
+                        text = stringResource(R.string.custom_locale_apply),
+                        onClick = {
+                            onCustomLocaleTagChange(customLocaleInput.trim())
+                            showCustomLocaleDialog = false
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 12.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item { MiuixCategoryHeader(stringResource(R.string.category_appearance)) }
+        item {
+            MiuixCard(modifier = Modifier.fillMaxWidth()) {
+                OverlayDropdownPreference(
+                    title = stringResource(R.string.ui_style),
+                    items = uiStyleEntries.map { it.second },
+                    selectedIndex = selectedUiStyleIndex,
+                    onSelectedIndexChange = { index ->
+                        uiStyleEntries.getOrNull(index)?.first?.let(onUiStyleChange)
+                    },
+                    showValue = true,
+                    startAction = {
+                        MiuixIcon(
+                            imageVector = Icons.Outlined.Style,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 6.dp),
+                            tint = MiuixTheme.colorScheme.onBackground,
+                        )
+                    },
+                )
+                ArrowPreference(
+                    title = stringResource(R.string.theme_settings_title),
+                    summary = stringResource(R.string.theme_settings_summary),
+                    onClick = onThemeSettingsClick,
+                    startAction = {
+                        MiuixIcon(
+                            imageVector = Icons.Outlined.Palette,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 6.dp),
+                            tint = MiuixTheme.colorScheme.onBackground,
+                        )
+                    },
+                )
+            }
+        }
+
+        item { MiuixCategoryHeader(stringResource(R.string.category_language)) }
+        item {
+            MiuixCard(modifier = Modifier.fillMaxWidth()) {
+                OverlayDropdownPreference(
+                    title = stringResource(R.string.language_setting),
+                    summary = languageOptions.getOrElse(AppLanguage.entries.indexOf(appLanguage)) {
+                        stringResource(R.string.language_system)
+                    },
+                    items = languageOptions,
+                    selectedIndex = AppLanguage.entries.indexOf(appLanguage),
+                    onSelectedIndexChange = { index ->
+                        val selected = AppLanguage.entries.getOrNull(index) ?: return@OverlayDropdownPreference
+                        if (selected.isCustom) {
+                            customLocaleInput = customLocaleTag
+                            showCustomLocaleDialog = true
+                        } else {
+                            onLanguageChange(index)
+                        }
+                    },
+                    startAction = {
+                        MiuixIcon(
+                            imageVector = Icons.Outlined.Translate,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 6.dp),
+                            tint = MiuixTheme.colorScheme.onBackground,
+                        )
+                    },
+                )
+            }
+        }
+
+        item { MiuixCategoryHeader(stringResource(R.string.category_tools)) }
+        item {
+            MiuixCard(modifier = Modifier.fillMaxWidth()) {
+                ArrowPreference(
+                    title = stringResource(R.string.export_tool),
+                    summary = stringResource(R.string.export_summary),
+                    onClick = onExportClick,
+                    startAction = {
+                        MiuixIcon(
+                            imageVector = Icons.Outlined.FileDownload,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 6.dp),
+                            tint = MiuixTheme.colorScheme.onBackground,
+                        )
+                    },
+                )
+            }
+        }
+
+        item { MiuixCategoryHeader(stringResource(R.string.category_about)) }
+        item {
+            MiuixCard(modifier = Modifier.fillMaxWidth()) {
+                ArrowPreference(
+                    title = stringResource(R.string.about_app),
+                    summary = stringResource(R.string.about_summary),
+                    onClick = onAboutClick,
+                    startAction = {
+                        MiuixIcon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 6.dp),
+                            tint = MiuixTheme.colorScheme.onBackground,
+                        )
+                    },
+                )
+            }
+        }
+
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                MiuixText(
+                    text = stringResource(R.string.footer_tag),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+                MiuixText(
+                    text = stringResource(R.string.version) + " $versionName ($versionCode)",
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    fontSize = 12.sp,
+                )
+                MiuixText(
+                    text = stringResource(R.string.copyright),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    fontSize = 12.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiuixCategoryHeader(title: String) {
+    MiuixText(
+        text = title,
+        color = MiuixTheme.colorScheme.primary,
+        fontSize = 14.dp.value.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(horizontal = 4.dp),
+    )
+}
+
+@Composable
 private fun UiStyleDropdown(
     title: String,
     items: List<String>,
@@ -305,89 +546,14 @@ private fun MaterialDropdownPreference(
     selectedIndex: Int,
     onSelectedIndexChange: (Int) -> Unit,
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = true },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-    ) {
-        androidx.compose.foundation.layout.Box {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    if (summary.isNotBlank()) {
-                        Text(
-                            text = summary,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-            ) {
-                items.forEachIndexed { index, item ->
-                    DropdownMenuItem(
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = item,
-                                    modifier = Modifier.weight(1f),
-                                    fontWeight = if (index == selectedIndex) {
-                                        FontWeight.Bold
-                                    } else {
-                                        FontWeight.Normal
-                                    },
-                                )
-                                if (index == selectedIndex) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                }
-                            }
-                        },
-                        onClick = {
-                            onSelectedIndexChange(index)
-                            expanded = false
-                        },
-                    )
-                }
-            }
-        }
-    }
+    DevInfoSegmentedDropdownItem(
+        icon = icon,
+        title = title,
+        summary = summary,
+        items = items,
+        selectedIndex = selectedIndex,
+        onItemSelected = onSelectedIndexChange,
+    )
 }
 
 @Composable
