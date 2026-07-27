@@ -19,6 +19,8 @@ package com.fioiu8.devinfo.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,12 +35,14 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -67,6 +71,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -95,6 +100,49 @@ import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+
+/** 圆形颜色按钮（参考 KernelSU-Style-UI-Kit 的 ColorButtonMaterial） */
+@Composable
+private fun ColorCircle(
+    color: Color,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(color)
+                .then(
+                    if (selected) Modifier.border(3.dp, borderColor, CircleShape)
+                    else Modifier.border(1.dp, borderColor, CircleShape)
+                ),
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = label,
+            fontSize = 10.sp,
+            color = if (selected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            maxLines = 1,
+        )
+    }
+}
 
 /** Theme settings rendered with the active UI component system. */
 @Composable
@@ -239,20 +287,42 @@ private fun MaterialThemeSettingsPage(
 
             if (themeMode.isDynamic) {
                 item {
-                    DevInfoSegmentedDropdownItem(
-                        icon = Icons.Rounded.Wallpaper,
-                        title = stringResource(R.string.theme_key_color),
-                        summary = stringResource(themeColor.displayNameResId),
-                        items = colorItems,
-                        selectedIndex = ThemeColor.entries.indexOf(themeColor).coerceAtLeast(0),
-                        onItemSelected = { index ->
-                            ThemeColor.entries.getOrNull(index)?.let(onThemeColorChange)
-                        },
-                    )
+                    MaterialCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = MaterialCardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        ),
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            MaterialText(
+                                text = stringResource(R.string.theme_key_color),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                ThemeColor.entries.forEach { color ->
+                                    ColorCircle(
+                                        color = color.color,
+                                        label = stringResource(color.displayNameResId),
+                                        selected = themeColor == color,
+                                        onClick = { onThemeColorChange(color) },
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
-            item { Spacer(Modifier.height(12.dp)) }
+            item { Spacer(Modifier.height(24.dp)) }
         }
     }
 }
