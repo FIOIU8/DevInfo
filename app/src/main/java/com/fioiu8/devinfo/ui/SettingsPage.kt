@@ -39,6 +39,7 @@ import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Style
+import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -48,6 +49,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -73,6 +75,7 @@ import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
+import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowDialog
 
@@ -86,6 +89,8 @@ fun SettingsPage(
     onThemeSettingsClick: () -> Unit,
     onExportClick: () -> Unit,
     onAboutClick: () -> Unit,
+    checkUpdate: Boolean,
+    onCheckUpdateChange: (Boolean) -> Unit,
     appLanguage: AppLanguage = AppLanguage.SYSTEM,
     languageOptions: List<String> = emptyList(),
     onLanguageChange: (Int) -> Unit = {},
@@ -101,6 +106,8 @@ fun SettingsPage(
             onThemeSettingsClick = onThemeSettingsClick,
             onExportClick = onExportClick,
             onAboutClick = onAboutClick,
+            checkUpdate = checkUpdate,
+            onCheckUpdateChange = onCheckUpdateChange,
             appLanguage = appLanguage,
             languageOptions = languageOptions,
             onLanguageChange = onLanguageChange,
@@ -231,6 +238,46 @@ fun SettingsPage(
                 onClick = onAboutClick,
             )
         }
+        // 检查更新开关
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Update,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_check_update),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_check_update_summary),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = checkUpdate,
+                        onCheckedChange = onCheckUpdateChange,
+                    )
+                }
+            }
+        }
 
         item {
             Column(
@@ -268,6 +315,8 @@ private fun MiuixSettingsPage(
     onThemeSettingsClick: () -> Unit,
     onExportClick: () -> Unit,
     onAboutClick: () -> Unit,
+    checkUpdate: Boolean,
+    onCheckUpdateChange: (Boolean) -> Unit,
     appLanguage: AppLanguage,
     languageOptions: List<String>,
     onLanguageChange: (Int) -> Unit,
@@ -429,6 +478,20 @@ private fun MiuixSettingsPage(
                     startAction = {
                         MiuixIcon(
                             imageVector = Icons.Outlined.Info,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 6.dp),
+                            tint = MiuixTheme.colorScheme.onBackground,
+                        )
+                    },
+                )
+                SwitchPreference(
+                    title = stringResource(R.string.settings_check_update),
+                    summary = stringResource(R.string.settings_check_update_summary),
+                    checked = checkUpdate,
+                    onCheckedChange = onCheckUpdateChange,
+                    startAction = {
+                        MiuixIcon(
+                            imageVector = Icons.Outlined.Update,
                             contentDescription = null,
                             modifier = Modifier.padding(end = 6.dp),
                             tint = MiuixTheme.colorScheme.onBackground,

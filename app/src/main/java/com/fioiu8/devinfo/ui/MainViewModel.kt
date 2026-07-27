@@ -29,6 +29,7 @@ import com.fioiu8.devinfo.CpuUsageSampler
 import com.fioiu8.devinfo.DeviceInfoCollector
 import com.fioiu8.devinfo.GitHubClient
 import com.fioiu8.devinfo.LiveHardwareMonitor
+import com.fioiu8.devinfo.ThemePreferences
 import com.fioiu8.devinfo.LiveHardwareSnapshot
 import com.fioiu8.devinfo.UpdateChecker
 import com.fioiu8.devinfo.UpdateState
@@ -54,7 +55,8 @@ class MainViewModel(
     private val cpuUsageSampler: CpuUsageSampler,
     private val liveHardwareMonitor: LiveHardwareMonitor,
     private val batteryObserver: BatteryObserver,
-    private val updateChecker: UpdateChecker
+    private val updateChecker: UpdateChecker,
+    private val themePreferences: ThemePreferences
 ) : ViewModel() {
 
     private val reloadMutex = Mutex()
@@ -295,6 +297,7 @@ class MainViewModel(
 
     private fun checkForUpdates() {
         if (!BuildConfig.IS_OFFICIAL) return
+        if (!themePreferences.getCheckUpdateSnapshot()) return
 
         viewModelScope.launch {
             updateChecker.check(BuildConfig.VERSION_NAME)
@@ -327,7 +330,8 @@ class MainViewModel(
             cpuUsageSampler: CpuUsageSampler,
             liveHardwareMonitor: LiveHardwareMonitor,
             batteryObserver: BatteryObserver,
-            updateChecker: UpdateChecker
+            updateChecker: UpdateChecker,
+            themePreferences: ThemePreferences,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -339,7 +343,8 @@ class MainViewModel(
                     cpuUsageSampler = cpuUsageSampler,
                     liveHardwareMonitor = liveHardwareMonitor,
                     batteryObserver = batteryObserver,
-                    updateChecker = updateChecker
+                    updateChecker = updateChecker,
+                    themePreferences = themePreferences
                 ) as T
             }
         }

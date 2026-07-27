@@ -198,6 +198,8 @@
     <string name="about_app">关于 DevInfo</string>
     <string name="about_summary">查看应用信息、贡献者与开源协议</string>
     <string name="about_source_link" translatable="false">在%1$s 上查看源码</string>
+    <string name="settings_check_update">检查更新</string>
+    <string name="settings_check_update_summary">打开应用时自动检查是否有新版本</string>
     <string name="footer_tag">设备信息查看器</string>
 
     <!-- Test version warning -->
