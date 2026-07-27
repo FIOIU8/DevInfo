@@ -192,7 +192,7 @@ We recommend [Conventional Commits](https://www.conventionalcommits.org/) prefix
 
 ## 📜 License
 
-This project is open source under the [MIT License](LICENSE).
+This project is open source under the [GNU General Public License v3.0 or later (GPL-3.0-or-later)](LICENSE).
 
 ## 🙏 Acknowledgments
 

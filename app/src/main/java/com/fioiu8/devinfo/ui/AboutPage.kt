@@ -1,4 +1,21 @@
-﻿package com.fioiu8.devinfo.ui
+﻿/*
+ * Copyright (C) 2026 FIOIU8
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package com.fioiu8.devinfo.ui
 
 import android.content.Intent
 import androidx.compose.foundation.Image
@@ -203,7 +220,7 @@ fun AboutPage(
                     )
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        stringResource(com.fioiu8.devinfo.R.string.mit_license_desc),
+                        stringResource(com.fioiu8.devinfo.R.string.gpl_license_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium
                     )
@@ -217,7 +234,7 @@ fun AboutPage(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            stringResource(com.fioiu8.devinfo.R.string.mit_allow_free),
+                            stringResource(com.fioiu8.devinfo.R.string.gpl_allow_free),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -232,10 +249,16 @@ fun AboutPage(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            stringResource(com.fioiu8.devinfo.R.string.mit_require_notice),
+                            stringResource(com.fioiu8.devinfo.R.string.gpl_require_source),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    val viewGplLicenseTitle = stringResource(R.string.view_gpl_license)
+                    LinkRow(Icons.Outlined.Code, viewGplLicenseTitle) {
+                        confirmTitle = viewGplLicenseTitle
+                        confirmUrl = "https://www.gnu.org/licenses/gpl-3.0.html"
                     }
                 }
             }

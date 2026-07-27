@@ -154,9 +154,10 @@
     <string name="app_description">设备信息查看器</string>
     <string name="version">版本</string>
     <string name="open_source_license">开源协议</string>
-    <string name="mit_license_desc">本项目基于MIT协议开源</string>
-    <string name="mit_allow_free">允许自由使用、修改和分发</string>
-    <string name="mit_require_notice">需保留原作者版权声明</string>
+    <string name="gpl_license_desc">本项目基于 GNU 通用公共许可证第 3 版或更高版本（GPL-3.0-or-later）开源</string>
+    <string name="gpl_allow_free">可自由运行、研究、修改和再分发</string>
+    <string name="gpl_require_source">分发修改版时须提供对应源代码并保持相同许可证</string>
+    <string name="view_gpl_license">查看 GPL-3.0 全文</string>
     <string name="contributors">贡献者</string>
     <string name="contributors_count">%d 位贡献者</string>
     <string name="no_data">暂无数据</string>
@@ -385,5 +386,5 @@
     <string name="status_bluetooth">蓝牙</string>
 
     <!-- Copyright -->
-    <string name="copyright">© 2026 OIU0</string>
+    <string name="copyright">© 2026 FIOIU8</string>
 </resources>

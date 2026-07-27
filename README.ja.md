@@ -192,7 +192,7 @@ Issue とプルリクエストを歓迎します。
 
 ## 📜 ライセンス
 
-このプロジェクトは [MIT License](LICENSE) の下で公開されています。
+このプロジェクトは [GNU General Public License v3.0 or later (GPL-3.0-or-later)](LICENSE) の下で公開されています。
 
 ## 🙏 謝辞
 

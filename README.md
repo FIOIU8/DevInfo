@@ -192,7 +192,7 @@ DevInfo/
 
 ## 📄 开源协议
 
-本项目基于 [MIT 协议](LICENSE) 开源。
+本项目基于 [GNU 通用公共许可证第 3 版或更高版本（GPL-3.0-or-later）](LICENSE) 开源。
 
 ## 🙏 致谢
 
