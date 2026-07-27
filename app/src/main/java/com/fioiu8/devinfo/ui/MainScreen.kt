@@ -105,6 +105,8 @@ import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ThemeColor
 import com.fioiu8.devinfo.model.ThemeMode
 import com.fioiu8.devinfo.model.UiStyle
+import com.fioiu8.devinfo.ui.BlurredBar
+import com.fioiu8.devinfo.ui.rememberBlurBackdrop
 import com.fioiu8.devinfo.ui.screen.about.AboutScreen
 import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import kotlinx.coroutines.CancellationException
@@ -117,6 +119,7 @@ import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHostState as MiuixSnackbarHostState
 import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -639,12 +642,42 @@ private fun MainScaffold(
             onBack = onBack
         )
     }
-    val bottomBar: @Composable () -> Unit = {
+
+    // 毛玻璃：创建 LayerBackdrop 用于捕获内容并供底部导航栏模糊采样
+    val blurBackdrop = rememberBlurBackdrop(true)
+    val enableBlur = blurBackdrop != null
+
+    Box(modifier = modifier.fillMaxSize().consumeWindowInsets(consumedStartInsets)) {
+        // 内容层 — 用 layerBackdrop 捕获，底部无 padding，延伸至导航栏下方
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (enableBlur) Modifier.layerBackdrop(blurBackdrop) else Modifier)
+        ) {
+            when (LocalUiStyle.current) {
+                UiStyle.MATERIAL3 -> {
+                    Scaffold(
+                        topBar = topBar,
+                        containerColor = MaterialTheme.colorScheme.background,
+                        content = content,
+                    )
+                }
+
+                UiStyle.MIUIX -> {
+                    MiuixScaffold(
+                        topBar = topBar,
+                        popupHost = {},
+                        content = content,
+                    )
+                }
+            }
+        }
+
+        // 底部导航栏 — 叠加在内容之上，通过 BlurredBar 采样背后内容实现毛玻璃
         if (showBottomBar) {
-            Box(modifier = Modifier.fillMaxWidth()) {
+            Box(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter)) {
                 val bottomNavigationModifier = when (LocalUiStyle.current) {
                     UiStyle.MATERIAL3 -> Modifier
-                        .align(Alignment.BottomCenter)
                         .padding(horizontal = 20.dp)
                         .padding(
                             bottom = 12.dp +
@@ -655,35 +688,14 @@ private fun MainScaffold(
 
                     UiStyle.MIUIX -> Modifier
                 }
-                DevInfoFloatingNavigationBar(
-                    items = items,
-                    selectedIndex = selectedIndex,
-                    onItemSelected = onItemSelected,
-                    modifier = bottomNavigationModifier,
-                )
-            }
-        }
-    }
-    Box(modifier = modifier.consumeWindowInsets(consumedStartInsets)) {
-        when (LocalUiStyle.current) {
-            UiStyle.MATERIAL3 -> {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    topBar = topBar,
-                    bottomBar = bottomBar,
-                    containerColor = MaterialTheme.colorScheme.background,
-                    content = content,
-                )
-            }
-
-            UiStyle.MIUIX -> {
-                MiuixScaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    topBar = topBar,
-                    bottomBar = bottomBar,
-                    popupHost = {},
-                    content = content,
-                )
+                BlurredBar(backdrop = blurBackdrop) {
+                    DevInfoFloatingNavigationBar(
+                        items = items,
+                        selectedIndex = selectedIndex,
+                        onItemSelected = onItemSelected,
+                        modifier = bottomNavigationModifier,
+                    )
+                }
             }
         }
     }

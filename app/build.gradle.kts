@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "com.fioiu8.devinfo"
-        minSdk = 30
+        minSdk = 33
         targetSdk = 37
 
         versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
@@ -117,6 +117,8 @@ dependencies {
     implementation(libs.miuix.ui)
     implementation(libs.miuix.icons)
     implementation(libs.miuix.preference)
+    implementation(libs.miuix.shader)
+    implementation(libs.miuix.blur)
 
     implementation("androidx.core:core-splashscreen:1.0.1")
 
