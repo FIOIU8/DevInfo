@@ -140,6 +140,8 @@ fun MainScreen(
     var detailCategory by remember { mutableStateOf(InfoCategory.DEVICE) }
     var showAboutPage by remember { mutableStateOf(false) }
     var isAboutVisible by remember { mutableStateOf(false) }
+    var showThemeSettingsPage by remember { mutableStateOf(false) }
+    var isThemeSettingsVisible by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showExportSuccessDialog by remember { mutableStateOf(false) }
     var exportedFilePath by remember { mutableStateOf("") }
@@ -152,6 +154,7 @@ fun MainScreen(
     val density = LocalDensity.current
     val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
     val aboutOffsetX = remember { Animatable(0f) }
+    val themeSettingsOffsetX = remember { Animatable(0f) }
     val detailOffsetX = remember { Animatable(0f) }
     val alreadyLatestMessage = stringResource(R.string.already_latest)
     val exportFailedLabel = stringResource(R.string.export_failed)
@@ -186,6 +189,14 @@ fun MainScreen(
         }
     }
 
+    LaunchedEffect(showThemeSettingsPage) {
+        if (showThemeSettingsPage) {
+            isThemeSettingsVisible = true
+            themeSettingsOffsetX.snapTo(screenWidthPx)
+            themeSettingsOffsetX.animateTo(0f, animationSpec = tween(ABOUT_ANIMATION_DURATION_MS))
+        }
+    }
+
     LaunchedEffect(showDetailsPage) {
         if (!showDetailsPage) {
             detailOffsetX.snapTo(0f)
@@ -211,6 +222,17 @@ fun MainScreen(
             aboutOffsetX.animateTo(screenWidthPx, animationSpec = tween(ABOUT_ANIMATION_DURATION_MS))
             showAboutPage = false
             isAboutVisible = false
+        }
+    }
+
+    fun dismissThemeSettingsPage() {
+        scope.launch {
+            themeSettingsOffsetX.animateTo(
+                screenWidthPx,
+                animationSpec = tween(ABOUT_ANIMATION_DURATION_MS),
+            )
+            showThemeSettingsPage = false
+            isThemeSettingsVisible = false
         }
     }
 
@@ -322,24 +344,15 @@ fun MainScreen(
                             }
 
                             SETTINGS_TAB_INDEX -> {
-                                val themeOptions = ThemeMode.entries.map { mode ->
-                                    stringResource(mode.displayNameResId)
-                                }
                                 val languageOptions = AppLanguage.entries.map { language ->
                                     stringResource(language.displayNameResId)
                                 }
                                 SettingsPage(
                                     versionName = viewModel.appVersionName,
                                     versionCode = viewModel.appVersionCode,
-                                    themeMode = settings.themeMode,
-                                    themeOptions = themeOptions,
-                                    onThemeChange = { index ->
-                                        settings.onThemeModeChange(ThemeMode.entries[index])
-                                    },
-                                    themeColor = settings.themeColor,
-                                    onThemeColorChange = settings.onThemeColorChange,
                                     uiStyle = settings.uiStyle,
                                     onUiStyleChange = settings.onUiStyleChange,
+                                    onThemeSettingsClick = { showThemeSettingsPage = true },
                                     onExportClick = { showExportDialog = true },
                                     onAboutClick = { showAboutPage = true },
                                     appLanguage = settings.appLanguage,
@@ -369,21 +382,48 @@ fun MainScreen(
                 )
             }
         }
+
+        if (isThemeSettingsVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .offset { IntOffset(themeSettingsOffsetX.value.roundToInt(), 0) },
+            ) {
+                ThemeSettingsPage(
+                    themeMode = settings.themeMode,
+                    onThemeModeChange = settings.onThemeModeChange,
+                    themeColor = settings.themeColor,
+                    onThemeColorChange = settings.onThemeColorChange,
+                    onBack = ::dismissThemeSettingsPage,
+                )
+            }
+        }
     }
 
     PredictiveBackHandler(
-        enabled = showAboutPage || showDetailsPage,
+        enabled = showThemeSettingsPage || showAboutPage || showDetailsPage,
         onBack = { progress ->
-            val dismissAbout = showAboutPage
-            val dismissDetails = !dismissAbout && showDetailsPage
+            val dismissThemeSettings = showThemeSettingsPage
+            val dismissAbout = !dismissThemeSettings && showAboutPage
+            val dismissDetails = !dismissThemeSettings && !dismissAbout && showDetailsPage
             try {
                 progress.collect { event ->
                     when {
+                        dismissThemeSettings -> themeSettingsOffsetX.snapTo(event.progress * screenWidthPx)
                         dismissAbout -> aboutOffsetX.snapTo(event.progress * screenWidthPx)
                         dismissDetails -> detailOffsetX.snapTo(event.progress * screenWidthPx)
                     }
                 }
                 when {
+                    dismissThemeSettings -> {
+                        themeSettingsOffsetX.animateTo(
+                            screenWidthPx,
+                            animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS),
+                        )
+                        showThemeSettingsPage = false
+                        isThemeSettingsVisible = false
+                    }
+
                     dismissAbout -> {
                         aboutOffsetX.animateTo(
                             screenWidthPx,
@@ -403,6 +443,13 @@ fun MainScreen(
                 }
             } catch (_: CancellationException) {
                 when {
+                    dismissThemeSettings -> scope.launch {
+                        themeSettingsOffsetX.animateTo(
+                            0f,
+                            animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS),
+                        )
+                    }
+
                     dismissAbout -> scope.launch {
                         aboutOffsetX.animateTo(
                             0f,
@@ -490,26 +537,15 @@ private fun MainRootScaffold(
 ) {
     val contentStateHolder = rememberSaveableStateHolder()
 
-    when (LocalUiStyle.current) {
-        UiStyle.MATERIAL3 -> {
-            Box(modifier = modifier) {
-                contentStateHolder.SaveableStateProvider(MAIN_CONTENT_STATE_KEY) {
-                    content()
-                }
-            }
-        }
-
-        UiStyle.MIUIX -> {
-            MiuixScaffold(
-                modifier = modifier,
-                containerColor = Color.Transparent,
-                contentWindowInsets = WindowInsets(0, 0, 0, 0)
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    contentStateHolder.SaveableStateProvider(MAIN_CONTENT_STATE_KEY) {
-                        content()
-                    }
-                }
+    // OverlayDropdownPreference needs a Miuix popup host even while Material 3 is active.
+    MiuixScaffold(
+        modifier = modifier,
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            contentStateHolder.SaveableStateProvider(MAIN_CONTENT_STATE_KEY) {
+                content()
             }
         }
     }

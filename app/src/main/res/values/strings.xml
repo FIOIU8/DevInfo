@@ -26,6 +26,13 @@
     <string name="ui_style_material3">Material 3</string>
     <string name="ui_style_miuix">Miuix</string>
 
+    <string name="theme_settings_title">主题设置</string>
+    <string name="theme_settings_summary">主题模式、Monet 与主题色</string>
+    <string name="theme_monet">Monet 动态颜色</string>
+    <string name="theme_monet_summary">使用系统壁纸颜色或自定义主题色</string>
+    <string name="theme_key_color">主题色</string>
+    <string name="theme_preview_summary">预览当前主题外观</string>
+
     <!-- Theme settings -->
     <string name="theme_mode">主题模式</string>
     <string name="theme_follow_system">跟随系统</string>
