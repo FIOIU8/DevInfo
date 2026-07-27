@@ -17,7 +17,9 @@
 
 package com.fioiu8.devinfo.ui
 
-import android.os.Environment
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -26,14 +28,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -42,6 +44,7 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.OpenInBrowser
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
@@ -60,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -138,14 +142,8 @@ fun ExportConfirmDialog(
                             value = stringResource(com.fioiu8.devinfo.R.string.export_format_value)
                         )
                         InfoRow(
-                            label = stringResource(com.fioiu8.devinfo.R.string.export_save_location),
-                            value = Environment.getExternalStoragePublicDirectory(
-                                Environment.DIRECTORY_DOWNLOADS
-                            ).absolutePath
-                        )
-                        InfoRow(
                             label = stringResource(com.fioiu8.devinfo.R.string.export_filename),
-                            value = "${android.os.Build.MODEL}.zip"
+                            value = "DevInfo_${Build.MODEL}.zip"
                         )
                     }
                 }
@@ -173,29 +171,26 @@ fun ExportConfirmDialog(
 }
 
 /**
- * 导出成功对话框 — 展示保存路径，支持长按复制。
+ * 导出成功对话框 — 展示保存位置 URI，支持打开/分享。
  *
  * @param show 是否显示
- * @param filePath 导出文件完整路径
+ * @param fileUri 导出文件的 content URI
  * @param onDismiss 关闭对话框回调
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ExportSuccessDialog(
     show: Boolean,
-    filePath: String,
+    fileUri: Uri?,
     onDismiss: () -> Unit
 ) {
     if (!show) return
+    val context = LocalContext.current
 
     if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixExportSuccessDialog(filePath = filePath, onDismiss = onDismiss)
+        MiuixExportSuccessDialog(fileUri = fileUri, onDismiss = onDismiss)
         return
     }
-
-    val clipboardManager = LocalClipboardManager.current
-    val pathCopiedMessage = stringResource(com.fioiu8.devinfo.R.string.path_copied)
-    val showMessage = rememberDevInfoMessageHandler()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -227,38 +222,44 @@ fun ExportSuccessDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .combinedClickable(
-                            onClick = {},
-                            onLongClick = {
-                                clipboardManager.setText(AnnotatedString(filePath))
-                                showMessage(pathCopiedMessage)
-                            }
-                        ),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = filePath,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(12.dp),
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    TextButton(
+                        onClick = {
+                            fileUri?.let { uri ->
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(uri, "application/zip")
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(intent)
+                            }
+                        },
+                        enabled = fileUri != null
+                    ) {
+                        Icon(Icons.Outlined.OpenInBrowser, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(com.fioiu8.devinfo.R.string.open))
+                    }
+                    TextButton(
+                        onClick = {
+                            fileUri?.let { uri ->
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "application/zip"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(intent, null))
+                            }
+                        },
+                        enabled = fileUri != null
+                    ) {
+                        Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(com.fioiu8.devinfo.R.string.share))
+                    }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = stringResource(com.fioiu8.devinfo.R.string.export_long_press_hint),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         },
         confirmButton = {
@@ -530,15 +531,12 @@ private fun MiuixActionDialog(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MiuixExportSuccessDialog(
-    filePath: String,
+    fileUri: Uri?,
     onDismiss: () -> Unit,
 ) {
-    val clipboardManager = LocalClipboardManager.current
-    val showMessage = rememberDevInfoMessageHandler()
-    val pathCopiedMessage = stringResource(R.string.path_copied)
+    val context = LocalContext.current
 
     WindowDialog(
         show = true,
@@ -547,25 +545,38 @@ private fun MiuixExportSuccessDialog(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             MiuixText(text = stringResource(R.string.export_saved_to))
-            MiuixCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .combinedClickable(
-                        onClick = {},
-                        onLongClick = {
-                            clipboardManager.setText(AnnotatedString(filePath))
-                            showMessage(pathCopiedMessage)
-                        },
-                    ),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                MiuixText(
-                    text = filePath,
-                    modifier = Modifier.padding(14.dp),
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
+                MiuixTextButton(
+                    text = stringResource(R.string.open),
+                    enabled = fileUri != null,
+                    onClick = {
+                        fileUri?.let { uri ->
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(uri, "application/zip")
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(intent)
+                        }
+                    },
+                )
+                MiuixTextButton(
+                    text = stringResource(R.string.share),
+                    enabled = fileUri != null,
+                    onClick = {
+                        fileUri?.let { uri ->
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "application/zip"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(intent, null))
+                        }
+                    },
                 )
             }
-            MiuixText(text = stringResource(R.string.export_long_press_hint))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,

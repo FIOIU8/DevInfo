@@ -25,6 +25,7 @@ import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.ItemWithVisibility
 import java.io.File
 import java.io.FileOutputStream
+import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -96,6 +97,43 @@ class ModuleExportHelper(private val context: Context) {
         }
     }
 
+    /**
+     * 基于 SAF 的导出方法：将 ZIP 写入给定的 OutputStream。
+     * 生成过程在 cacheDir 完成临时文件创建，最后写入流式输出。
+     * 调用方负责在 finally 中关闭 outputStream。
+     *
+     * @param deviceId 设备唯一标识符
+     * @param itemsState 设备信息项列表
+     * @param outputStream 目标输出流（由 SAF ContentResolver 提供）
+     * @param onSuccess 成功回调
+     * @param onError 失败回调，返回错误信息
+     */
+    fun exportModuleToStream(
+        deviceId: String,
+        itemsState: List<ItemWithVisibility>,
+        outputStream: OutputStream,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        var directories: ModuleDirectories? = null
+        try {
+            val buildInfo = readDeviceBuildInfo()
+            val metadata = createModuleMetadata(deviceId, itemsState, buildInfo)
+            directories = createModuleDirectories()
+
+            writeModuleFiles(directories, metadata, buildInfo)
+            ZipOutputStream(outputStream).use { zipOut ->
+                zipDirectory(directories.root, "", zipOut)
+            }
+            onSuccess()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            onError(e.message ?: "未知错误")
+        } finally {
+            directories?.root?.deleteRecursively()
+        }
+    }
+
     private data class DeviceBuildInfo(
         val model: String,
         val manufacturer: String,
@@ -143,7 +181,7 @@ class ModuleExportHelper(private val context: Context) {
         val moduleId = "Device_${buildInfo.model.replace(Regex("[^a-zA-Z0-9_]"), "_")}"
         val deviceName = getDeviceDisplayName(itemsState)
         val moduleName = context.getString(R.string.module_export_name, deviceName)
-        val author = deviceId.take(8).ifBlank { "DevInfo" }
+        val author = "DevInfo"
         val version = "v${buildInfo.versionRelease}"
         val generatedAt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
         val description = context.getString(
@@ -297,6 +335,40 @@ class ModuleExportHelper(private val context: Context) {
         return "$manufacturer $model"
     }
 
+    companion object {
+        /**
+         * 转义 .prop 文件中的值：转义换行、回车、反斜杠和等号。
+         */
+        internal fun escapePropValue(value: String): String {
+            return value
+                .replace("\\", "\\\\")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("=", "\\=")
+        }
+
+        /**
+         * 转义 shell 字符串值。
+         */
+        internal fun escapeShellValue(value: String): String {
+            return value
+                .replace("\\", "\\\\")
+                .replace("'", "'\\''")
+                .replace("\$", "\\$")
+                .replace("`", "\\`")
+                .replace("\"", "\\\"")
+                .replace("\n", " ")
+                .replace("\r", "")
+        }
+
+        /**
+         * 净化文件名：只保留字母、数字、下划线、连字符和点。
+         */
+        internal fun sanitizeFileName(name: String): String {
+            return name.replace(Regex("[^a-zA-Z0-9_.-]"), "_")
+        }
+    }
+
     /**
      * 构建 module.prop 文件的内容
      * 这是 Magisk/KernelSU 模块的必需文件，定义了模块的元数据
@@ -316,12 +388,12 @@ class ModuleExportHelper(private val context: Context) {
         description: String
     ): String {
         return """
-id=$id
-name=$name
-version=$version
+id=${escapePropValue(id)}
+name=${escapePropValue(name)}
+version=${escapePropValue(version)}
 versionCode=1
-author=$author
-description=$description
+author=${escapePropValue(author)}
+description=${escapePropValue(description)}
         """.trimIndent()
     }
 
@@ -361,21 +433,21 @@ description=$description
 # ============================================
 
 # Brand & Manufacturer（品牌和制造商）
-ro.product.brand=$brand
-ro.product.manufacturer=$manufacturer
+ro.product.brand=${escapePropValue(brand)}
+ro.product.manufacturer=${escapePropValue(manufacturer)}
 
 # Model & Device（型号和设备代号）
-ro.product.model=$model
-ro.product.device=$device
-ro.product.name=$product
+ro.product.model=${escapePropValue(model)}
+ro.product.device=${escapePropValue(device)}
+ro.product.name=${escapePropValue(product)}
 
 # Build Fingerprint（构建指纹）
-ro.build.fingerprint=$fingerprint
+ro.build.fingerprint=${escapePropValue(fingerprint)}
 
 # Version Info（版本信息）
-ro.build.version.release=$versionRelease
-ro.build.version.sdk=$versionSdk
-ro.build.version.security_patch=$securityPatch
+ro.build.version.release=${escapePropValue(versionRelease)}
+ro.build.version.sdk=${escapePropValue(versionSdk)}
+ro.build.version.security_patch=${escapePropValue(securityPatch)}
 
 # Additional Properties（附加属性）
 ro.build.product=$device
@@ -402,6 +474,9 @@ ro.product.cpu.abilist64=${Build.SUPPORTED_64_BIT_ABIS.joinToString(",")}
         model: String
     ): String {
         val dollar = '$'
+        val escapedManufacturer = escapeShellValue(manufacturer)
+        val escapedModel = escapeShellValue(model)
+        val escapedBrand = escapeShellValue(brand)
         return """
 #!/system/bin/sh
 # ============================================
@@ -445,8 +520,8 @@ function ALING(){
         echo "您好！ ${dollar}(pm list users | cut -d : -f2 )！"
     fi
     echo "*******************************"
-    echo "    全局机型模拟 - $manufacturer $model"
-    echo "    品牌: $brand"
+    echo "    全局机型模拟 - $escapedManufacturer $escapedModel"
+    echo "    品牌: $escapedBrand"
     echo "*******************************"
     echo "  注意: 刷入后请重启设备以生效！"
     echo "*******************************"
