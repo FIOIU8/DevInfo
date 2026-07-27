@@ -28,31 +28,21 @@
     <string name="ui_style_miuix">Miuix</string>
 
     <!-- Theme settings -->
-    <string name="theme_mode">テーマモード</string>
-    <string name="theme_follow_system">システムに従う</string>
-    <string name="theme_follow_system_summary">システムのライトまたはダーク外観を使用</string>
-    <string name="theme_dynamic_color">ダイナミックカラー</string>
-    <string name="theme_dynamic_color_summary">システムのダイナミックカラーを使用</string>
-    <string name="theme_color">テーマカラー</string>
-    <string name="theme_mode_summary">システムに従う</string>
-    <string name="theme_color_enabled">カスタムカラー有効</string>
-    <string name="theme_color_disabled">先にダイナミックカラーモードに切り替えてください</string>
-    <string name="theme_color_select">テーマカラーを選択</string>
+    <string name="theme_settings_title">テーマ設定</string>
+    <string name="theme_settings_summary">テーマモード、Monet とテーマカラー</string>
+    <string name="theme_monet">Monet ダイナミックカラー</string>
+    <string name="theme_monet_summary">壁紙の色またはカスタムテーマカラーを使用</string>
+    <string name="theme_key_color">テーマカラー</string>
+    <string name="theme_preview_summary">現在のテーマの外観をプレビュー</string>
 
     <!-- Language settings -->
     <string name="language_setting">言語設定</string>
-    <string name="language_summary">表示言語を選択</string>
     <string name="custom_locale_hint">ロケールタグを入力（例: ja, ko, de）</string>
     <string name="custom_locale_apply">適用</string>
     <string name="custom_locale_title">カスタム言語</string>
     <string name="custom_locale_placeholder">ロケールコードを入力…</string>
 
     <!-- Language names (displayed in dropdown) -->
-    <string name="lang_system_display">システムに従う</string>
-    <string name="lang_zh_display">中文</string>
-    <string name="lang_en_display">English</string>
-    <string name="lang_custom_display">カスタム</string>
-    <string name="lang_ja_display">日本語</string>
 
     <!-- Language display names for enum -->
     <string name="theme_mode_system">システムに従う</string>
@@ -123,6 +113,7 @@
     <!-- External link dialog -->
     <string name="external_link_open_browser">外部ブラウザが開きます</string>
     <string name="open">開く</string>
+    <string name="share">共有</string>
 
     <!-- Update dialog -->
     <string name="update_check_failed">アップデートの確認に失敗しました</string>
@@ -139,11 +130,9 @@
     <string name="already_latest">最新バージョンです</string>
     <string name="export_failed">エクスポートに失敗しました</string>
     <string name="cannot_open_link">リンクを開けません</string>
-    <string name="copied">コピーしました</string>
     <string name="path_copied">パスをコピーしました</string>
 
     <!-- About page -->
-    <string name="about_title">バージョン情報</string>
     <string name="back">戻る</string>
     <string name="app_description">デバイス情報ビューワー</string>
     <string name="version">バージョン</string>
@@ -162,7 +151,6 @@
     <string name="join_community">コミュニティに参加</string>
     <string name="will_open_browser">外部ブラウザを開きます</string>
     <string name="app_icon_label">アイコン</string>
-    <string name="contributor_commits">コミット</string>
     <string name="contributor_commits_count">%d コミット</string>
     <string name="view_homepage">%s のホームページを見る</string>
 
@@ -176,17 +164,11 @@
     <string name="overview_cpu_usage">CPU 使用率</string>
     <string name="overview_gpu_frequency">GPU 周波数</string>
     <string name="overview_gpu_usage">GPU 使用率</string>
-    <string name="storage_usage">ストレージ使用量</string>
-    <string name="memory_usage">メモリ使用量</string>
-    <string name="battery_level_charging">バッテリー（充電中）</string>
-    <string name="battery_level">バッテリーレベル</string>
     <string name="previous_page">前のページ</string>
     <string name="next_page">次のページ</string>
     <string name="page_info">%1$d / %2$d ページ</string>
     <string name="items_count">%d 項目</string>
     <string name="copied_to_clipboard">%s をコピーしました</string>
-    <string name="storage_usage_desc">ストレージとメモリの使用率</string>
-    <string name="battery_desc">バッテリー残量</string>
     <string name="overview_realtime_title">リアルタイム動態</string>
     <string name="overview_realtime_cpu">CPU 波形 · 2 秒サンプリング</string>
     <string name="overview_cpu_cores_detail">コア別使用率</string>
@@ -334,7 +316,7 @@
     <string name="app_target_sdk">ターゲットSDK</string>
     <string name="app_min_sdk">最小SDK</string>
     <string name="app_installer">インストール元</string>
-    <string name="app_installed_count">インストール済みアプリ数</string>
+    <string name="app_installed_count">表示可能なアプリ数</string>
     <string name="status_yes">はい</string>
     <string name="status_no">いいえ</string>
     <string name="status_landscape">横向き</string>
@@ -345,10 +327,6 @@
     <string name="status_unplugged">未接続</string>
     <string name="status_none">なし</string>
     <string name="status_sideloaded">手動インストール</string>
-
-    <!-- Unit strings -->
-    <string name="unit_mb">MB</string>
-    <string name="unit_gb">GB</string>
 
     <!-- Status strings from collector -->
     <string name="status_charging">充電中</string>

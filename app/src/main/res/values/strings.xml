@@ -34,33 +34,15 @@
     <string name="theme_preview_summary">预览当前主题外观</string>
 
     <!-- Theme settings -->
-    <string name="theme_mode">主题模式</string>
-    <string name="theme_follow_system">跟随系统</string>
-    <string name="theme_follow_system_summary">使用系统的浅色或深色外观</string>
-    <string name="theme_dynamic_color">动态颜色</string>
-    <string name="theme_dynamic_color_summary">使用系统动态主题颜色</string>
-    <string name="theme_color">主题颜色</string>
-    <string name="theme_mode_summary">跟随系统</string>
-    <string name="theme_color_enabled">已启用自定义颜色</string>
-    <string name="theme_color_disabled">请先切换到动态颜色模式</string>
-    <string name="theme_color_select">选择应用的主题颜色</string>
 
     <!-- Language settings -->
     <string name="language_setting">语言设置</string>
-    <string name="language_summary">选择应用显示语言</string>
     <string name="custom_locale_hint">输入语言标签（如 ja, ko, de）</string>
     <string name="custom_locale_apply">应用</string>
     <string name="custom_locale_title">自定义语言</string>
     <string name="custom_locale_placeholder">输入区域代码…</string>
 
-    <!-- Language names (displayed in dropdown) -->
-    <string name="lang_system_display">跟随系统</string>
-    <string name="lang_zh_display">中文</string>
-    <string name="lang_en_display">English</string>
-    <string name="lang_custom_display">自定义</string>
-    <string name="lang_ja_display">日本語</string>
 
-    <!-- Language display names for enum -->
     <string name="theme_mode_system">跟随系统</string>
     <string name="theme_mode_light">浅色模式</string>
     <string name="theme_mode_dark">深色模式</string>
@@ -129,6 +111,7 @@
     <!-- External link dialog -->
     <string name="external_link_open_browser">将会打开外部浏览器</string>
     <string name="open">打开</string>
+    <string name="share">分享</string>
 
     <!-- Update dialog -->
     <string name="update_check_failed">检查更新失败</string>
@@ -145,11 +128,9 @@
     <string name="already_latest">已是最新版本</string>
     <string name="export_failed">导出失败</string>
     <string name="cannot_open_link">无法打开链接</string>
-    <string name="copied">已复制</string>
     <string name="path_copied">路径已复制</string>
 
     <!-- About page -->
-    <string name="about_title">关于</string>
     <string name="back">返回</string>
     <string name="app_description">设备信息查看器</string>
     <string name="version">版本</string>
@@ -168,7 +149,6 @@
     <string name="join_community">加入社区</string>
     <string name="will_open_browser">即将跳转到外部浏览器</string>
     <string name="app_icon_label">图标</string>
-    <string name="contributor_commits">次提交</string>
     <string name="contributor_commits_count">%d 次提交</string>
     <string name="view_homepage">查看 %s 的主页</string>
 
@@ -182,17 +162,11 @@
     <string name="overview_cpu_usage">CPU 占用</string>
     <string name="overview_gpu_frequency">GPU 频率</string>
     <string name="overview_gpu_usage">GPU 占用</string>
-    <string name="storage_usage">存储使用</string>
-    <string name="memory_usage">内存使用</string>
-    <string name="battery_level_charging">电池电量（充电中）</string>
-    <string name="battery_level">电池电量</string>
     <string name="previous_page">上一页</string>
     <string name="next_page">下一页</string>
     <string name="page_info">第 %1$d / %2$d 页</string>
     <string name="items_count">%d 项</string>
     <string name="copied_to_clipboard">%s 已复制</string>
-    <string name="storage_usage_desc">存储与内存使用百分比进度条</string>
-    <string name="battery_desc">电池电量进度条</string>
     <string name="overview_realtime_title">实时动态</string>
     <string name="overview_realtime_cpu">CPU 波形 · 2 秒采样</string>
     <string name="overview_cpu_cores_detail">每核心占用</string>
@@ -340,7 +314,7 @@
     <string name="app_target_sdk">目标SDK</string>
     <string name="app_min_sdk">最低SDK</string>
     <string name="app_installer">安装来源</string>
-    <string name="app_installed_count">已安装应用数</string>
+    <string name="app_installed_count">可见应用数</string>
     <string name="status_yes">是</string>
     <string name="status_no">否</string>
     <string name="status_landscape">横屏</string>
@@ -351,10 +325,6 @@
     <string name="status_unplugged">未连接</string>
     <string name="status_none">无</string>
     <string name="status_sideloaded">手动安装</string>
-
-    <!-- Unit strings -->
-    <string name="unit_mb">MB</string>
-    <string name="unit_gb">GB</string>
 
     <!-- Status strings from collector -->
     <string name="status_charging">充电中</string>
