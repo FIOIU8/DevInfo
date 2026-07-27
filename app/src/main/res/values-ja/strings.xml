@@ -199,6 +199,7 @@
     <string name="export_summary">デバイス情報をMagiskモジュールとしてエクスポート</string>
     <string name="about_app">DevInfo について</string>
     <string name="about_summary">アプリ情報、コントリビューター、ライセンスを表示</string>
+    <string name="about_source_link" translatable="false">%1$s でソースコードを表示</string>
     <string name="footer_tag">デバイス情報ビューワー</string>
 
     <!-- Test version warning -->
