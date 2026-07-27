@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">DevInfo</string>
 
@@ -60,6 +60,14 @@
     <string name="mount_color_teal">ティール</string>
     <string name="mount_color_purple">紫</string>
     <string name="mount_color_pink">ピンク</string>
+    <string name="mount_color_yellow">イエロー</string>
+    <string name="mount_color_cyan">シアン</string>
+    <string name="mount_color_blue">ブルー</string>
+    <string name="mount_color_indigo">インジゴ</string>
+    <string name="mount_color_deep_purple">ディープパープル</string>
+    <string name="mount_color_brown">ブラウン</string>
+    <string name="mount_color_blue_grey">ブルーグレー</string>
+    <string name="mount_color_sakura">サクラ</string>
     <string name="mount_color_dark">ダーク</string>
     <string name="mount_color_desc_default">さわやかな青</string>
     <string name="mount_color_desc_red">情熱の赤</string>
