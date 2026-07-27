@@ -3,6 +3,7 @@ package com.fioiu8.devinfo.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurColors
@@ -10,7 +11,6 @@ import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.shader.isRenderEffectSupported
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * 创建一个可选的模糊背景层，供底部导航栏等元素采样。
@@ -20,9 +20,8 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 否则返回 null，调用方应跳过模糊效果。
  */
 @Composable
-fun rememberBlurBackdrop(enableBlur: Boolean): LayerBackdrop? {
+fun rememberBlurBackdrop(enableBlur: Boolean, surfaceColor: Color): LayerBackdrop? {
     if (!enableBlur || !isRenderEffectSupported()) return null
-    val surfaceColor = MiuixTheme.colorScheme.surface
     return rememberLayerBackdrop {
         drawRect(surfaceColor)
         drawContent()
@@ -44,6 +43,7 @@ fun rememberBlurBackdrop(enableBlur: Boolean): LayerBackdrop? {
 fun BlurredBar(
     backdrop: LayerBackdrop?,
     blurActive: Boolean = true,
+    surfaceColor: Color,
     content: @Composable () -> Unit,
 ) {
     Box(
@@ -54,7 +54,7 @@ fun BlurredBar(
                 blurRadius = 25f,
                 colors = BlurColors(
                     blendColors = listOf(
-                        BlendColorEntry(color = MiuixTheme.colorScheme.surface.copy(0.87f)),
+                        BlendColorEntry(color = surfaceColor.copy(alpha = 0.87f)),
                     ),
                 ),
             )

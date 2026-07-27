@@ -107,6 +107,8 @@ class MainActivity : ComponentActivity() {
             val paletteStyle by themePrefs.paletteStyle.collectAsState(initial = PaletteStyle.DEFAULT)
             val colorSpec by themePrefs.colorSpec.collectAsState(initial = com.fioiu8.devinfo.model.ColorSpec.DEFAULT)
             val enableBlur by themePrefs.enableBlur.collectAsState(initial = false)
+            val enableFloatingBottomBar by themePrefs.enableFloatingBottomBar.collectAsState(initial = true)
+            val enableFloatingBottomBarBlur by themePrefs.enableFloatingBottomBarBlur.collectAsState(initial = true)
             val pageScale by themePrefs.pageScale.collectAsState(initial = 1f)
             val enablePredictiveBack by themePrefs.enablePredictiveBack.collectAsState(initial = true)
             val systemDensity = LocalDensity.current
@@ -127,6 +129,8 @@ class MainActivity : ComponentActivity() {
                 paletteStyle,
                 colorSpec,
                 enableBlur,
+                enableFloatingBottomBar,
+                enableFloatingBottomBarBlur,
                 pageScale,
                 enablePredictiveBack,
             ) {
@@ -146,6 +150,10 @@ class MainActivity : ComponentActivity() {
                     onColorSpecChange = themePrefs::setColorSpec,
                     enableBlur = enableBlur,
                     onEnableBlurChange = themePrefs::setEnableBlur,
+                    enableFloatingBottomBar = enableFloatingBottomBar,
+                    onEnableFloatingBottomBarChange = themePrefs::setEnableFloatingBottomBar,
+                    enableFloatingBottomBarBlur = enableFloatingBottomBarBlur,
+                    onEnableFloatingBottomBarBlurChange = themePrefs::setEnableFloatingBottomBarBlur,
                     pageScale = pageScale,
                     onPageScaleChange = themePrefs::setPageScale,
                     enablePredictiveBack = enablePredictiveBack,
