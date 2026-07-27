@@ -2,6 +2,7 @@ package com.fioiu8.devinfo.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,12 +20,34 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Wallpaper
+import androidx.compose.material3.Card as MaterialCard
+import androidx.compose.material3.CardDefaults as MaterialCardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon as MaterialIcon
+import androidx.compose.material3.IconButton as MaterialIconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold as MaterialScaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text as MaterialText
+import androidx.compose.material3.TopAppBar as MaterialTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +62,8 @@ import androidx.compose.ui.unit.sp
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.ThemeColor
 import com.fioiu8.devinfo.model.ThemeMode
+import com.fioiu8.devinfo.model.UiStyle
+import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -55,9 +80,270 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
-/** Miuix Theme Settings interaction adapted from KernelSU-Style-UI-Kit. */
+/** Theme settings rendered with the active UI component system. */
 @Composable
 fun ThemeSettingsPage(
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    themeColor: ThemeColor,
+    onThemeColorChange: (ThemeColor) -> Unit,
+    onBack: () -> Unit,
+) {
+    when (LocalUiStyle.current) {
+        UiStyle.MATERIAL3 -> MaterialThemeSettingsPage(
+            themeMode = themeMode,
+            onThemeModeChange = onThemeModeChange,
+            themeColor = themeColor,
+            onThemeColorChange = onThemeColorChange,
+            onBack = onBack,
+        )
+
+        UiStyle.MIUIX -> MiuixThemeSettingsPage(
+            themeMode = themeMode,
+            onThemeModeChange = onThemeModeChange,
+            themeColor = themeColor,
+            onThemeColorChange = onThemeColorChange,
+            onBack = onBack,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MaterialThemeSettingsPage(
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    themeColor: ThemeColor,
+    onThemeColorChange: (ThemeColor) -> Unit,
+    onBack: () -> Unit,
+) {
+    var colorMenuExpanded by rememberSaveable { mutableStateOf(false) }
+    val selectedThemeIndex = themeMode.baseIndex
+    val themeTabs = listOf(
+        stringResource(R.string.theme_mode_system),
+        stringResource(R.string.theme_mode_light),
+        stringResource(R.string.theme_mode_dark),
+    )
+    val colorItems = ThemeColor.entries.map { stringResource(it.displayNameResId) }
+
+    MaterialScaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            MaterialTopAppBar(
+                title = {
+                    MaterialText(
+                        text = stringResource(R.string.theme_settings_title),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                },
+                navigationIcon = {
+                    MaterialIconButton(onClick = onBack) {
+                        MaterialIcon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
+            )
+        },
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
+            contentPadding = innerPadding,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                Spacer(Modifier.height(12.dp))
+                MaterialThemePreviewCard(themeMode = themeMode, themeColor = themeColor)
+            }
+
+            item {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    themeTabs.forEachIndexed { index, label ->
+                        SegmentedButton(
+                            selected = selectedThemeIndex == index,
+                            onClick = { onThemeModeChange(themeMode.withBaseIndex(index)) },
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = themeTabs.size,
+                            ),
+                            label = { MaterialText(label) },
+                        )
+                    }
+                }
+            }
+
+            item {
+                MaterialCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = MaterialCardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            MaterialIcon(
+                                imageVector = Icons.Rounded.Wallpaper,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                MaterialText(
+                                    text = stringResource(R.string.theme_monet),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                MaterialText(
+                                    text = stringResource(R.string.theme_monet_summary),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = themeMode.isDynamic,
+                                onCheckedChange = { enabled ->
+                                    onThemeModeChange(themeMode.withMonet(enabled))
+                                },
+                            )
+                        }
+
+                        AnimatedVisibility(visible = themeMode.isDynamic) {
+                            androidx.compose.foundation.layout.Box(modifier = Modifier.padding(top = 12.dp)) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { colorMenuExpanded = true }
+                                        .padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(themeColor.color),
+                                    )
+                                    Spacer(Modifier.width(16.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        MaterialText(
+                                            text = stringResource(R.string.theme_key_color),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.Medium,
+                                        )
+                                        MaterialText(
+                                            text = stringResource(themeColor.displayNameResId),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+
+                                DropdownMenu(
+                                    expanded = colorMenuExpanded,
+                                    onDismissRequest = { colorMenuExpanded = false },
+                                ) {
+                                    colorItems.forEachIndexed { index, item ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                MaterialText(
+                                                    text = item,
+                                                    fontWeight = if (ThemeColor.entries[index] == themeColor) {
+                                                        FontWeight.Bold
+                                                    } else {
+                                                        FontWeight.Normal
+                                                    },
+                                                )
+                                            },
+                                            onClick = {
+                                                onThemeColorChange(ThemeColor.entries[index])
+                                                colorMenuExpanded = false
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            item { Spacer(Modifier.height(12.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun MaterialThemePreviewCard(
+    themeMode: ThemeMode,
+    themeColor: ThemeColor,
+) {
+    val accent = if (themeMode.isDynamic && themeColor != ThemeColor.DEFAULT) {
+        themeColor.color
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    MaterialCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(184.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = MaterialCardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                MaterialText(
+                    text = stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                MaterialText(
+                    text = stringResource(R.string.theme_preview_summary),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 54.dp, height = 10.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                )
+                Box(
+                    modifier = Modifier
+                        .size(width = 76.dp, height = 34.dp)
+                        .clip(RoundedCornerShape(17.dp))
+                        .background(accent),
+                )
+            }
+        }
+    }
+}
+
+/** Miuix theme settings interaction adapted from KernelSU-Style-UI-Kit. */
+@Composable
+private fun MiuixThemeSettingsPage(
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     themeColor: ThemeColor,
@@ -110,7 +396,7 @@ fun ThemeSettingsPage(
         ) {
             item {
                 Spacer(Modifier.height(28.dp))
-                ThemePreviewCard(themeMode = themeMode, themeColor = themeColor)
+                MiuixThemePreviewCard(themeMode = themeMode, themeColor = themeColor)
                 Spacer(Modifier.height(56.dp))
 
                 TabRow(
@@ -172,7 +458,7 @@ fun ThemeSettingsPage(
 }
 
 @Composable
-private fun ThemePreviewCard(
+private fun MiuixThemePreviewCard(
     themeMode: ThemeMode,
     themeColor: ThemeColor,
 ) {

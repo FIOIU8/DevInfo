@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Palette
@@ -23,6 +24,8 @@ import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -221,22 +224,56 @@ private fun UiStyleDropdown(
     selectedIndex: Int,
     onSelectedIndexChange: (Int) -> Unit,
 ) {
-    MiuixCard(modifier = Modifier.fillMaxWidth()) {
-        OverlayDropdownPreference(
+    StyleAwareDropdownPreference(
+        icon = Icons.Outlined.Style,
+        title = title,
+        summary = items.getOrNull(selectedIndex).orEmpty(),
+        items = items,
+        selectedIndex = selectedIndex,
+        onSelectedIndexChange = onSelectedIndexChange,
+        showValue = true,
+    )
+}
+
+@Composable
+private fun StyleAwareDropdownPreference(
+    icon: ImageVector,
+    title: String,
+    summary: String,
+    items: List<String>,
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit,
+    showValue: Boolean = false,
+) {
+    when (LocalUiStyle.current) {
+        UiStyle.MATERIAL3 -> MaterialDropdownPreference(
+            icon = icon,
             title = title,
+            summary = summary,
             items = items,
             selectedIndex = selectedIndex,
             onSelectedIndexChange = onSelectedIndexChange,
-            modifier = Modifier.fillMaxWidth(),
-            startAction = {
-                MiuixIcon(
-                    imageVector = Icons.Outlined.Style,
-                    contentDescription = null,
-                    modifier = Modifier.padding(end = 6.dp),
-                    tint = MiuixTheme.colorScheme.onBackground,
-                )
-            },
         )
+
+        UiStyle.MIUIX -> MiuixCard(modifier = Modifier.fillMaxWidth()) {
+            OverlayDropdownPreference(
+                title = title,
+                summary = if (showValue) "" else summary,
+                items = items,
+                selectedIndex = selectedIndex,
+                onSelectedIndexChange = onSelectedIndexChange,
+                modifier = Modifier.fillMaxWidth(),
+                showValue = showValue,
+                startAction = {
+                    MiuixIcon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 6.dp),
+                        tint = MiuixTheme.colorScheme.onBackground,
+                    )
+                },
+            )
+        }
     }
 }
 
@@ -249,24 +286,107 @@ private fun DropdownPreference(
     selectedIndex: Int,
     onSelectedIndexChange: (Int) -> Unit,
 ) {
-    MiuixCard(modifier = Modifier.fillMaxWidth()) {
-        OverlayDropdownPreference(
-            title = title,
-            summary = summary,
-            items = items,
-            selectedIndex = selectedIndex,
-            onSelectedIndexChange = onSelectedIndexChange,
-            modifier = Modifier.fillMaxWidth(),
-            showValue = false,
-            startAction = {
-                MiuixIcon(
+    StyleAwareDropdownPreference(
+        icon = icon,
+        title = title,
+        summary = summary,
+        items = items,
+        selectedIndex = selectedIndex,
+        onSelectedIndexChange = onSelectedIndexChange,
+    )
+}
+
+@Composable
+private fun MaterialDropdownPreference(
+    icon: ImageVector,
+    title: String,
+    summary: String,
+    items: List<String>,
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = true },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+    ) {
+        androidx.compose.foundation.layout.Box {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    modifier = Modifier.padding(end = 6.dp),
-                    tint = MiuixTheme.colorScheme.onBackground,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary,
                 )
-            },
-        )
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    if (summary.isNotBlank()) {
+                        Text(
+                            text = summary,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+            ) {
+                items.forEachIndexed { index, item ->
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = item,
+                                    modifier = Modifier.weight(1f),
+                                    fontWeight = if (index == selectedIndex) {
+                                        FontWeight.Bold
+                                    } else {
+                                        FontWeight.Normal
+                                    },
+                                )
+                                if (index == selectedIndex) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
+                        },
+                        onClick = {
+                            onSelectedIndexChange(index)
+                            expanded = false
+                        },
+                    )
+                }
+            }
+        }
     }
 }
 
