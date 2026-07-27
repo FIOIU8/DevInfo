@@ -24,9 +24,12 @@ import java.util.Locale
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fioiu8.devinfo.model.AppLanguage
@@ -104,7 +107,15 @@ class MainActivity : ComponentActivity() {
             val paletteStyle by themePrefs.paletteStyle.collectAsState(initial = PaletteStyle.DEFAULT)
             val colorSpec by themePrefs.colorSpec.collectAsState(initial = com.fioiu8.devinfo.model.ColorSpec.DEFAULT)
             val enableBlur by themePrefs.enableBlur.collectAsState(initial = false)
+            val pageScale by themePrefs.pageScale.collectAsState(initial = 1f)
             val enablePredictiveBack by themePrefs.enablePredictiveBack.collectAsState(initial = true)
+            val systemDensity = LocalDensity.current
+            val scaledDensity = remember(systemDensity, pageScale) {
+                Density(
+                    density = systemDensity.density * pageScale,
+                    fontScale = systemDensity.fontScale,
+                )
+            }
             val mainScreenSettings = remember(
                 deviceId,
                 themeMode,
@@ -116,6 +127,7 @@ class MainActivity : ComponentActivity() {
                 paletteStyle,
                 colorSpec,
                 enableBlur,
+                pageScale,
                 enablePredictiveBack,
             ) {
                 MainScreenSettings(
@@ -134,6 +146,8 @@ class MainActivity : ComponentActivity() {
                     onColorSpecChange = themePrefs::setColorSpec,
                     enableBlur = enableBlur,
                     onEnableBlurChange = themePrefs::setEnableBlur,
+                    pageScale = pageScale,
+                    onPageScaleChange = themePrefs::setPageScale,
                     enablePredictiveBack = enablePredictiveBack,
                     onEnablePredictiveBackChange = themePrefs::setEnablePredictiveBack,
                     appLanguage = appLanguage,
@@ -150,12 +164,14 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            DevInfoTheme(themeMode = themeMode, themeColor = themeColor, uiStyle = uiStyle) {
-                MainScreen(
-                    viewModel = mainViewModel,
-                    settings = mainScreenSettings,
-                    exportHelper = exportHelper
-                )
+            CompositionLocalProvider(LocalDensity provides scaledDensity) {
+                DevInfoTheme(themeMode = themeMode, themeColor = themeColor, uiStyle = uiStyle) {
+                    MainScreen(
+                        viewModel = mainViewModel,
+                        settings = mainScreenSettings,
+                        exportHelper = exportHelper
+                    )
+                }
             }
         }
     }
