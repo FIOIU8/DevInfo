@@ -52,14 +52,18 @@ import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-/** 分类标题文本 */
+/** 分类标题文本 — 自动适配当前 UI 风格的颜色 */
 @Composable
 fun CategoryHeader(title: String) {
+    val color = when (LocalUiStyle.current) {
+        UiStyle.MIUIX -> MiuixTheme.colorScheme.primary
+        UiStyle.MATERIAL3 -> MaterialTheme.colorScheme.primary
+    }
     Text(
         text = title,
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.primary,
+        color = color,
         modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
     )
 }
@@ -83,6 +87,10 @@ fun InfoRow(
     valueAlignment: Alignment.Horizontal? = null,
     icon: ImageVector? = null
 ) {
+    val defaultColor = when (LocalUiStyle.current) {
+        UiStyle.MIUIX -> MiuixTheme.colorScheme.onSurfaceSecondary
+        UiStyle.MATERIAL3 -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -100,7 +108,7 @@ fun InfoRow(
                     contentDescription = label,
                     modifier = Modifier.size(20.dp),
                     tint = if (labelColor != Color.Unspecified) labelColor
-                           else MaterialTheme.colorScheme.onSurfaceVariant
+                           else defaultColor
                 )
                 Spacer(modifier = Modifier.width(8.dp))
             }
@@ -108,7 +116,7 @@ fun InfoRow(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
                 color = if (labelColor != Color.Unspecified) labelColor
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        else defaultColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -118,7 +126,7 @@ fun InfoRow(
             text = value,
             style = MaterialTheme.typography.bodySmall,
             color = if (valueColor != Color.Unspecified) valueColor
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    else defaultColor,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = when (valueAlignment) {

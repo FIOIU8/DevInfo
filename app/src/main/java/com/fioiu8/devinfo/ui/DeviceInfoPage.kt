@@ -92,7 +92,12 @@ import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.BasicComponent as MiuixBasicComponent
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
+import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator as MiuixLinearProgressIndicator
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -124,6 +129,7 @@ fun DeviceInfoPage(
         MiuixDeviceInfoPage(
             itemsState = itemsState,
             isLoading = isLoading,
+            overviewSnapshot = overviewSnapshot,
             onRefresh = onRefresh,
             initialCategory = initialCategory,
         )
@@ -257,6 +263,7 @@ fun DeviceInfoPage(
 private fun MiuixDeviceInfoPage(
     itemsState: List<ItemWithVisibility>,
     isLoading: Boolean,
+    overviewSnapshot: OverviewSnapshot,
     onRefresh: suspend () -> Unit,
     initialCategory: InfoCategory,
 ) {
@@ -295,42 +302,414 @@ private fun MiuixDeviceInfoPage(
             )
         }
         item {
-            MiuixCard(modifier = Modifier.fillMaxWidth()) {
-                MiuixBasicComponent(
-                    title = stringResource(R.string.title_device_details),
-                    summary = if (isRefreshing) {
-                        stringResource(R.string.overview_loading)
-                    } else {
-                        stringResource(selectedCategory.descriptionResId)
-                    },
-                    onClick = {
-                        if (isRefreshing) return@MiuixBasicComponent
-                        scope.launch {
-                            isRefreshing = true
-                            try {
-                                onRefresh()
-                            } finally {
-                                isRefreshing = false
+            MiuixCategoryCard(
+                category = selectedCategory,
+                items = selectedItems,
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    scope.launch {
+                        isRefreshing = true
+                        try { onRefresh() } finally { isRefreshing = false }
+                    }
+                },
+                onItemClick = { item ->
+                    clipboardManager.setText(AnnotatedString(item.item.value))
+                    showMessage(
+                        resources.getString(
+                            R.string.copied_to_clipboard,
+                            resources.getString(item.item.keyResId),
+                        ),
+                    )
+                },
+                overviewSnapshot = overviewSnapshot,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MiuixCategoryCard(
+    category: InfoCategory,
+    items: List<ItemWithVisibility>,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    onItemClick: (ItemWithVisibility) -> Unit,
+    overviewSnapshot: OverviewSnapshot,
+) {
+    val resources = LocalResources.current
+    val totalPages = ((items.size + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE).coerceAtLeast(1)
+    var currentPage by remember(category) { mutableIntStateOf(0) }
+
+    LaunchedEffect(category, totalPages) {
+        if (currentPage >= totalPages) currentPage = 0
+    }
+
+    val pagedItems = remember(items, currentPage) {
+        items.drop(currentPage * ITEMS_PER_PAGE).take(ITEMS_PER_PAGE)
+    }
+
+    MiuixCard(
+        modifier = Modifier.fillMaxWidth(),
+        insideMargin = PaddingValues(0.dp),
+        cornerRadius = 16.dp,
+    ) {
+        Column {
+            // ── Header ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                MiuixIcon(
+                    imageVector = categoryIcon(category),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MiuixTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    MiuixText(
+                        text = stringResource(category.displayNameResId),
+                        style = MiuixTheme.textStyles.subtitle,
+                        fontWeight = FontWeight.Bold,
+                        color = MiuixTheme.colorScheme.onSurface
+                    )
+                    MiuixText(
+                        text = if (isRefreshing) {
+                            stringResource(R.string.overview_loading)
+                        } else {
+                            stringResource(category.descriptionResId)
+                        },
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceSecondary
+                    )
+                }
+                MiuixCard(
+                    insideMargin = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    cornerRadius = 8.dp,
+                    colors = MiuixCardDefaults.defaultColors(
+                        color = MiuixTheme.colorScheme.surfaceContainerHigh
+                    )
+                ) {
+                    MiuixText(
+                        text = stringResource(R.string.items_count, items.size),
+                        style = MiuixTheme.textStyles.body2,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MiuixTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // ── Progress sections for STORAGE / BATTERY / SYSTEM ──
+            val showProgress = category == InfoCategory.STORAGE ||
+                category == InfoCategory.BATTERY ||
+                (category == InfoCategory.SYSTEM && overviewSnapshot.cpuCoreMetrics.isNotEmpty())
+
+            if (showProgress) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    when (category) {
+                        InfoCategory.STORAGE -> {
+                            MiuixStorageProgressSection(
+                                overviewSnapshot.storagePercent,
+                                overviewSnapshot.memoryPercent
+                            )
+                        }
+                        InfoCategory.BATTERY -> {
+                            overviewSnapshot.batteryLevel?.let { level ->
+                                MiuixBatteryProgressSection(
+                                    level.toFloat(),
+                                    overviewSnapshot.batteryCharging
+                                )
                             }
                         }
-                    },
+                        InfoCategory.SYSTEM -> {
+                            if (overviewSnapshot.cpuCoreMetrics.isNotEmpty()) {
+                                MiuixCpuCoreSection(overviewSnapshot.cpuCoreMetrics)
+                            }
+                        }
+                        else -> { }
+                    }
+                }
+            }
+
+            // ── Data items (paginated) ──
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                pagedItems.forEach { item ->
+                    key(item.item.key) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .combinedClickable(
+                                    onLongClick = { onItemClick(item) },
+                                    onClick = { onItemClick(item) }
+                                )
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            InfoRow(
+                                label = resources.getString(item.item.keyResId) + ":",
+                                value = item.item.value,
+                                icon = item.item.icon
+                            )
+                        }
+                    }
+                }
+                if (pagedItems.isEmpty()) {
+                    MiuixText(
+                        text = stringResource(R.string.no_data),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceSecondary,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+            }
+
+            // ── Page navigation ──
+            if (totalPages > 1) {
+                MiuixPageNavigationRow(
+                    currentPage = currentPage,
+                    totalPages = totalPages,
+                    onPrevious = { if (currentPage > 0) currentPage-- },
+                    onNext = { if (currentPage < totalPages - 1) currentPage++ },
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 )
             }
         }
-        items(selectedItems, key = { it.item.keyResId }) { item ->
-            MiuixCard(modifier = Modifier.fillMaxWidth()) {
-                MiuixBasicComponent(
-                    title = resources.getString(item.item.keyResId),
-                    summary = item.item.value,
-                    onClick = {
-                        clipboardManager.setText(AnnotatedString(item.item.value))
-                        showMessage(
-                            resources.getString(
-                                R.string.copied_to_clipboard,
-                                resources.getString(item.item.keyResId),
-                            ),
-                        )
-                    },
+    }
+}
+
+@Composable
+private fun MiuixPageNavigationRow(
+    currentPage: Int,
+    totalPages: Int,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        MiuixBasicComponent(
+            title = stringResource(R.string.previous_page),
+            startAction = {
+                MiuixIcon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.previous_page),
+                    modifier = Modifier.size(18.dp),
+                    tint = if (currentPage > 0) MiuixTheme.colorScheme.primary
+                        else MiuixTheme.colorScheme.onSurfaceSecondary
+                )
+            },
+            onClick = {
+                if (currentPage > 0) onPrevious()
+            },
+        )
+
+        MiuixText(
+            text = stringResource(R.string.page_info, currentPage + 1, totalPages),
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceSecondary
+        )
+
+        MiuixBasicComponent(
+            title = stringResource(R.string.next_page),
+            endActions = {
+                MiuixIcon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = stringResource(R.string.next_page),
+                    modifier = Modifier.size(18.dp),
+                    tint = if (currentPage < totalPages - 1) MiuixTheme.colorScheme.primary
+                        else MiuixTheme.colorScheme.onSurfaceSecondary
+                )
+            },
+            onClick = {
+                if (currentPage < totalPages - 1) onNext()
+            },
+        )
+    }
+}
+
+@Composable
+private fun MiuixStorageProgressSection(storagePct: Float?, memoryPct: Float?) {
+    val animatedStoragePct by animateFloatAsState(
+        storagePct?.coerceIn(0f, 100f) ?: 0f, tween(700), label = "miuixStorageProgress"
+    )
+    val animatedMemoryPct by animateFloatAsState(
+        memoryPct?.coerceIn(0f, 100f) ?: 0f, tween(700), label = "miuixMemoryProgress"
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        storagePct?.let {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    MiuixText(
+                        text = stringResource(R.string.overview_storage),
+                        style = MiuixTheme.textStyles.body2,
+                        fontWeight = FontWeight.Medium,
+                        color = MiuixTheme.colorScheme.onSurface
+                    )
+                    MiuixText(
+                        text = "%.1f%%".format(animatedStoragePct),
+                        style = MiuixTheme.textStyles.body2,
+                        fontWeight = FontWeight.SemiBold,
+                        color = progressColor(animatedStoragePct)
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                MiuixLinearProgressIndicator(
+                    progress = animatedStoragePct / 100f,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ProgressIndicatorDefaults.progressIndicatorColors(
+                        foregroundColor = progressColor(animatedStoragePct),
+                        backgroundColor = MiuixTheme.colorScheme.surfaceContainerHigh
+                    ),
+                    height = 8.dp
+                )
+            }
+        }
+        memoryPct?.let {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    MiuixText(
+                        text = stringResource(R.string.overview_memory),
+                        style = MiuixTheme.textStyles.body2,
+                        fontWeight = FontWeight.Medium,
+                        color = MiuixTheme.colorScheme.onSurface
+                    )
+                    MiuixText(
+                        text = "%.1f%%".format(animatedMemoryPct),
+                        style = MiuixTheme.textStyles.body2,
+                        fontWeight = FontWeight.SemiBold,
+                        color = progressColor(animatedMemoryPct)
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                MiuixLinearProgressIndicator(
+                    progress = animatedMemoryPct / 100f,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ProgressIndicatorDefaults.progressIndicatorColors(
+                        foregroundColor = progressColor(animatedMemoryPct),
+                        backgroundColor = MiuixTheme.colorScheme.surfaceContainerHigh
+                    ),
+                    height = 8.dp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiuixBatteryProgressSection(level: Float, charging: Boolean) {
+    val animatedLevel by animateFloatAsState(
+        level.coerceIn(0f, 100f), tween(700), label = "miuixBatteryProgress"
+    )
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            MiuixText(
+                text = stringResource(R.string.overview_battery),
+                style = MiuixTheme.textStyles.body2,
+                fontWeight = FontWeight.Medium,
+                color = MiuixTheme.colorScheme.onSurface
+            )
+            MiuixText(
+                text = "${animatedLevel.toInt()}%",
+                style = MiuixTheme.textStyles.body2,
+                fontWeight = FontWeight.SemiBold,
+                color = batteryColor(animatedLevel.toInt())
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        MiuixLinearProgressIndicator(
+            progress = animatedLevel / 100f,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ProgressIndicatorDefaults.progressIndicatorColors(
+                foregroundColor = batteryColor(animatedLevel.toInt()),
+                backgroundColor = MiuixTheme.colorScheme.surfaceContainerHigh
+            ),
+            height = 8.dp
+        )
+        if (charging) {
+            Spacer(Modifier.height(4.dp))
+            MiuixText(
+                text = stringResource(R.string.status_charging),
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun MiuixCpuCoreSection(metrics: List<com.fioiu8.devinfo.CpuCoreMetric>) {
+    val metricRows = remember(metrics) { metrics.chunked(2) }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        MiuixText(
+            text = stringResource(R.string.overview_cpu_cores_detail),
+            style = MiuixTheme.textStyles.body2,
+            fontWeight = FontWeight.Bold,
+            color = MiuixTheme.colorScheme.onSurface
+        )
+        metricRows.forEach { rowMetrics ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                rowMetrics.forEach { metric -> MiuixCpuCoreItem(metric, Modifier.weight(1f)) }
+                if (rowMetrics.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiuixCpuCoreItem(metric: com.fioiu8.devinfo.CpuCoreMetric, modifier: Modifier) {
+    val usage = metric.usagePercent
+    val animatedUsage by animateFloatAsState((usage ?: 0f).coerceIn(0f, 100f), tween(650), label = "miuixCpuCore")
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(44.dp)) {
+            androidx.compose.material3.CircularProgressIndicator(
+                progress = { animatedUsage / 100f },
+                modifier = Modifier.fillMaxSize(),
+                strokeWidth = 5.dp,
+                color = coreUsageColor(animatedUsage),
+                trackColor = MiuixTheme.colorScheme.surfaceContainerHigh
+            )
+            MiuixText(
+                text = usage?.let { "${animatedUsage.toInt()}%" } ?: "--",
+                style = MiuixTheme.textStyles.body2,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        Column {
+            MiuixText(
+                text = "CPU${metric.index}",
+                style = MiuixTheme.textStyles.main,
+                fontWeight = FontWeight.SemiBold,
+                color = MiuixTheme.colorScheme.onSurface
+            )
+            metric.frequency?.let {
+                MiuixText(
+                    text = it,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceSecondary
                 )
             }
         }
