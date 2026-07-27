@@ -105,6 +105,7 @@ import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ThemeColor
 import com.fioiu8.devinfo.model.ThemeMode
 import com.fioiu8.devinfo.model.UiStyle
+import com.fioiu8.devinfo.ui.screen.about.AboutScreen
 import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -441,7 +442,7 @@ fun MainScreen(
                     .fillMaxSize()
                     .offset { IntOffset(aboutOffsetX.value.roundToInt(), 0) }
             ) {
-                AboutPage(
+                AboutScreen(
                     versionName = viewModel.appVersionName,
                     onBack = { dismissAboutPage() }
                 )
