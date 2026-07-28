@@ -82,6 +82,14 @@
     <string name="mount_color_desc_teal">さわやかなティール</string>
     <string name="mount_color_desc_purple">優雅な紫</string>
     <string name="mount_color_desc_pink">甘美なピンク</string>
+    <string name="mount_color_desc_yellow">明るいイエロー</string>
+    <string name="mount_color_desc_cyan">さわやかなシアン</string>
+    <string name="mount_color_desc_blue">落ち着いたブルー</string>
+    <string name="mount_color_desc_indigo">深みのあるインディゴ</string>
+    <string name="mount_color_desc_deep_purple">上品なディープパープル</string>
+    <string name="mount_color_desc_brown">自然なブラウン</string>
+    <string name="mount_color_desc_blue_grey">控えめなブルーグレー</string>
+    <string name="mount_color_desc_sakura">優しいサクラ</string>
     <string name="mount_color_desc_dark">落ち着いたダーク</string>
 
     <!-- InfoCategory display names -->
