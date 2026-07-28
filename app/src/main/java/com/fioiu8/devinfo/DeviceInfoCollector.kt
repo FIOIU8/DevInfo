@@ -345,10 +345,10 @@ class DeviceInfoCollector(private val context: Context) {
 
     fun getCpuCoreMetrics(): List<CpuCoreMetric> = runCatching {
         val first = readCpuTimesByCore()
-        if (first.isEmpty()) return@runCatching emptyList()
+        if (first.isEmpty()) return@runCatching getCpuCoreTopologyMetrics()
         Thread.sleep(180)
         val second = readCpuTimesByCore()
-        second.keys.sorted().map { index ->
+        (first.keys + second.keys).toSortedSet().map { index ->
             val firstTimes = first[index]
             val secondTimes = second[index]
             val usage = if (firstTimes == null || secondTimes == null) {
@@ -362,7 +362,7 @@ class DeviceInfoCollector(private val context: Context) {
             }
             CpuCoreMetric(index, getCpuCoreFrequency(index), usage)
         }
-    }.getOrDefault(emptyList())
+    }.getOrElse { getCpuCoreTopologyMetrics() }
 
     fun getGpuFrequency(): String? = readFrequency(
         "/sys/class/kgsl/kgsl-3d0/gpuclk",
@@ -401,6 +401,35 @@ class DeviceInfoCollector(private val context: Context) {
         "/sys/devices/system/cpu/cpu${index}/cpufreq/cpuinfo_cur_freq",
         "/sys/devices/system/cpu/cpufreq/policy${index}/scaling_cur_freq"
     )
+
+    /**
+     * Android vendors may deny third-party access to /proc/stat. Keep the core topology
+     * visible in that case, but leave usage empty instead of inventing a measurement.
+     */
+    private fun getCpuCoreTopologyMetrics(): List<CpuCoreMetric> {
+        val indexes = parseCpuIndexes(readFirstLine("/sys/devices/system/cpu/present"))
+            .ifEmpty {
+                runCatching {
+                    File("/sys/devices/system/cpu")
+                        .listFiles()
+                        ?.mapNotNull { directory ->
+                            directory.name
+                                .removePrefix("cpu")
+                                .toIntOrNull()
+                                ?.takeIf { directory.isDirectory }
+                        }
+                        ?.sorted()
+                        .orEmpty()
+                }.getOrDefault(emptyList())
+            }
+            .ifEmpty {
+                (0 until Runtime.getRuntime().availableProcessors().coerceAtLeast(1)).toList()
+            }
+
+        return indexes.map { index ->
+            CpuCoreMetric(index = index, frequency = getCpuCoreFrequency(index), usagePercent = null)
+        }
+    }
 
     private fun readFirstLine(vararg paths: String): String? = paths.firstNotNullOfOrNull { path ->
         runCatching {
@@ -880,4 +909,28 @@ class DeviceInfoCollector(private val context: Context) {
             icon = itemIconByResId(keyResId)
         )
     }
+}
+
+internal fun parseCpuIndexes(value: String?): List<Int> {
+    return value
+        ?.split(',')
+        ?.flatMap { part ->
+            val bounds = part.trim().split('-', limit = 2).map(String::trim)
+            when (bounds.size) {
+                1 -> bounds.single().toIntOrNull()?.let(::listOf).orEmpty()
+                2 -> {
+                    val start = bounds[0].toIntOrNull()
+                    val end = bounds[1].toIntOrNull()
+                    if (start == null || end == null || start < 0 || end < start) {
+                        emptyList()
+                    } else {
+                        (start..end).toList()
+                    }
+                }
+                else -> emptyList()
+            }
+        }
+        ?.distinct()
+        ?.sorted()
+        .orEmpty()
 }
