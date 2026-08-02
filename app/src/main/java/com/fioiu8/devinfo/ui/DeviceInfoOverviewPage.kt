@@ -262,7 +262,13 @@ fun DeviceInfoOverviewPage(
                     GridCells.Adaptive(minSize = 148.dp)
                 },
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(if (compactLayout) 12.dp else 20.dp),
+                contentPadding = PaddingValues(
+                    start = if (compactLayout) 12.dp else 20.dp,
+                    top = if (compactLayout) 12.dp else 20.dp,
+                    end = if (compactLayout) 12.dp else 20.dp,
+                    bottom = (if (compactLayout) 12.dp else 20.dp) +
+                        LocalFloatingNavigationContentPadding.current,
+                ),
                 horizontalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp),
                 verticalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp)
             ) {
@@ -354,7 +360,13 @@ private fun MiuixDeviceInfoOverviewPage(
             GridCells.Adaptive(minSize = 148.dp)
         },
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(if (compactLayout) 12.dp else 20.dp),
+        contentPadding = PaddingValues(
+            start = if (compactLayout) 12.dp else 20.dp,
+            top = if (compactLayout) 12.dp else 20.dp,
+            end = if (compactLayout) 12.dp else 20.dp,
+            bottom = (if (compactLayout) 12.dp else 20.dp) +
+                LocalFloatingNavigationContentPadding.current,
+        ),
         horizontalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp),
         verticalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp)
     ) {

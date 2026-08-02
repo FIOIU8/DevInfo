@@ -205,7 +205,10 @@ fun DeviceInfoPage(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(
-                    top = 12.dp, bottom = 12.dp, start = 0.dp, end = 0.dp
+                    top = 12.dp,
+                    bottom = 12.dp + LocalFloatingNavigationContentPadding.current,
+                    start = 0.dp,
+                    end = 0.dp,
                 )
             ) {
                 // Category Tab Row
@@ -291,7 +294,12 @@ private fun MiuixDeviceInfoPage(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(12.dp),
+        contentPadding = PaddingValues(
+            start = 12.dp,
+            top = 12.dp,
+            end = 12.dp,
+            bottom = 12.dp + LocalFloatingNavigationContentPadding.current,
+        ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
