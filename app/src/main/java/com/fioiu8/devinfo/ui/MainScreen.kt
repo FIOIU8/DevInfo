@@ -240,6 +240,13 @@ fun MainScreen(
     val snackbarBottomPadding =
         WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
             if (useNavigationRail) 16.dp else 92.dp
+    val floatingNavigationContentPadding = if (
+        !useNavigationRail && settings.enableFloatingBottomBar
+    ) {
+        88.dp
+    } else {
+        0.dp
+    }
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
@@ -381,6 +388,7 @@ fun MainScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
+                        .padding(bottom = floatingNavigationContentPadding)
                 ) {
                     AnimatedContent(
                         modifier = Modifier.offset {

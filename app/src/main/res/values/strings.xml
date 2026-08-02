@@ -191,6 +191,7 @@
     <string name="copied_to_clipboard">%s 已复制</string>
     <string name="overview_realtime_title">实时动态</string>
     <string name="overview_realtime_cpu">CPU 波形 · 2 秒采样</string>
+    <string name="overview_cpu_core_count">%d 核</string>
     <string name="overview_cpu_cores_detail">每核心占用</string>
     <string name="overview_hardware_title">硬件传感器</string>
     <string name="overview_motion">陀螺仪 / 加速度计</string>

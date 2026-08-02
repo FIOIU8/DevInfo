@@ -156,6 +156,7 @@ private data class OverviewMetric(
     val size: OverviewCardSize,
     val supportingTextResId: Int? = null,
     val supportingTextSuffix: String? = null,
+    val coreCount: Int? = null,
     val progress: Float? = null,
     val coreMetrics: List<CpuCoreMetric> = emptyList(),
     val history: List<CpuUsageSample> = emptyList()
@@ -410,14 +411,20 @@ private fun MiuixMetricCard(
     } else {
         listOfNotNull(
             stringResource(supportingTextResId),
+            metric.coreCount?.let { stringResource(R.string.overview_cpu_core_count, it) },
             metric.supportingTextSuffix
         ).joinToString(" · ")
+    }
+    val displayValue = metric.value ?: if (metric.id == OverviewMetricId.REALTIME_CPU) {
+        stringResource(R.string.status_unavailable)
+    } else {
+        null
     }
 
     MiuixCard(
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (metric.size == OverviewCardSize.LARGE) 148.dp else 124.dp)
+            .heightIn(min = if (metric.size == OverviewCardSize.LARGE) 144.dp else 116.dp)
             .clickable(onClick = onClick),
         insideMargin = PaddingValues(16.dp),
         cornerRadius = 14.dp,
@@ -440,7 +447,7 @@ private fun MiuixMetricCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            metric.value?.let {
+            displayValue?.let {
                 MiuixText(
                     text = it,
                     style = if (metric.size == OverviewCardSize.LARGE) {
@@ -698,6 +705,8 @@ private fun buildOverviewMetrics(
                 size = OverviewCardSize.LARGE,
                 supportingTextResId = R.string.overview_realtime_cpu,
                 supportingTextSuffix = snapshot.cpuFrequency,
+                coreCount = availableCoreMetrics.size.takeIf { it > 0 },
+                progress = currentUsage?.div(100f),
                 coreMetrics = availableCoreMetrics,
                 history = snapshot.cpuUsageHistory
             )
@@ -814,8 +823,14 @@ private fun OverviewMetricCard(
     } else {
         listOfNotNull(
             stringResource(supportingTextResId),
+            metric.coreCount?.let { stringResource(R.string.overview_cpu_core_count, it) },
             metric.supportingTextSuffix
         ).joinToString(" · ")
+    }
+    val displayValue = metric.value ?: if (metric.id == OverviewMetricId.REALTIME_CPU) {
+        stringResource(R.string.status_unavailable)
+    } else {
+        null
     }
     var selectedCore by remember(metric.id) { mutableStateOf<Int?>(null) }
     val hasCoreControls = metric.history.isNotEmpty()
@@ -854,7 +869,7 @@ private fun OverviewMetricCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 if (hasCoreControls && !wideLayout) {
-                    metric.value?.let { value ->
+                    displayValue?.let { value ->
                         Text(
                             text = value,
                             style = MaterialTheme.typography.titleLarge,
@@ -881,13 +896,15 @@ private fun OverviewMetricCard(
                 ) {
                     MetricValueBlock(
                         metric = metric,
+                        displayValue = displayValue,
                         supportingText = supportingText,
                         modifier = Modifier.widthIn(min = 132.dp, max = 184.dp)
                     )
                     CpuTrendChart(
                         history = metric.history,
                         selectedCore = selectedCore,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        chartHeight = 80.dp
                     )
                     Column(
                         modifier = Modifier.widthIn(min = 220.dp, max = 300.dp),
@@ -910,6 +927,7 @@ private fun OverviewMetricCard(
             } else {
                 MetricValueBlock(
                     metric = metric,
+                    displayValue = displayValue,
                     supportingText = supportingText,
                     showValue = !hasCoreControls
                 )
@@ -917,7 +935,7 @@ private fun OverviewMetricCard(
                     CpuTrendChart(
                         history = metric.history,
                         selectedCore = selectedCore,
-                        chartHeight = 88.dp
+                        chartHeight = 80.dp
                     )
                     CpuTrendLegend(
                         metric = metric,
@@ -940,6 +958,7 @@ private fun OverviewMetricCard(
 @Composable
 private fun MetricValueBlock(
     metric: OverviewMetric,
+    displayValue: String?,
     supportingText: String?,
     modifier: Modifier = Modifier,
     showValue: Boolean = true
@@ -949,7 +968,7 @@ private fun MetricValueBlock(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         if (showValue) {
-            metric.value?.let {
+            displayValue?.let {
                 Text(
                     text = it,
                     style = if (metric.size == OverviewCardSize.LARGE) {
@@ -1095,9 +1114,9 @@ private fun CpuTrendChart(
             )
         }
         coreIndexes.forEach { coreIndex ->
-            val points = history.mapIndexed { pointIndex, sample ->
+            val points = history.mapIndexedNotNull { pointIndex, sample ->
                 val x = if (history.size == 1) left + plotWidth / 2 else left + plotWidth * pointIndex / (history.size - 1)
-                val value = sample.valuesByCore[coreIndex]?.coerceIn(0f, 100f) ?: 0f
+                val value = sample.valuesByCore[coreIndex]?.coerceIn(0f, 100f) ?: return@mapIndexedNotNull null
                 androidx.compose.ui.geometry.Offset(x, bottom - plotHeight * value / 100f)
             }
             if (points.isNotEmpty()) {
@@ -1126,28 +1145,36 @@ private fun CpuTrendChart(
                     cpuLineColor(coreIndex)
                 }
                 val isMuted = selectedCore != null && selectedCore != coreIndex
-                drawPath(
-                    path = areaPath,
-                    color = lineColor.copy(
-                        alpha = when {
-                            isMuted -> 0.03f
-                            selectedCore == coreIndex -> 0.22f
-                            else -> 0.1f
-                        }
+                if (points.size == 1) {
+                    drawCircle(
+                        color = lineColor.copy(alpha = if (isMuted) 0.3f else 1f),
+                        radius = 3.5.dp.toPx(),
+                        center = points.single()
                     )
-                )
-                drawPath(
-                    path = path,
-                    color = lineColor.copy(alpha = if (isMuted) 0.3f else 1f),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(
-                        width = if (selectedCore == coreIndex) 3.dp.toPx() else 2.25.dp.toPx(),
-                        pathEffect = if (coreIndex >= 0 && coreIndex % 2 == 1) {
-                            androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 5.dp.toPx()))
-                        } else {
-                            null
-                        }
+                } else {
+                    drawPath(
+                        path = areaPath,
+                        color = lineColor.copy(
+                            alpha = when {
+                                isMuted -> 0.03f
+                                selectedCore == coreIndex -> 0.22f
+                                else -> 0.1f
+                            }
+                        )
                     )
-                )
+                    drawPath(
+                        path = path,
+                        color = lineColor.copy(alpha = if (isMuted) 0.3f else 1f),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            width = if (selectedCore == coreIndex) 3.dp.toPx() else 2.25.dp.toPx(),
+                            pathEffect = if (coreIndex >= 0 && coreIndex % 2 == 1) {
+                                androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 5.dp.toPx()))
+                            } else {
+                                null
+                            }
+                        )
+                    )
+                }
             }
         }
     }
@@ -1177,8 +1204,8 @@ private fun CpuTrendLegend(
                     .clip(RoundedCornerShape(12.dp))
                     .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
                     .clickable { onCoreSelected(core) }
-                    .heightIn(min = 44.dp)
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .heightIn(min = 36.dp)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
