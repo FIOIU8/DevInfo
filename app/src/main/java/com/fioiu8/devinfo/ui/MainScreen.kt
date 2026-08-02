@@ -731,7 +731,6 @@ private fun MainScaffold(
                                 onItemSelected = onItemSelected,
                                 blurBackdrop = blurBackdrop,
                                 enableBlur = enableBlur && enableFloatingBottomBarBlur,
-                                surfaceColor = surfaceColor,
                             )
                         }
                     }
@@ -773,7 +772,6 @@ private fun MainScaffold(
                                 onItemSelected = onItemSelected,
                                 blurBackdrop = blurBackdrop,
                                 enableBlur = enableBlur && enableFloatingBottomBarBlur,
-                                surfaceColor = surfaceColor,
                             )
                         }
                     }
@@ -797,7 +795,6 @@ private fun BoxScope.FloatingMainNavigationBar(
     onItemSelected: (Int) -> Unit,
     blurBackdrop: LayerBackdrop?,
     enableBlur: Boolean,
-    surfaceColor: Color,
 ) {
     Box(
         modifier = Modifier
@@ -811,28 +808,13 @@ private fun BoxScope.FloatingMainNavigationBar(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        if (LocalUiStyle.current == UiStyle.MIUIX) {
-            DevInfoFloatingNavigationBar(
-                items = items,
-                selectedIndex = selectedIndex,
-                onItemSelected = onItemSelected,
-                glassEffect = enableBlur,
-                blurBackdrop = blurBackdrop,
-            )
-        } else {
-            BlurredBar(
-                backdrop = blurBackdrop,
-                blurActive = enableBlur,
-                surfaceColor = surfaceColor,
-            ) {
-                DevInfoFloatingNavigationBar(
-                    items = items,
-                    selectedIndex = selectedIndex,
-                    onItemSelected = onItemSelected,
-                    glassEffect = enableBlur,
-                )
-            }
-        }
+        DevInfoFloatingNavigationBar(
+            items = items,
+            selectedIndex = selectedIndex,
+            onItemSelected = onItemSelected,
+            glassEffect = enableBlur,
+            blurBackdrop = blurBackdrop,
+        )
     }
 }
 
