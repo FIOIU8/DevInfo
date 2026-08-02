@@ -193,7 +193,7 @@ private fun MaterialDevInfoSnackbar(data: SnackbarData) = Snackbar(
     contentColor = MaterialTheme.colorScheme.inverseOnSurface,
 )
 
-/** Compact circular navigation actions that float above, rather than divide, page content. */
+/** Compact floating navigation pill modeled after KernelSU-Style-UI-Kit's bottom bar. */
 @Composable
 fun DevInfoFloatingNavigationBar(
     items: List<DevInfoNavigationItem>,
@@ -233,50 +233,14 @@ private fun MaterialFloatingNavigationBar(
     blurBackdrop: LayerBackdrop?,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        items.forEachIndexed { index, item ->
-            MaterialFloatingNavigationItem(
-                item = item,
-                selected = selectedIndex == index,
-                onClick = { onItemSelected(index) },
-                glassEffect = glassEffect,
-                blurBackdrop = blurBackdrop,
-            )
-        }
-    }
-}
-
-@Composable
-private fun MaterialFloatingNavigationItem(
-    item: DevInfoNavigationItem,
-    selected: Boolean,
-    onClick: () -> Unit,
-    glassEffect: Boolean,
-    blurBackdrop: LayerBackdrop?,
-) {
     val shape = CircleShape
-    val surfaceColor = if (selected) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceContainer
-    }
-    val iconTint by animateColorAsState(
-        targetValue = if (selected) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        },
-        label = "floatingNavigationIconColor",
-    )
+    val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
 
-    Box(
-        modifier = Modifier
-            .size(58.dp)
-            .shadow(elevation = 10.dp, shape = shape, clip = false)
+    Row(
+        modifier = modifier
+            .width(IntrinsicSize.Min)
+            .height(64.dp)
+            .shadow(elevation = 14.dp, shape = shape, clip = false)
             .then(
                 if (glassEffect && blurBackdrop != null) {
                     Modifier.textureBlur(
@@ -297,18 +261,79 @@ private fun MaterialFloatingNavigationItem(
                 shape = shape,
             )
             .clip(shape)
+            .padding(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        items.forEachIndexed { index, item ->
+            MaterialFloatingNavigationItem(
+                item = item,
+                selected = selectedIndex == index,
+                onClick = { onItemSelected(index) },
+                modifier = Modifier
+                    .defaultMinSize(minWidth = 76.dp)
+                    .weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MaterialFloatingNavigationItem(
+    item: DevInfoNavigationItem,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val iconTint by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        label = "floatingNavigationIconColor",
+    )
+    val labelTint by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        label = "floatingNavigationLabelColor",
+    )
+    val indicatorColor by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+        } else {
+            Color.Transparent
+        },
+        label = "floatingNavigationIndicatorColor",
+    )
+
+    Column(
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(CircleShape)
+            .background(indicatorColor, CircleShape)
             .selectable(
                 selected = selected,
                 role = Role.Tab,
                 onClick = onClick,
-            ),
-        contentAlignment = Alignment.Center,
+            )
+            .padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
             imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
             contentDescription = item.label,
-            modifier = Modifier.size(26.dp),
             tint = iconTint,
+        )
+        Text(
+            text = item.label,
+            style = MaterialTheme.typography.labelSmall,
+            color = labelTint,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -323,46 +348,64 @@ private fun MiuixNativeFloatingNavigationBar(
     modifier: Modifier = Modifier,
 ) {
     val shape = CircleShape
+    val surfaceColor = MiuixTheme.colorScheme.surfaceContainer
 
     Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier
+            .width(IntrinsicSize.Min)
+            .height(64.dp)
+            .shadow(elevation = 10.dp, shape = shape, clip = false)
+            .then(
+                if (glassEffect && blurBackdrop != null) {
+                    Modifier.textureBlur(
+                        backdrop = blurBackdrop,
+                        shape = shape,
+                        blurRadius = 25f,
+                        colors = BlurColors(
+                            blendColors = listOf(BlendColorEntry(surfaceColor.copy(alpha = 0.4f))),
+                        ),
+                    )
+                } else {
+                    Modifier.background(surfaceColor, shape)
+                },
+            )
+            .clip(shape)
+            .padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         items.forEachIndexed { index, item ->
             val selected = selectedIndex == index
-            val surfaceColor = if (selected) {
-                MiuixTheme.colorScheme.primary.copy(alpha = 0.15f)
-            } else {
-                MiuixTheme.colorScheme.surfaceContainer
-            }
-            Box(
+            Column(
                 modifier = Modifier
-                    .size(58.dp)
-                    .shadow(elevation = 8.dp, shape = shape, clip = false)
-                    .then(
-                        if (glassEffect && blurBackdrop != null) {
-                            Modifier.textureBlur(
-                                backdrop = blurBackdrop,
-                                shape = shape,
-                                blurRadius = 25f,
-                                colors = BlurColors(
-                                    blendColors = listOf(BlendColorEntry(surfaceColor.copy(alpha = 0.72f))),
-                                ),
-                            )
+                    .defaultMinSize(minWidth = 76.dp)
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(CircleShape)
+                    .background(
+                        color = if (selected) {
+                            MiuixTheme.colorScheme.primary.copy(alpha = 0.15f)
                         } else {
-                            Modifier.background(surfaceColor, shape)
+                            Color.Transparent
                         },
+                        shape = CircleShape,
                     )
-                    .clip(shape)
                     .clickable(onClick = { onItemSelected(index) }),
-                contentAlignment = Alignment.Center,
+                verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 MiuixIcon(
                     imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
                     contentDescription = item.label,
-                    modifier = Modifier.size(26.dp),
-                    tint = if (selected) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface,
+                    tint = MiuixTheme.colorScheme.onSurface,
+                )
+                MiuixText(
+                    text = item.label,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Visible,
                 )
             }
         }
