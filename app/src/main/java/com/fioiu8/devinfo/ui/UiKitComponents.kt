@@ -193,9 +193,9 @@ private fun MaterialDevInfoSnackbar(data: SnackbarData) = Snackbar(
     contentColor = MaterialTheme.colorScheme.inverseOnSurface,
 )
 
-/** Compact floating navigation pill modeled after KernelSU-Style-UI-Kit's bottom bar. */
+/** Material 3 floating navigation pill. */
 @Composable
-fun DevInfoFloatingNavigationBar(
+fun DevInfoMaterialFloatingNavigationBar(
     items: List<DevInfoNavigationItem>,
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
@@ -203,25 +203,14 @@ fun DevInfoFloatingNavigationBar(
     blurBackdrop: LayerBackdrop? = null,
     modifier: Modifier = Modifier,
 ) {
-    when (LocalUiStyle.current) {
-        UiStyle.MATERIAL3 -> MaterialFloatingNavigationBar(
-            items = items,
-            selectedIndex = selectedIndex,
-            onItemSelected = onItemSelected,
-            glassEffect = glassEffect,
-            blurBackdrop = blurBackdrop,
-            modifier = modifier,
-        )
-
-        UiStyle.MIUIX -> MiuixNativeFloatingNavigationBar(
-            items = items,
-            selectedIndex = selectedIndex,
-            onItemSelected = onItemSelected,
-            glassEffect = glassEffect,
-            blurBackdrop = blurBackdrop,
-            modifier = modifier,
-        )
-    }
+    MaterialFloatingNavigationBar(
+        items = items,
+        selectedIndex = selectedIndex,
+        onItemSelected = onItemSelected,
+        glassEffect = glassEffect,
+        blurBackdrop = blurBackdrop,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -338,8 +327,9 @@ private fun MaterialFloatingNavigationItem(
     }
 }
 
+/** Miuix floating navigation pill matching KernelSU-Style-UI-Kit's Miuix component. */
 @Composable
-private fun MiuixNativeFloatingNavigationBar(
+fun DevInfoMiuixFloatingNavigationBar(
     items: List<DevInfoNavigationItem>,
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,

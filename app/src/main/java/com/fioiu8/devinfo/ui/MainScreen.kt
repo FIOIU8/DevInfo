@@ -815,13 +815,23 @@ private fun BoxScope.FloatingMainNavigationBar(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        DevInfoFloatingNavigationBar(
-            items = items,
-            selectedIndex = selectedIndex,
-            onItemSelected = onItemSelected,
-            glassEffect = enableBlur,
-            blurBackdrop = blurBackdrop,
-        )
+        when (LocalUiStyle.current) {
+            UiStyle.MATERIAL3 -> DevInfoMaterialFloatingNavigationBar(
+                items = items,
+                selectedIndex = selectedIndex,
+                onItemSelected = onItemSelected,
+                glassEffect = enableBlur,
+                blurBackdrop = blurBackdrop,
+            )
+
+            UiStyle.MIUIX -> DevInfoMiuixFloatingNavigationBar(
+                items = items,
+                selectedIndex = selectedIndex,
+                onItemSelected = onItemSelected,
+                glassEffect = enableBlur,
+                blurBackdrop = blurBackdrop,
+            )
+        }
     }
 }
 
