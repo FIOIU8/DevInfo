@@ -734,7 +734,7 @@ private fun MainScaffold(
                 if (enableFloatingBottomBar) {
                     val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
                     val blurBackdrop = rememberBlurBackdrop(
-                        enableBlur = enableBlur,
+                        enableBlur = enableBlur || enableFloatingBottomBarBlur,
                         surfaceColor = surfaceColor,
                     )
                     Box(modifier = Modifier.fillMaxSize()) {
@@ -756,7 +756,7 @@ private fun MainScaffold(
                                 selectedIndex = selectedIndex,
                                 onItemSelected = onItemSelected,
                                 blurBackdrop = blurBackdrop,
-                                enableBlur = enableBlur && enableFloatingBottomBarBlur,
+                                enableBlur = enableFloatingBottomBarBlur,
                             )
                         }
                     }
@@ -776,7 +776,7 @@ private fun MainScaffold(
                 if (enableFloatingBottomBar) {
                     val surfaceColor = MiuixTheme.colorScheme.surfaceContainer
                     val blurBackdrop = rememberBlurBackdrop(
-                        enableBlur = enableBlur,
+                        enableBlur = enableBlur || enableFloatingBottomBarBlur,
                         surfaceColor = surfaceColor,
                     )
                     Box(modifier = Modifier.fillMaxSize()) {
@@ -797,7 +797,7 @@ private fun MainScaffold(
                                 selectedIndex = selectedIndex,
                                 onItemSelected = onItemSelected,
                                 blurBackdrop = blurBackdrop,
-                                enableBlur = enableBlur && enableFloatingBottomBarBlur,
+                                enableBlur = enableFloatingBottomBarBlur,
                             )
                         }
                     }
