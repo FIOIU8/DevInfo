@@ -19,7 +19,6 @@ package com.fioiu8.devinfo.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -109,7 +108,7 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 /** 圆形颜色按钮（参�?KernelSU-Style-UI-Kit �?ColorButtonMaterial�?*/
 @Composable
-private fun ColorCircle(
+private fun MaterialColorCircle(
     color: Color,
     label: String,
     selected: Boolean,
@@ -137,7 +136,7 @@ private fun ColorCircle(
                 ),
         )
         Spacer(Modifier.height(4.dp))
-        Text(
+        MaterialText(
             text = label,
             fontSize = 10.sp,
             color = if (selected) {
@@ -249,8 +248,6 @@ private fun MaterialThemeSettingsPage(
         stringResource(R.string.theme_mode_light),
         stringResource(R.string.theme_mode_dark),
     )
-    val colorItems = ThemeColor.entries.map { stringResource(it.displayNameResId) }
-
     MaterialScaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -371,7 +368,7 @@ private fun MaterialThemeSettingsPage(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
                                 ThemeColor.entries.forEach { color ->
-                                    ColorCircle(
+                                    MaterialColorCircle(
                                         color = color.color,
                                         label = stringResource(color.displayNameResId),
                                         selected = themeColor == color,
@@ -407,12 +404,12 @@ private fun MaterialThemeSettingsPage(
                             Spacer(Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 MaterialText(
-                                    text = "毛玻璃效果",
+                                    text = stringResource(R.string.theme_blur),
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Medium,
                                 )
                                 MaterialText(
-                                    text = "底部导航栏背景模糊",
+                                    text = stringResource(R.string.theme_blur_summary),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -447,12 +444,12 @@ private fun MaterialThemeSettingsPage(
                             Spacer(Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 MaterialText(
-                                    text = "预测返回手势",
+                                    text = stringResource(R.string.theme_predictive_back),
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Medium,
                                 )
                                 MaterialText(
-                                    text = "返回时预览目标页面",
+                                    text = stringResource(R.string.theme_predictive_back_summary),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -494,7 +491,7 @@ private fun MaterialThemeSettingsPage(
                 item {
                     DevInfoSegmentedDropdownItem(
                         icon = Icons.Rounded.Wallpaper,
-                        title = "色彩风格",
+                        title = stringResource(R.string.theme_palette_style),
                         summary = PaletteStyle.entries[PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0)].name,
                         items = PaletteStyle.entries.map { it.name },
                         selectedIndex = PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0),
@@ -506,7 +503,7 @@ private fun MaterialThemeSettingsPage(
                 item {
                     DevInfoSegmentedDropdownItem(
                         icon = Icons.Rounded.Wallpaper,
-                        title = "色彩标准",
+                        title = stringResource(R.string.theme_color_spec),
                         summary = com.fioiu8.devinfo.model.ColorSpec.entries[com.fioiu8.devinfo.model.ColorSpec.entries.indexOf(colorSpec).coerceAtLeast(0)].name,
                         items = com.fioiu8.devinfo.model.ColorSpec.entries.map { it.name },
                         selectedIndex = com.fioiu8.devinfo.model.ColorSpec.entries.indexOf(colorSpec).coerceAtLeast(0),
@@ -736,7 +733,7 @@ private fun MiuixThemeSettingsPage(
             item {
                 Spacer(Modifier.height(28.dp))
                 MiuixThemePreviewCard(themeMode = themeMode, themeColor = themeColor)
-                Spacer(Modifier.height(56.dp))
+                Spacer(Modifier.height(20.dp))
 
                 TabRow(
                     tabs = themeTabs,
@@ -770,70 +767,56 @@ private fun MiuixThemeSettingsPage(
                     )
 
                     AnimatedVisibility(visible = themeMode.isDynamic) {
-                        OverlayDropdownPreference(
-                            title = stringResource(com.fioiu8.devinfo.R.string.theme_key_color),
-                            items = ThemeColor.entries.map { stringResource(it.displayNameResId) },
-                            selectedIndex = ThemeColor.entries.indexOf(themeColor).coerceAtLeast(0),
-                            onSelectedIndexChange = { index ->
-                                ThemeColor.entries.getOrNull(index)?.let(onThemeColorChange)
-                            },
-                            startAction = {
-                                Box(
-                                    modifier = Modifier
-                                        .padding(end = 12.dp)
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(themeColor.color),
-                                )
-                            },
-                        )
-                        OverlayDropdownPreference(
-                            title = "色彩风格",
-                            items = PaletteStyle.entries.map { it.name },
-                            selectedIndex = PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0),
-                            onSelectedIndexChange = { index ->
-                                PaletteStyle.entries.getOrNull(index)?.let(onPaletteStyleChange)
-                            },
-                        )
-                        OverlayDropdownPreference(
-                            title = "色彩标准",
-                            items = com.fioiu8.devinfo.model.ColorSpec.entries.map { it.name },
-                            selectedIndex = com.fioiu8.devinfo.model.ColorSpec.entries.indexOf(colorSpec).coerceAtLeast(0),
-                            onSelectedIndexChange = { index ->
-                                com.fioiu8.devinfo.model.ColorSpec.entries.getOrNull(index)?.let(onColorSpecChange)
-                            },
-                        )
-                        OverlayDropdownPreference(
-                            title = stringResource(R.string.theme_key_color),
-                            items = colorItems,
-                            selectedIndex = ThemeColor.entries.indexOf(themeColor).coerceAtLeast(0),
-                            onSelectedIndexChange = { index ->
-                                ThemeColor.entries.getOrNull(index)?.let(onThemeColorChange)
-                            },
-                            startAction = {
-                                Box(
-                                    modifier = Modifier
-                                        .padding(end = 12.dp)
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(themeColor.color),
-                                )
-                            },
-                        )
+                        Column {
+                            OverlayDropdownPreference(
+                                title = stringResource(R.string.theme_key_color),
+                                items = colorItems,
+                                selectedIndex = ThemeColor.entries.indexOf(themeColor).coerceAtLeast(0),
+                                onSelectedIndexChange = { index ->
+                                    ThemeColor.entries.getOrNull(index)?.let(onThemeColorChange)
+                                },
+                                startAction = {
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(end = 12.dp)
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(themeColor.color),
+                                    )
+                                },
+                            )
+                            OverlayDropdownPreference(
+                                title = stringResource(R.string.theme_palette_style),
+                                items = PaletteStyle.entries.map { it.name },
+                                selectedIndex = PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0),
+                                onSelectedIndexChange = { index ->
+                                    PaletteStyle.entries.getOrNull(index)?.let(onPaletteStyleChange)
+                                },
+                            )
+                            OverlayDropdownPreference(
+                                title = stringResource(R.string.theme_color_spec),
+                                items = com.fioiu8.devinfo.model.ColorSpec.entries.map { it.name },
+                                selectedIndex = com.fioiu8.devinfo.model.ColorSpec.entries.indexOf(colorSpec).coerceAtLeast(0),
+                                onSelectedIndexChange = { index ->
+                                    com.fioiu8.devinfo.model.ColorSpec.entries.getOrNull(index)?.let(onColorSpecChange)
+                                },
+                            )
+                        }
                     }
                 }
+                Spacer(Modifier.height(12.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     SwitchPreference(
-                        title = "毛玻璃效果",
-                        summary = "底部导航栏背景模糊",
+                        title = stringResource(R.string.theme_blur),
+                        summary = stringResource(R.string.theme_blur_summary),
                         checked = enableBlur,
                         onCheckedChange = onEnableBlurChange,
                     )
                     SwitchPreference(
-                        title = "预测返回手势",
-                        summary = "返回时预览目标页面",
+                        title = stringResource(R.string.theme_predictive_back),
+                        summary = stringResource(R.string.theme_predictive_back_summary),
                         checked = enablePredictiveBack,
                         onCheckedChange = onEnablePredictiveBackChange,
                     )
@@ -853,6 +836,7 @@ private fun MiuixThemeSettingsPage(
                     }
                 }
 
+                Spacer(Modifier.height(12.dp))
                 Card(modifier = Modifier.fillMaxWidth()) {
                     MiuixPageScalePreference(
                         pageScale = pageScale,

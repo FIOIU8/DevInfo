@@ -39,6 +39,12 @@
     <string name="theme_floating_navigation_bar_blur_summary">Apply a frosted-glass effect to the floating navigation bar</string>
     <string name="theme_page_scale">Page scale</string>
     <string name="theme_page_scale_summary">Adjust the display scale of the app interface</string>
+    <string name="theme_blur">Frosted glass effect</string>
+    <string name="theme_blur_summary">Blur the background behind floating navigation actions</string>
+    <string name="theme_predictive_back">Predictive back gesture</string>
+    <string name="theme_predictive_back_summary">Preview the destination page when going back</string>
+    <string name="theme_palette_style">Palette style</string>
+    <string name="theme_color_spec">Color specification</string>
 
     <!-- Theme settings -->
 
