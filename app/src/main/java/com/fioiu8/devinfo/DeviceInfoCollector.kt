@@ -337,11 +337,7 @@ class DeviceInfoCollector(private val context: Context) {
         }.getOrNull()
     )
 
-    fun getCpuFrequency(): String? = readFrequency(
-        "/sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq",
-        "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq",
-        "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
-    )
+    fun getCpuFrequency(): String? = readFrequency(*cpuFrequencyPaths(0).toTypedArray())
 
     fun getCpuCoreMetrics(): List<CpuCoreMetric> = runCatching {
         val first = readCpuTimesByCore()
@@ -372,12 +368,24 @@ class DeviceInfoCollector(private val context: Context) {
     )
 
     fun getCpuUsagePercent(): Float? = runCatching {
-        val first = readCpuTimes() ?: return@runCatching null
+        val first = readCpuTimes()
+        val firstUptime = if (first == null) readCpuUptime() else null
+        if (first == null && firstUptime == null) return@runCatching null
         Thread.sleep(180)
-        val second = readCpuTimes() ?: return@runCatching null
-        val totalDelta = second.total - first.total
-        val idleDelta = second.idle - first.idle
-        if (totalDelta <= 0L) null else ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
+        if (first != null) {
+            val second = readCpuTimes() ?: return@runCatching null
+            val totalDelta = second.total - first.total
+            val idleDelta = second.idle - first.idle
+            if (totalDelta <= 0L) null else {
+                ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
+            }
+        } else {
+            calculateCpuUsageFromUptime(
+                first = firstUptime ?: return@runCatching null,
+                second = readCpuUptime() ?: return@runCatching null,
+                cpuCount = getCpuIndexes().size.coerceAtLeast(1)
+            )
+        }
     }.getOrNull()
 
     fun getGpuUsagePercent(): Float? = readFirstLine(
@@ -388,26 +396,46 @@ class DeviceInfoCollector(private val context: Context) {
 
     private fun readFrequency(vararg paths: String): String? {
         val raw = readFirstLine(*paths)?.trim()?.toLongOrNull() ?: return null
-        val mhz = when {
-            raw >= 100_000_000L -> raw / 1_000_000f
-            raw >= 1_000L -> raw / 1_000f
-            else -> raw.toFloat()
-        }
-        return if (mhz > 0f) "%.0f MHz".format(Locale.US, mhz) else null
+        return formatCpuFrequency(raw)
     }
 
-    private fun getCpuCoreFrequency(index: Int): String? = readFrequency(
-        "/sys/devices/system/cpu/cpu${index}/cpufreq/scaling_cur_freq",
-        "/sys/devices/system/cpu/cpu${index}/cpufreq/cpuinfo_cur_freq",
-        "/sys/devices/system/cpu/cpufreq/policy${index}/scaling_cur_freq"
-    )
+    private fun getCpuCoreFrequency(index: Int): String? = readFrequency(*cpuFrequencyPaths(index).toTypedArray())
+
+    /** Vendors expose frequency through either per-core nodes or policy nodes. */
+    private fun cpuFrequencyPaths(index: Int): List<String> = buildList {
+        add("/sys/devices/system/cpu/cpu${index}/cpufreq/scaling_cur_freq")
+        add("/sys/devices/system/cpu/cpu${index}/cpufreq/cpuinfo_cur_freq")
+
+        val policyRoot = File("/sys/devices/system/cpu/cpufreq")
+        policyRoot.listFiles()
+            ?.filter { it.name.matches(Regex("policy\\d+")) }
+            ?.sortedBy { it.name }
+            ?.forEach { policy ->
+                val related = readFirstLine(
+                    File(policy, "related_cpus").path,
+                    File(policy, "affected_cpus").path
+                )
+                if (index == 0 || parseCpuIndexes(related).contains(index)) {
+                    add(File(policy, "scaling_cur_freq").path)
+                    add(File(policy, "cpuinfo_cur_freq").path)
+                }
+            }
+    }
 
     /**
      * Android vendors may deny third-party access to /proc/stat. Keep the core topology
-     * visible in that case, but leave usage empty instead of inventing a measurement.
+     * and frequencies visible; overall usage is sampled separately through /proc/uptime.
      */
     private fun getCpuCoreTopologyMetrics(): List<CpuCoreMetric> {
-        val indexes = parseCpuIndexes(readFirstLine("/sys/devices/system/cpu/present"))
+        return getCpuIndexes().map { index ->
+            CpuCoreMetric(index = index, frequency = getCpuCoreFrequency(index), usagePercent = null)
+        }
+    }
+
+    private fun getCpuIndexes(): List<Int> = parseCpuIndexes(
+            readFirstLine("/sys/devices/system/cpu/online")
+                ?: readFirstLine("/sys/devices/system/cpu/present")
+        )
             .ifEmpty {
                 runCatching {
                     File("/sys/devices/system/cpu")
@@ -416,7 +444,6 @@ class DeviceInfoCollector(private val context: Context) {
                             directory.name
                                 .removePrefix("cpu")
                                 .toIntOrNull()
-                                ?.takeIf { directory.isDirectory }
                         }
                         ?.sorted()
                         .orEmpty()
@@ -426,45 +453,37 @@ class DeviceInfoCollector(private val context: Context) {
                 (0 until Runtime.getRuntime().availableProcessors().coerceAtLeast(1)).toList()
             }
 
-        return indexes.map { index ->
-            CpuCoreMetric(index = index, frequency = getCpuCoreFrequency(index), usagePercent = null)
-        }
-    }
-
     private fun readFirstLine(vararg paths: String): String? = paths.firstNotNullOfOrNull { path ->
         runCatching {
-            File(path).takeIf { it.isFile && it.canRead() }?.useLines { lines -> lines.firstOrNull() }
-        }.getOrNull()?.takeIf { it.isNotBlank() }
+            // Do not call isFile/canRead first: SELinux-backed proc/sysfs nodes can
+            // reject those metadata checks while still allowing the actual read.
+            File(path).bufferedReader().use { it.readLine() }
+        }.getOrNull()?.trim()?.takeIf { it.isNotBlank() }
     }
 
-    private data class CpuTimes(val total: Long, val idle: Long)
+    private fun readLines(path: String): List<String> = runCatching {
+        File(path).bufferedReader().useLines { it.toList() }
+    }.getOrDefault(emptyList())
+
+    internal data class CpuTimes(val total: Long, val idle: Long)
 
     private fun readCpuTimesByCore(): Map<Int, CpuTimes> {
         val result = mutableMapOf<Int, CpuTimes>()
-        File("/proc/stat").takeIf { it.isFile && it.canRead() }?.useLines { lines ->
-            lines.forEach { line ->
-                val parts = line.trim().split(Regex("\\s+"))
-                val index = parts.firstOrNull()?.removePrefix("cpu")?.toIntOrNull() ?: return@forEach
-                val fields = parts.drop(1).mapNotNull { it.toLongOrNull() }
-                if (fields.size >= 5) {
-                    result[index] = CpuTimes(fields.sum(), fields[3] + fields[4])
-                }
-            }
+        readLines("/proc/stat").forEach { line ->
+            val parts = line.trim().split(Regex("\\s+"))
+            val index = parts.firstOrNull()?.removePrefix("cpu")?.toIntOrNull() ?: return@forEach
+            parseCpuTimes(parts.drop(1))?.let { result[index] = it }
         }
         return result
     }
 
     private fun readCpuTimes(): CpuTimes? {
-        val fields = readFirstLine("/proc/stat")
-            ?.trim()
-            ?.split(Regex("\\s+"))
-            ?.takeIf { it.firstOrNull() == "cpu" }
-            ?.drop(1)
-            ?.mapNotNull { it.toLongOrNull() }
-            ?: return null
-        if (fields.size < 5) return null
-        return CpuTimes(total = fields.sum(), idle = fields[3] + (fields.getOrNull(4) ?: 0L))
+        val parts = readFirstLine("/proc/stat")?.split(Regex("\\s+")) ?: return null
+        if (parts.firstOrNull() != "cpu") return null
+        return parseCpuTimes(parts.drop(1))
     }
+
+    private fun readCpuUptime(): CpuUptimeTimes? = parseCpuUptime(readFirstLine("/proc/uptime"))
 
     private fun getUptime(): String = safeGet(statusUnknown) {
         val totalMinutes = SystemClock.elapsedRealtime() / 60_000
@@ -933,4 +952,42 @@ internal fun parseCpuIndexes(value: String?): List<Int> {
         ?.distinct()
         ?.sorted()
         .orEmpty()
+}
+
+internal fun parseCpuTimes(fields: List<String>): DeviceInfoCollector.CpuTimes? {
+    if (fields.size < 5) return null
+    val values = fields.map { it.toLongOrNull() ?: return null }
+    return DeviceInfoCollector.CpuTimes(total = values.sum(), idle = values[3] + values[4])
+}
+
+internal data class CpuUptimeTimes(val uptimeSeconds: Double, val idleSeconds: Double)
+
+internal fun parseCpuUptime(value: String?): CpuUptimeTimes? {
+    val fields = value?.trim()?.split(Regex("\\s+")) ?: return null
+    if (fields.size < 2) return null
+    val uptime = fields[0].toDoubleOrNull()?.takeIf { it >= 0.0 } ?: return null
+    val idle = fields[1].toDoubleOrNull()?.takeIf { it >= 0.0 } ?: return null
+    return CpuUptimeTimes(uptimeSeconds = uptime, idleSeconds = idle)
+}
+
+internal fun calculateCpuUsageFromUptime(
+    first: CpuUptimeTimes,
+    second: CpuUptimeTimes,
+    cpuCount: Int
+): Float? {
+    if (cpuCount <= 0) return null
+    val elapsed = second.uptimeSeconds - first.uptimeSeconds
+    val idle = second.idleSeconds - first.idleSeconds
+    if (elapsed <= 0.0 || idle < 0.0) return null
+    val available = elapsed * cpuCount
+    return ((available - idle) / available * 100.0).toFloat().coerceIn(0f, 100f)
+}
+
+internal fun formatCpuFrequency(raw: Long): String? {
+    val mhz = when {
+        raw >= 100_000_000L -> raw / 1_000_000f
+        raw >= 1_000L -> raw / 1_000f
+        else -> raw.toFloat()
+    }
+    return if (mhz > 0f) "%.0f MHz".format(Locale.US, mhz) else null
 }
