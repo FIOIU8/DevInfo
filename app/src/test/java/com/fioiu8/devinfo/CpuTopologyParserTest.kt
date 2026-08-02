@@ -67,6 +67,11 @@ class CpuTopologyParserTest {
     }
 
     @Test
+    fun `rejects an all idle top summary from restricted Android builds`() {
+        assertEquals(null, parseUsableTopCpuUsage("800%cpu 0%user 800%idle"))
+    }
+
+    @Test
     fun `rejects malformed top summaries`() {
         assertEquals(null, parseTopCpuUsage("Tasks: 120 total"))
         assertEquals(null, parseTopCpuUsage("800%cpu 900%idle"))

@@ -503,7 +503,9 @@ class DeviceInfoCollector(private val context: Context) {
                 return@runCatching null
             }
             process.inputStream.bufferedReader().useLines { lines ->
-                lines.mapNotNull(::parseTopCpuUsage).firstOrNull()
+                // Android 15 can expose top while filtering its global counters. On affected
+                // builds the summary is always entirely idle, which is not a valid reading.
+                lines.mapNotNull(::parseUsableTopCpuUsage).firstOrNull()
             }
         } finally {
             process.destroy()
@@ -1019,6 +1021,9 @@ internal fun parseTopCpuUsage(line: String): Float? {
     if (total <= 0f || idle < 0f || idle > total) return null
     return ((total - idle) / total * 100f).coerceIn(0f, 100f)
 }
+
+/** Reject Android's restricted top summary, which falsely reports every core as idle. */
+internal fun parseUsableTopCpuUsage(line: String): Float? = parseTopCpuUsage(line)?.takeIf { it > 0f }
 
 private val TOP_CPU_SUMMARY_REGEX = Regex(
     """^\s*(\d+(?:\.\d+)?)%cpu\b.*?(\d+(?:\.\d+)?)%idle\b"""
