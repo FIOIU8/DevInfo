@@ -46,15 +46,13 @@ import java.util.zip.ZipOutputStream
  * │               ├── update-binary           # 刷机脚本（实际执行逻辑）
  * │               └── updater-script          # 刷机脚本描述（指向 update-binary）
  * │
- * ├── common/                                 # 公共文件目录
- * │   ├── system.prop                         # 系统属性配置文件（会被 Magisk 自动加载）
- * │   ├── post-fs-data.sh                     # 文件系统挂载后执行的脚本（early boot）
- * │   └── service.sh                          # 系统完全启动后执行的后台服务脚本
- * │
  * ├── system/                                 # 系统文件替换目录
  * │   └── (可选的系统文件，用于替换 /system 下的文件)
  * │
  * ├── module.prop                             # 模块信息配置文件（必需）
+ * ├── system.prop                             # 系统属性配置文件（由 Magisk/KernelSU 自动加载）
+ * ├── post-fs-data.sh                         # 文件系统挂载后执行的脚本（early boot）
+ * ├── service.sh                              # 系统完全启动后执行的后台服务脚本
  * ├── install.sh                              # 模块安装时的执行脚本
  * └── update-binary                           # 备用 update-binary（根目录版本）
  *
@@ -62,7 +60,7 @@ import java.util.zip.ZipOutputStream
  * 1. 用户通过 Magisk/KernelSU 刷入 ZIP 包
  * 2. 系统首先执行 META-INF/com/google/android/update-binary
  * 3. update-binary 加载模块配置，解压文件到 /data/adb/modules/[module_id]/
- * 4. 应用 common/system.prop 中的系统属性
+ * 4. 应用根目录 system.prop 中的系统属性
  * 5. 根据配置执行 post-fs-data.sh 和 service.sh
  * 6. 重启后模块生效
  */
@@ -157,7 +155,6 @@ class ModuleExportHelper(private val context: Context) {
     private data class ModuleDirectories(
         val root: File,
         val metaInf: File,
-        val common: File,
         val system: File
     )
 
@@ -206,13 +203,10 @@ class ModuleExportHelper(private val context: Context) {
         val metaInf = File(root, "META-INF/com/google/android")
         metaInf.mkdirs()
 
-        val common = File(root, "common")
-        common.mkdirs()
-
         val system = File(root, "system")
         system.mkdirs()
 
-        return ModuleDirectories(root, metaInf, common, system)
+        return ModuleDirectories(root, metaInf, system)
     }
 
     private fun writeModuleFiles(
@@ -221,14 +215,14 @@ class ModuleExportHelper(private val context: Context) {
         buildInfo: DeviceBuildInfo
     ) {
         writeModuleProp(directories.root, metadata)
-        writeSystemProp(directories.common, buildInfo)
+        writeSystemProp(directories.root, buildInfo)
         writeInstallScript(directories.root, buildInfo)
         writeRootUpdateBinary(directories.root)
         writeUpdaterScript(directories.metaInf)
         writeMetaUpdateBinary(directories.metaInf)
         writeSystemPlaceholder(directories.system)
-        writePostFsData(directories.common, buildInfo)
-        writeServiceScript(directories.common)
+        writePostFsData(directories.root, buildInfo)
+        writeServiceScript(directories.root)
     }
 
     private fun writeModuleProp(directory: File, metadata: ModuleMetadata) {
@@ -489,7 +483,7 @@ ro.product.cpu.abilist64=${Build.SUPPORTED_64_BIT_ABIS.joinToString(",")}
 ##########################################################################################
 
 SKIPMOUNT=false          # 是否跳过挂载模块文件到系统分区
-PROPFILE=true            # 是否应用 common/system.prop 中的系统属性
+PROPFILE=true            # 是否应用根目录 system.prop 中的系统属性
 POSTFSDATA=false         # 是否在第一阶段启动时执行 post-fs-data.sh
 LATESTARTSERVICE=false   # 是否在系统完全启动后执行 service.sh
 
@@ -792,7 +786,7 @@ ui_print "================================="
 # 注意：
 # 1. 此脚本在系统启动早期执行，此时部分服务可能尚未启动
 # 2. 脚本执行时间应尽可能短，避免延迟系统启动
-# 3. 除非有特殊需求，否则建议使用 common/system.prop 设置属性
+# 3. 除非有特殊需求，否则建议使用根目录 system.prop 设置属性
 
 # 记录脚本执行日志（调试用）
 # echo "post-fs-data.sh executed at \$(date)" >> /data/local/tmp/module_debug.log
