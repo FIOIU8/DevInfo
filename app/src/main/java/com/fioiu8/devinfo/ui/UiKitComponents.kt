@@ -96,6 +96,8 @@ import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurColors
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
+import top.yukonga.miuix.kmp.blur.blur
+import top.yukonga.miuix.kmp.blur.drawBackdrop
 import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -347,17 +349,20 @@ fun DevInfoMiuixFloatingNavigationBar(
             .shadow(elevation = 10.dp, shape = shape, clip = false)
             .then(
                 if (glassEffect && blurBackdrop != null) {
-                    Modifier.textureBlur(
+                    Modifier.drawBackdrop(
                         backdrop = blurBackdrop,
-                        shape = shape,
-                        blurRadius = 25f,
-                        colors = BlurColors(
-                            blendColors = listOf(BlendColorEntry(surfaceColor.copy(alpha = 0.4f))),
-                        ),
+                        shape = { shape },
+                        effects = { blur(4.dp.toPx(), 4.dp.toPx()) },
+                        onDrawSurface = { drawRect(surfaceColor.copy(alpha = 0.4f)) },
                     )
                 } else {
                     Modifier.background(surfaceColor, shape)
                 },
+            )
+            .border(
+                width = 1.dp,
+                color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                shape = shape,
             )
             .clip(shape)
             .padding(4.dp),
