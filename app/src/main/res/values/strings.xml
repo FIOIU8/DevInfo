@@ -38,6 +38,12 @@
     <string name="theme_floating_navigation_bar_blur_summary">为悬浮导航栏应用毛玻璃效果</string>
     <string name="theme_page_scale">页面缩放</string>
     <string name="theme_page_scale_summary">调整应用界面的显示比例</string>
+    <string name="theme_blur">毛玻璃效果</string>
+    <string name="theme_blur_summary">为悬浮导航按钮应用背景模糊</string>
+    <string name="theme_predictive_back">预测返回手势</string>
+    <string name="theme_predictive_back_summary">返回时预览目标页面</string>
+    <string name="theme_palette_style">颜色风格</string>
+    <string name="theme_color_spec">颜色标准</string>
 
     <!-- Theme settings -->
 

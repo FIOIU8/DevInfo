@@ -40,6 +40,12 @@
     <string name="theme_floating_navigation_bar_blur_summary">フローティング ナビゲーション バーにすりガラス効果を適用します</string>
     <string name="theme_page_scale">ページの拡大率</string>
     <string name="theme_page_scale_summary">アプリ画面の表示倍率を調整します</string>
+    <string name="theme_blur">すりガラス効果</string>
+    <string name="theme_blur_summary">フローティング ナビゲーション操作の背景をぼかします</string>
+    <string name="theme_predictive_back">予測型戻るジェスチャー</string>
+    <string name="theme_predictive_back_summary">戻るときに移動先の画面をプレビューします</string>
+    <string name="theme_palette_style">パレットスタイル</string>
+    <string name="theme_color_spec">カラー仕様</string>
 
     <!-- Language settings -->
     <string name="language_setting">言語設定</string>
