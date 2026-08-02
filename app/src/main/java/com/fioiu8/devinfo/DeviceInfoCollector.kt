@@ -47,6 +47,7 @@ import java.util.Currency
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.concurrent.TimeUnit
 
 private inline fun safeGet(default: String, block: () -> String): String {
     return try {
@@ -370,7 +371,9 @@ class DeviceInfoCollector(private val context: Context) {
     fun getCpuUsagePercent(): Float? = runCatching {
         val first = readCpuTimes()
         val firstUptime = if (first == null) readCpuUptime() else null
-        if (first == null && firstUptime == null) return@runCatching null
+        if (first == null && firstUptime == null) {
+            return@runCatching readCpuUsageFromTop()
+        }
         Thread.sleep(180)
         if (first != null) {
             val second = readCpuTimes() ?: return@runCatching null
@@ -484,6 +487,28 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     private fun readCpuUptime(): CpuUptimeTimes? = parseCpuUptime(readFirstLine("/proc/uptime"))
+
+    /**
+     * Some Android 15 vendor builds deny app access to all useful /proc CPU counters,
+     * while still allowing the system top binary. Its summary line is scaled by the
+     * online-core count, so derive a normalized percentage from total and idle time.
+     */
+    private fun readCpuUsageFromTop(): Float? = runCatching {
+        val process = ProcessBuilder("top", "-b", "-n", "1", "-m", "1")
+            .redirectErrorStream(true)
+            .start()
+        try {
+            if (!process.waitFor(TOP_COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                process.destroyForcibly()
+                return@runCatching null
+            }
+            process.inputStream.bufferedReader().useLines { lines ->
+                lines.mapNotNull(::parseTopCpuUsage).firstOrNull()
+            }
+        } finally {
+            process.destroy()
+        }
+    }.getOrNull()
 
     private fun getUptime(): String = safeGet(statusUnknown) {
         val totalMinutes = SystemClock.elapsedRealtime() / 60_000
@@ -928,6 +953,10 @@ class DeviceInfoCollector(private val context: Context) {
             icon = itemIconByResId(keyResId)
         )
     }
+
+    private companion object {
+        const val TOP_COMMAND_TIMEOUT_MS = 1_500L
+    }
 }
 
 internal fun parseCpuIndexes(value: String?): List<Int> {
@@ -982,6 +1011,18 @@ internal fun calculateCpuUsageFromUptime(
     val available = elapsed * cpuCount
     return ((available - idle) / available * 100.0).toFloat().coerceIn(0f, 100f)
 }
+
+internal fun parseTopCpuUsage(line: String): Float? {
+    val match = TOP_CPU_SUMMARY_REGEX.find(line) ?: return null
+    val total = match.groupValues[1].toFloatOrNull() ?: return null
+    val idle = match.groupValues[2].toFloatOrNull() ?: return null
+    if (total <= 0f || idle < 0f || idle > total) return null
+    return ((total - idle) / total * 100f).coerceIn(0f, 100f)
+}
+
+private val TOP_CPU_SUMMARY_REGEX = Regex(
+    """^\s*(\d+(?:\.\d+)?)%cpu\b.*?(\d+(?:\.\d+)?)%idle\b"""
+)
 
 internal fun formatCpuFrequency(raw: Long): String? {
     val mhz = when {

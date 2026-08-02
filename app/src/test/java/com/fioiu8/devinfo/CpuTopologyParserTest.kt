@@ -56,4 +56,19 @@ class CpuTopologyParserTest {
         )
         assertEquals(25f, usage ?: -1f, 0.001f)
     }
+
+    @Test
+    fun `parses top summary scaled by CPU core count`() {
+        assertEquals(
+            12.5f,
+            parseTopCpuUsage("800%cpu  25%user   0%nice  75%sys 700%idle   0%iow") ?: -1f,
+            0.001f
+        )
+    }
+
+    @Test
+    fun `rejects malformed top summaries`() {
+        assertEquals(null, parseTopCpuUsage("Tasks: 120 total"))
+        assertEquals(null, parseTopCpuUsage("800%cpu 900%idle"))
+    }
 }
