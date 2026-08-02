@@ -21,6 +21,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -531,8 +532,26 @@ fun MainScreen(
             )
         }
 
+    val hasDismissablePage = showThemeSettingsPage || showAboutPage || showDetailsPage
+
+    BackHandler(
+        enabled = hasDismissablePage && !settings.enablePredictiveBack,
+    ) {
+        when {
+            showThemeSettingsPage -> dismissThemeSettingsPage()
+            showAboutPage -> dismissAboutPage()
+            showDetailsPage -> scope.launch {
+                detailOffsetX.animateTo(
+                    screenWidthPx,
+                    animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS),
+                )
+                showDetailsPage = false
+            }
+        }
+    }
+
     PredictiveBackHandler(
-        enabled = showThemeSettingsPage || showAboutPage || showDetailsPage,
+        enabled = hasDismissablePage && settings.enablePredictiveBack,
         onBack = { progress ->
             val dismissThemeSettings = showThemeSettingsPage
             val dismissAbout = !dismissThemeSettings && showAboutPage
