@@ -190,7 +190,14 @@ class MainViewModel(
         val coreMetrics = collector.getCpuCoreMetrics()
         updateOverview { snapshot ->
             if (coreMetrics.isNotEmpty()) {
-                snapshot.copy(cpuCoreMetrics = coreMetrics).withCpuUsageReading(coreMetrics)
+                val overallUsage = coreMetrics.mapNotNull { it.usagePercent }
+                    .average()
+                    .toFloat()
+                    .takeIf { !it.isNaN() }
+                    ?: collector.getCpuUsagePercent()
+                snapshot.copy(cpuCoreMetrics = coreMetrics).withCpuUsageReading(
+                    CpuUsageReading(coreMetrics, overallUsage)
+                )
             } else {
                 snapshot.copy(cpuUsage = collector.getCpuUsagePercent())
             }
@@ -373,11 +380,14 @@ private fun OverviewSnapshot.withDynamicMetrics(metrics: DynamicMetrics): Overvi
 
 private fun OverviewSnapshot.withCpuUsageReading(reading: CpuUsageReading): OverviewSnapshot {
     val currentMetrics = reading.coreMetrics.ifEmpty { cpuCoreMetrics }
-    val values = if (reading.coreMetrics.isNotEmpty()) {
+    val perCoreValues = if (reading.coreMetrics.isNotEmpty()) {
         reading.coreMetrics.mapNotNull { metric ->
             metric.usagePercent?.let { usage -> metric.index to usage }
         }.toMap()
     } else {
+        emptyMap()
+    }
+    val values = perCoreValues.ifEmpty {
         reading.overallUsage?.let { mapOf(OVERALL_CPU_KEY to it) }.orEmpty()
     }
     val history = if (values.isEmpty()) {
@@ -391,11 +401,6 @@ private fun OverviewSnapshot.withCpuUsageReading(reading: CpuUsageReading): Over
         cpuUsage = reading.overallUsage,
         cpuUsageHistory = history
     )
-}
-
-private fun OverviewSnapshot.withCpuUsageReading(metrics: List<CpuCoreMetric>): OverviewSnapshot {
-    val overallUsage = metrics.mapNotNull { it.usagePercent }.average().toFloat().takeIf { !it.isNaN() }
-    return withCpuUsageReading(CpuUsageReading(metrics, overallUsage))
 }
 
 private const val OVERALL_CPU_KEY = -1

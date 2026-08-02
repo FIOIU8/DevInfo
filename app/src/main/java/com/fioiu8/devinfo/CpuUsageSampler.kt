@@ -75,7 +75,11 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     private fun read(): CpuUsageReading {
         val cores = collector.getCpuCoreMetrics()
         return if (cores.isNotEmpty()) {
-            CpuUsageReading(cores, cores.mapNotNull { it.usagePercent }.average().toFloat())
+            val perCoreAverage = cores.mapNotNull { it.usagePercent }
+                .average()
+                .toFloat()
+                .takeIf { !it.isNaN() }
+            CpuUsageReading(cores, perCoreAverage ?: collector.getCpuUsagePercent())
         } else {
             CpuUsageReading(emptyList(), collector.getCpuUsagePercent())
         }
