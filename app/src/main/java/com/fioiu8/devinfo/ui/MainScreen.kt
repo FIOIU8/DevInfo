@@ -71,6 +71,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -81,6 +82,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -126,6 +128,8 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.math.roundToInt
+
+internal val LocalFloatingNavigationContentPadding = staticCompositionLocalOf { 0.dp }
 
 /** App-owned settings and callbacks required by the main UI. */
 data class MainScreenSettings(
@@ -388,34 +392,36 @@ fun MainScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
-                        .padding(bottom = floatingNavigationContentPadding)
                 ) {
-                    AnimatedContent(
-                        modifier = Modifier.offset {
-                            IntOffset(
-                                x = if (showDetailsPage) detailOffsetX.value.roundToInt() else 0,
-                                y = 0
-                            )
-                        },
-                        targetState = selectedIndex to showDetailsPage,
-                        transitionSpec = {
-                            val direction = if (
-                                targetState.first > initialState.first ||
-                                targetState.second && !initialState.second
-                            ) {
-                                FORWARD_DIRECTION
-                            } else {
-                                BACKWARD_DIRECTION
-                            }
-                            (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { direction * it / 5 })
-                                .togetherWith(
-                                    fadeOut(tween(160)) +
-                                        slideOutHorizontally(tween(180)) { -direction * it / 5 }
+                    CompositionLocalProvider(
+                        LocalFloatingNavigationContentPadding provides floatingNavigationContentPadding,
+                    ) {
+                        AnimatedContent(
+                            modifier = Modifier.offset {
+                                IntOffset(
+                                    x = if (showDetailsPage) detailOffsetX.value.roundToInt() else 0,
+                                    y = 0
                                 )
-                        },
-                        label = "mainNavigationTransition"
-                    ) { pageState ->
-                        when (pageState.first) {
+                            },
+                            targetState = selectedIndex to showDetailsPage,
+                            transitionSpec = {
+                                val direction = if (
+                                    targetState.first > initialState.first ||
+                                    targetState.second && !initialState.second
+                                ) {
+                                    FORWARD_DIRECTION
+                                } else {
+                                    BACKWARD_DIRECTION
+                                }
+                                (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { direction * it / 5 })
+                                    .togetherWith(
+                                        fadeOut(tween(160)) +
+                                            slideOutHorizontally(tween(180)) { -direction * it / 5 }
+                                    )
+                            },
+                            label = "mainNavigationTransition"
+                        ) { pageState ->
+                            when (pageState.first) {
                             INFO_TAB_INDEX -> {
                                 if (pageState.second) {
                                     DeviceInfoPage(
@@ -441,7 +447,7 @@ fun MainScreen(
                                 }
                             }
 
-                            SETTINGS_TAB_INDEX -> {
+                                SETTINGS_TAB_INDEX -> {
                                 val languageOptions = AppLanguage.entries.map { language ->
                                     stringResource(language.displayNameResId)
                                 }
@@ -463,6 +469,7 @@ fun MainScreen(
                                     customLocaleTag = settings.customLocaleTag,
                                     onCustomLocaleTagChange = settings.onCustomLocaleTagChange
                                 )
+                                }
                             }
                         }
                     }

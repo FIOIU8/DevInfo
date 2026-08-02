@@ -171,7 +171,10 @@ fun SettingsPage(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 12.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            top = 12.dp,
+            bottom = 12.dp + LocalFloatingNavigationContentPadding.current,
+        ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item { CategoryHeader(stringResource(R.string.category_appearance)) }
@@ -389,7 +392,10 @@ private fun MiuixSettingsPage(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 12.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            top = 12.dp,
+            bottom = 12.dp + LocalFloatingNavigationContentPadding.current,
+        ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item { MiuixCategoryHeader(stringResource(R.string.category_appearance)) }
