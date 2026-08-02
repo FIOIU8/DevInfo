@@ -199,6 +199,7 @@
     <string name="copied_to_clipboard">%s をコピーしました</string>
     <string name="overview_realtime_title">リアルタイム動態</string>
     <string name="overview_realtime_cpu">CPU 波形 · 2 秒サンプリング</string>
+    <string name="overview_cpu_frequency_monitor">使用率は Android により制限 · コア周波数を監視中</string>
     <string name="overview_cpu_core_count">%d コア</string>
     <string name="overview_cpu_cores_detail">コア別使用率</string>
     <string name="overview_hardware_title">ハードウェアセンサー</string>

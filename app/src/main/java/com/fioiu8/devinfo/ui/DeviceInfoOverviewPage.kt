@@ -159,6 +159,7 @@ private data class OverviewMetric(
     val coreCount: Int? = null,
     val progress: Float? = null,
     val coreMetrics: List<CpuCoreMetric> = emptyList(),
+    val showFrequencySummary: Boolean = false,
     val history: List<CpuUsageSample> = emptyList()
 )
 
@@ -515,17 +516,19 @@ private fun MiuixCoreMetricRow(metric: CpuCoreMetric) {
         )
         Spacer(Modifier.weight(1f))
         MiuixText(
-            text = metric.usagePercent?.let { "%.0f%%".format(it) } ?: "--",
+            text = metric.usagePercent?.let { "%.0f%%".format(it) } ?: metric.frequency ?: "--",
             style = MiuixTheme.textStyles.main,
             fontWeight = FontWeight.SemiBold,
             color = MiuixTheme.colorScheme.onSurface
         )
-        metric.frequency?.let {
-            MiuixText(
-                text = it,
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceSecondary
-            )
+        metric.usagePercent?.let {
+            metric.frequency?.let { frequency ->
+                MiuixText(
+                    text = frequency,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceSecondary
+                )
+            }
         }
     }
 }
@@ -715,11 +718,16 @@ private fun buildOverviewMetrics(
                 category = InfoCategory.SYSTEM,
                 icon = itemIconByResId(R.string.system_cpu_arch),
                 size = OverviewCardSize.LARGE,
-                supportingTextResId = R.string.overview_realtime_cpu,
-                supportingTextSuffix = snapshot.cpuFrequency,
+                supportingTextResId = if (currentUsage == null) {
+                    R.string.overview_cpu_frequency_monitor
+                } else {
+                    R.string.overview_realtime_cpu
+                },
+                supportingTextSuffix = snapshot.cpuFrequency.takeIf { currentUsage != null },
                 coreCount = availableCoreMetrics.size.takeIf { it > 0 },
                 progress = currentUsage?.div(100f),
                 coreMetrics = availableCoreMetrics,
+                showFrequencySummary = currentUsage == null && availableCoreMetrics.any { it.frequency != null },
                 history = snapshot.cpuUsageHistory
             )
         )
@@ -846,11 +854,12 @@ private fun OverviewMetricCard(
     }
     var selectedCore by remember(metric.id) { mutableStateOf<Int?>(null) }
     val hasCoreControls = metric.history.isNotEmpty()
+    val hasFrequencySummary = metric.showFrequencySummary
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .then(
-                if (hasCoreControls) {
+                if (hasCoreControls || hasFrequencySummary) {
                     Modifier
                 } else {
                     Modifier.height(if (metric.size == OverviewCardSize.LARGE) 148.dp else 124.dp)
@@ -962,6 +971,28 @@ private fun OverviewMetricCard(
                         reserveSpace = false
                     )
                 }
+                if (hasFrequencySummary) {
+                    CpuFrequencySummary(metric.coreMetrics)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CpuFrequencySummary(metrics: List<CpuCoreMetric>) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        metrics.forEach { metric ->
+            metric.frequency?.let { frequency ->
+                Text(
+                    text = "CPU${metric.index} $frequency",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
             }
         }
     }
