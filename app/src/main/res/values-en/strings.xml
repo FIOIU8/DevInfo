@@ -197,6 +197,7 @@
     <string name="copied_to_clipboard">%s copied</string>
     <string name="overview_realtime_title">Live Activity</string>
     <string name="overview_realtime_cpu">CPU waveform · 2 s sampling</string>
+    <string name="overview_cpu_core_count">%d cores</string>
     <string name="overview_cpu_cores_detail">Per-core usage</string>
     <string name="overview_hardware_title">Hardware Sensors</string>
     <string name="overview_motion">Gyroscope / accelerometer</string>
