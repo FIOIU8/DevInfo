@@ -19,7 +19,6 @@ package com.fioiu8.devinfo.ui
 
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -88,6 +87,7 @@ import top.yukonga.miuix.kmp.window.WindowDialog
 @Composable
 fun ExportConfirmDialog(
     show: Boolean,
+    fileName: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -95,7 +95,8 @@ fun ExportConfirmDialog(
     if (LocalUiStyle.current == UiStyle.MIUIX) {
         MiuixActionDialog(
             title = stringResource(R.string.export_title),
-            message = stringResource(R.string.export_confirm_text),
+            message = stringResource(R.string.export_confirm_text) +
+                "\n\n" + stringResource(R.string.export_risk_warning),
             confirmLabel = stringResource(R.string.confirm_export),
             onConfirm = onConfirm,
             dismissLabel = stringResource(R.string.cancel),
@@ -127,6 +128,12 @@ fun ExportConfirmDialog(
                     text = stringResource(com.fioiu8.devinfo.R.string.export_confirm_text),
                     style = MaterialTheme.typography.bodyMedium
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(com.fioiu8.devinfo.R.string.export_risk_warning),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Card(
@@ -143,7 +150,7 @@ fun ExportConfirmDialog(
                         )
                         InfoRow(
                             label = stringResource(com.fioiu8.devinfo.R.string.export_filename),
-                            value = "DevInfo_${Build.MODEL}.zip"
+                            value = fileName
                         )
                     }
                 }

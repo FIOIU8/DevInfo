@@ -123,6 +123,7 @@
     <!-- Export dialog -->
     <string name="export_title">モジュールをエクスポート</string>
     <string name="export_confirm_text">現在のデバイス情報をMagiskモジュールとしてエクスポートします</string>
+    <string name="export_risk_warning">リスクの警告：このZIPにはデバイス情報が含まれる場合があり、モジュールの導入でシステム動作が変わる可能性があります。リスクを理解したうえで続行してください。いつでもキャンセルできます。</string>
     <string name="export_format_label">フォーマット</string>
     <string name="export_format_value">ZIPアーカイブ</string>
     <string name="export_save_location">保存場所</string>
