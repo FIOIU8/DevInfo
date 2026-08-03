@@ -27,6 +27,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -51,6 +53,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.material.icons.Icons
@@ -62,6 +65,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
@@ -69,7 +73,6 @@ import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -80,6 +83,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -92,8 +96,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -112,7 +118,10 @@ import com.fioiu8.devinfo.model.UiStyle
 import com.fioiu8.devinfo.ui.BlurredBar
 import com.fioiu8.devinfo.ui.rememberBlurBackdrop
 import com.fioiu8.devinfo.ui.screen.about.AboutScreen
+import com.fioiu8.devinfo.ui.kit.FloatingBottomBar
+import com.fioiu8.devinfo.ui.kit.FloatingBottomBarItem
 import com.fioiu8.devinfo.ui.theme.LocalUiStyle
+import com.fioiu8.devinfo.ui.theme.isInDarkTheme
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -122,9 +131,12 @@ import top.yukonga.miuix.kmp.basic.NavigationRail as MiuixNavigationRail
 import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHostState as MiuixSnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
+import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -348,12 +360,17 @@ fun MainScreen(
         if (index == SETTINGS_TAB_INDEX) showDetailsPage = false
     }
 
-    val topBarTitle = when {
-        selectedIndex == SETTINGS_TAB_INDEX -> stringResource(R.string.title_settings)
-        showDetailsPage -> stringResource(R.string.title_device_details)
-        else -> stringResource(R.string.title_device_info)
+    val contentPage = when {
+        selectedIndex == SETTINGS_TAB_INDEX -> MainContentPage.SETTINGS
+        showDetailsPage -> MainContentPage.DETAILS
+        else -> MainContentPage.INFO
     }
-    val showTopBarBackButton = selectedIndex == INFO_TAB_INDEX && showDetailsPage
+    val topBarTitle = when (contentPage) {
+        MainContentPage.INFO -> stringResource(R.string.overview_title)
+        MainContentPage.DETAILS -> stringResource(R.string.title_device_details)
+        MainContentPage.SETTINGS -> stringResource(R.string.title_settings)
+    }
+    val showTopBarBackButton = contentPage == MainContentPage.DETAILS
 
     DevInfoFeedbackScope(
         materialHostState = materialSnackbarHostState,
@@ -361,165 +378,177 @@ fun MainScreen(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             MainRootScaffold(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxSize()) {
-            if (useNavigationRail) {
-                MainNavigationRail(
-                    items = navigationItems,
-                    selectedIndex = selectedIndex,
-                    onItemSelected = ::selectNavigationItem,
-                    modifier = Modifier.fillMaxHeight()
-                )
-            }
+                Row(Modifier.fillMaxSize()) {
+                    if (useNavigationRail) {
+                        MainNavigationRail(
+                            items = navigationItems,
+                            selectedIndex = selectedIndex,
+                            onItemSelected = ::selectNavigationItem,
+                            modifier = Modifier.fillMaxHeight(),
+                        )
+                    }
 
-            MainScaffold(
-                modifier = Modifier.weight(1f),
-                consumedStartInsets = if (useNavigationRail) {
-                    navigationRailStartInsets
-                } else {
-                    WindowInsets(0, 0, 0, 0)
-                },
-                title = topBarTitle,
-                showBackButton = showTopBarBackButton,
-                onBack = { showDetailsPage = false },
-                items = navigationItems,
-                selectedIndex = selectedIndex,
-                onItemSelected = ::selectNavigationItem,
-                showBottomBar = !useNavigationRail,
-                enableBlur = settings.enableBlur,
-                enableFloatingBottomBar = settings.enableFloatingBottomBar,
-                enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
-            ) { paddingValues ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                ) {
-                    CompositionLocalProvider(
-                        LocalFloatingNavigationContentPadding provides floatingNavigationContentPadding,
-                    ) {
-                        AnimatedContent(
-                            modifier = Modifier.offset {
-                                IntOffset(
-                                    x = if (showDetailsPage) detailOffsetX.value.roundToInt() else 0,
-                                    y = 0
-                                )
-                            },
-                            targetState = selectedIndex to showDetailsPage,
-                            transitionSpec = {
-                                val direction = if (
-                                    targetState.first > initialState.first ||
-                                    targetState.second && !initialState.second
-                                ) {
-                                    FORWARD_DIRECTION
-                                } else {
-                                    BACKWARD_DIRECTION
-                                }
-                                (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { direction * it / 5 })
-                                    .togetherWith(
-                                        fadeOut(tween(160)) +
-                                            slideOutHorizontally(tween(180)) { -direction * it / 5 }
-                                    )
-                            },
-                            label = "mainNavigationTransition"
-                        ) { pageState ->
-                            when (pageState.first) {
-                            INFO_TAB_INDEX -> {
-                                if (pageState.second) {
-                                    DeviceInfoPage(
-                                        deviceId = settings.deviceId,
-                                        itemsState = deviceInfoItems,
-                                        isLoading = isDeviceInfoLoading,
-                                        overviewSnapshot = overviewSnapshot,
-                                        onRefresh = viewModel::refreshAndAwait,
-                                        initialCategory = detailCategory
-                                    )
-                                } else {
-                                    DeviceInfoOverviewPage(
-                                        itemsState = deviceInfoItems,
-                                        isLoading = isDeviceInfoLoading,
-                                        isOverviewLoading = isOverviewLoading,
-                                        snapshot = overviewSnapshot,
-                                        onRefresh = viewModel::refreshAndAwait,
-                                        onOpenDetails = { category ->
-                                            detailCategory = category
-                                            showDetailsPage = true
-                                        }
-                                    )
-                                }
-                            }
-
-                                SETTINGS_TAB_INDEX -> {
-                                val languageOptions = AppLanguage.entries.map { language ->
-                                    stringResource(language.displayNameResId)
-                                }
-                                SettingsPage(
-                                    versionName = viewModel.appVersionName,
-                                    versionCode = viewModel.appVersionCode,
-                                    uiStyle = settings.uiStyle,
-                                    onUiStyleChange = settings.onUiStyleChange,
-                                    onThemeSettingsClick = { showThemeSettingsPage = true },
-                                    onExportClick = { showExportDialog = true },
-                                    onAboutClick = { showAboutPage = true },
-                                    appLanguage = settings.appLanguage,
-                                    checkUpdate = settings.checkUpdate,
-                                    onCheckUpdateChange = settings.onCheckUpdateChange,
-                                    languageOptions = languageOptions,
-                                    onLanguageChange = { index ->
-                                        settings.onAppLanguageChange(AppLanguage.entries[index])
+                    MainScaffold(
+                        modifier = Modifier.weight(1f),
+                        consumedStartInsets = if (useNavigationRail) {
+                            navigationRailStartInsets
+                        } else {
+                            WindowInsets(0, 0, 0, 0)
+                        },
+                        title = topBarTitle,
+                        showBackButton = showTopBarBackButton,
+                        onBack = { showDetailsPage = false },
+                        items = navigationItems,
+                        selectedIndex = selectedIndex,
+                        onItemSelected = ::selectNavigationItem,
+                        showBottomBar = !useNavigationRail,
+                        enableBlur = settings.enableBlur,
+                        enableFloatingBottomBar = settings.enableFloatingBottomBar,
+                        enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
+                    ) { paddingValues ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(paddingValues),
+                        ) {
+                            CompositionLocalProvider(
+                                LocalFloatingNavigationContentPadding provides floatingNavigationContentPadding,
+                            ) {
+                                AnimatedContent(
+                                    modifier = Modifier.offset {
+                                        IntOffset(
+                                            x = if (contentPage == MainContentPage.DETAILS) {
+                                                detailOffsetX.value.roundToInt()
+                                            } else {
+                                                0
+                                            },
+                                            y = 0,
+                                        )
                                     },
-                                    customLocaleTag = settings.customLocaleTag,
-                                    onCustomLocaleTagChange = settings.onCustomLocaleTagChange
-                                )
+                                    targetState = contentPage,
+                                    transitionSpec = {
+                                        val direction = when {
+                                            targetState == MainContentPage.DETAILS &&
+                                                initialState != MainContentPage.DETAILS -> FORWARD_DIRECTION
+
+                                            initialState == MainContentPage.DETAILS &&
+                                                targetState != MainContentPage.DETAILS -> BACKWARD_DIRECTION
+
+                                            targetState.navigationOrder > initialState.navigationOrder -> FORWARD_DIRECTION
+                                            else -> BACKWARD_DIRECTION
+                                        }
+                                        (fadeIn(tween(260, easing = FastOutSlowInEasing)) +
+                                            slideInHorizontally(
+                                                animationSpec = tween(320, easing = FastOutSlowInEasing),
+                                            ) { direction * it / 5 })
+                                            .togetherWith(
+                                                fadeOut(tween(180, easing = LinearOutSlowInEasing)) +
+                                                    slideOutHorizontally(
+                                                        animationSpec = tween(240, easing = LinearOutSlowInEasing),
+                                                    ) { -direction * it / 5 },
+                                            )
+                                    },
+                                    label = "mainNavigationTransition",
+                                ) { pageState ->
+                                    when (pageState) {
+                                        MainContentPage.INFO -> {
+                                            DeviceInfoOverviewPage(
+                                                itemsState = deviceInfoItems,
+                                                isLoading = isDeviceInfoLoading,
+                                                isOverviewLoading = isOverviewLoading,
+                                                snapshot = overviewSnapshot,
+                                                onRefresh = viewModel::refreshAndAwait,
+                                                onOpenDetails = { category ->
+                                                    detailCategory = category
+                                                    showDetailsPage = true
+                                                },
+                                            )
+                                        }
+
+                                        MainContentPage.DETAILS -> {
+                                            DeviceInfoPage(
+                                                deviceId = settings.deviceId,
+                                                itemsState = deviceInfoItems,
+                                                isLoading = isDeviceInfoLoading,
+                                                overviewSnapshot = overviewSnapshot,
+                                                onRefresh = viewModel::refreshAndAwait,
+                                                initialCategory = detailCategory,
+                                            )
+                                        }
+
+                                        MainContentPage.SETTINGS -> {
+                                            val languageOptions = AppLanguage.entries.map { language ->
+                                                stringResource(language.displayNameResId)
+                                            }
+                                            SettingsPage(
+                                                versionName = viewModel.appVersionName,
+                                                versionCode = viewModel.appVersionCode,
+                                                uiStyle = settings.uiStyle,
+                                                onUiStyleChange = settings.onUiStyleChange,
+                                                onThemeSettingsClick = { showThemeSettingsPage = true },
+                                                onExportClick = { showExportDialog = true },
+                                                onAboutClick = { showAboutPage = true },
+                                                appLanguage = settings.appLanguage,
+                                                checkUpdate = settings.checkUpdate,
+                                                onCheckUpdateChange = settings.onCheckUpdateChange,
+                                                languageOptions = languageOptions,
+                                                onLanguageChange = { index ->
+                                                    settings.onAppLanguageChange(AppLanguage.entries[index])
+                                                },
+                                                customLocaleTag = settings.customLocaleTag,
+                                                onCustomLocaleTagChange = settings.onCustomLocaleTagChange,
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
 
-        if (isAboutVisible) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .offset { IntOffset(aboutOffsetX.value.roundToInt(), 0) }
-            ) {
-                AboutScreen(
-                    versionName = viewModel.appVersionName,
-                    onBack = { dismissAboutPage() }
-                )
+            if (isAboutVisible) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .offset { IntOffset(aboutOffsetX.value.roundToInt(), 0) },
+                ) {
+                    AboutScreen(
+                        versionName = viewModel.appVersionName,
+                        onBack = { dismissAboutPage() },
+                    )
+                }
             }
-        }
 
-        if (isThemeSettingsVisible) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .offset { IntOffset(themeSettingsOffsetX.value.roundToInt(), 0) },
-            ) {
-                ThemeSettingsPage(
-                    themeMode = settings.themeMode,
-                    onThemeModeChange = settings.onThemeModeChange,
-                    themeColor = settings.themeColor,
-                    onThemeColorChange = settings.onThemeColorChange,
-                    paletteStyle = settings.paletteStyle,
-                    onPaletteStyleChange = settings.onPaletteStyleChange,
-                    colorSpec = settings.colorSpec,
-                    onColorSpecChange = settings.onColorSpecChange,
-                    enableBlur = settings.enableBlur,
-                    onEnableBlurChange = settings.onEnableBlurChange,
-                    enableFloatingBottomBar = settings.enableFloatingBottomBar,
-                    onEnableFloatingBottomBarChange = settings.onEnableFloatingBottomBarChange,
-                    enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
-                    onEnableFloatingBottomBarBlurChange = settings.onEnableFloatingBottomBarBlurChange,
-                    pageScale = settings.pageScale,
-                    onPageScaleChange = settings.onPageScaleChange,
-                    enablePredictiveBack = settings.enablePredictiveBack,
-                    onEnablePredictiveBackChange = settings.onEnablePredictiveBackChange,
-                    onBack = ::dismissThemeSettingsPage,
-                )
-            }
-        }
+            if (isThemeSettingsVisible) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .offset { IntOffset(themeSettingsOffsetX.value.roundToInt(), 0) },
+                ) {
+                    ThemeSettingsPage(
+                        uiStyle = settings.uiStyle,
+                        themeMode = settings.themeMode,
+                        onThemeModeChange = settings.onThemeModeChange,
+                        themeColor = settings.themeColor,
+                        onThemeColorChange = settings.onThemeColorChange,
+                        paletteStyle = settings.paletteStyle,
+                        onPaletteStyleChange = settings.onPaletteStyleChange,
+                        colorSpec = settings.colorSpec,
+                        onColorSpecChange = settings.onColorSpecChange,
+                        enableBlur = settings.enableBlur,
+                        onEnableBlurChange = settings.onEnableBlurChange,
+                        enableFloatingBottomBar = settings.enableFloatingBottomBar,
+                        onEnableFloatingBottomBarChange = settings.onEnableFloatingBottomBarChange,
+                        enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
+                        onEnableFloatingBottomBarBlurChange = settings.onEnableFloatingBottomBarBlurChange,
+                        pageScale = settings.pageScale,
+                        onPageScaleChange = settings.onPageScaleChange,
+                        enablePredictiveBack = settings.enablePredictiveBack,
+                        onEnablePredictiveBackChange = settings.onEnablePredictiveBackChange,
+                        onBack = ::dismissThemeSettingsPage,
+                    )
+                }
             }
 
             DevInfoSnackbarHost(
@@ -531,6 +560,7 @@ fun MainScreen(
                     .padding(bottom = snackbarBottomPadding),
             )
         }
+    }
 
     val hasDismissablePage = showThemeSettingsPage || showAboutPage || showDetailsPage
 
@@ -656,7 +686,6 @@ fun MainScreen(
         fileUri = exportedFileUri,
         onDismiss = { showExportSuccessDialog = false }
     )
-    }
 }
 
 private typealias MainNavigationItem = DevInfoNavigationItem
@@ -719,11 +748,30 @@ private fun MainScaffold(
 
     val standardBottomBar: @Composable () -> Unit = {
         if (showBottomBar) {
-            DevInfoNavigationBar(
-                items = items,
-                selectedIndex = selectedIndex,
-                onItemSelected = onItemSelected,
-            )
+            if (LocalUiStyle.current == UiStyle.MIUIX) {
+                val surfaceColor = MiuixTheme.colorScheme.surface
+                val blurBackdrop = rememberBlurBackdrop(
+                    enableBlur = enableBlur,
+                    surfaceColor = surfaceColor,
+                )
+                BlurredBar(
+                    backdrop = blurBackdrop,
+                    blurActive = enableBlur,
+                    surfaceColor = surfaceColor,
+                ) {
+                    DevInfoNavigationBar(
+                        items = items,
+                        selectedIndex = selectedIndex,
+                        onItemSelected = onItemSelected,
+                    )
+                }
+            } else {
+                DevInfoNavigationBar(
+                    items = items,
+                    selectedIndex = selectedIndex,
+                    onItemSelected = onItemSelected,
+                )
+            }
         }
     }
 
@@ -737,6 +785,10 @@ private fun MainScaffold(
                         enableBlur = enableBlur || enableFloatingBottomBarBlur,
                         surfaceColor = surfaceColor,
                     )
+                    val kitBackdrop: Backdrop = blurBackdrop ?: rememberLayerBackdrop {
+                        drawRect(surfaceColor)
+                        drawContent()
+                    }
                     Box(modifier = Modifier.fillMaxSize()) {
                         Box(
                             modifier = Modifier
@@ -755,6 +807,7 @@ private fun MainScaffold(
                                 items = items,
                                 selectedIndex = selectedIndex,
                                 onItemSelected = onItemSelected,
+                                backdrop = kitBackdrop,
                                 blurBackdrop = blurBackdrop,
                                 enableBlur = enableFloatingBottomBarBlur,
                             )
@@ -779,6 +832,10 @@ private fun MainScaffold(
                         enableBlur = enableBlur || enableFloatingBottomBarBlur,
                         surfaceColor = surfaceColor,
                     )
+                    val kitBackdrop: Backdrop = blurBackdrop ?: rememberLayerBackdrop {
+                        drawRect(surfaceColor)
+                        drawContent()
+                    }
                     Box(modifier = Modifier.fillMaxSize()) {
                         Box(
                             modifier = Modifier
@@ -796,6 +853,7 @@ private fun MainScaffold(
                                 items = items,
                                 selectedIndex = selectedIndex,
                                 onItemSelected = onItemSelected,
+                                backdrop = kitBackdrop,
                                 blurBackdrop = blurBackdrop,
                                 enableBlur = enableFloatingBottomBarBlur,
                             )
@@ -819,6 +877,7 @@ private fun BoxScope.FloatingMainNavigationBar(
     items: List<MainNavigationItem>,
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
+    backdrop: Backdrop,
     blurBackdrop: LayerBackdrop?,
     enableBlur: Boolean,
 ) {
@@ -835,21 +894,127 @@ private fun BoxScope.FloatingMainNavigationBar(
         contentAlignment = Alignment.Center,
     ) {
         when (LocalUiStyle.current) {
-            UiStyle.MATERIAL3 -> DevInfoMaterialFloatingNavigationBar(
+            UiStyle.MATERIAL3 -> MaterialKitFloatingNavigationBar(
                 items = items,
                 selectedIndex = selectedIndex,
                 onItemSelected = onItemSelected,
+                backdrop = backdrop,
                 glassEffect = enableBlur,
                 blurBackdrop = blurBackdrop,
             )
 
-            UiStyle.MIUIX -> DevInfoMiuixFloatingNavigationBar(
+            UiStyle.MIUIX -> MiuixKitFloatingNavigationBar(
                 items = items,
                 selectedIndex = selectedIndex,
                 onItemSelected = onItemSelected,
+                backdrop = backdrop,
                 glassEffect = enableBlur,
                 blurBackdrop = blurBackdrop,
             )
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.MaterialKitFloatingNavigationBar(
+    items: List<MainNavigationItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit,
+    backdrop: Backdrop,
+    glassEffect: Boolean,
+    blurBackdrop: LayerBackdrop?,
+) {
+    val selectedIndexState = rememberUpdatedState(selectedIndex)
+    val selectedIndexProvider = remember { { selectedIndexState.value } }
+
+    FloatingBottomBar(
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(
+                bottom = 12.dp +
+                    WindowInsets.navigationBars
+                        .asPaddingValues()
+                        .calculateBottomPadding(),
+            ),
+        selectedIndex = selectedIndexProvider,
+        onSelected = onItemSelected,
+        backdrop = backdrop,
+        tabsCount = items.size,
+        isBlurEnabled = glassEffect && blurBackdrop != null,
+        surfaceColorOverride = MaterialTheme.colorScheme.surfaceContainer,
+        accentColorOverride = MaterialTheme.colorScheme.primary,
+        darkThemeOverride = isInDarkTheme(),
+    ) {
+        items.forEachIndexed { index, item ->
+            FloatingBottomBarItem(
+                modifier = Modifier.defaultMinSize(minWidth = 76.dp),
+                onClick = { onItemSelected(index) },
+            ) {
+                Icon(
+                    imageVector = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
+                    contentDescription = item.label,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = item.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Visible,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.MiuixKitFloatingNavigationBar(
+    items: List<MainNavigationItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit,
+    backdrop: Backdrop,
+    glassEffect: Boolean,
+    blurBackdrop: LayerBackdrop?,
+) {
+    val selectedIndexState = rememberUpdatedState(selectedIndex)
+    val selectedIndexProvider = remember { { selectedIndexState.value } }
+
+    FloatingBottomBar(
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(
+                bottom = 12.dp +
+                    WindowInsets.navigationBars
+                        .asPaddingValues()
+                        .calculateBottomPadding(),
+            ),
+        selectedIndex = selectedIndexProvider,
+        onSelected = onItemSelected,
+        backdrop = backdrop,
+        tabsCount = items.size,
+        isBlurEnabled = glassEffect && blurBackdrop != null,
+    ) {
+        items.forEachIndexed { index, item ->
+            FloatingBottomBarItem(
+                modifier = Modifier.defaultMinSize(minWidth = 76.dp),
+                onClick = { onItemSelected(index) },
+            ) {
+                MiuixIcon(
+                    imageVector = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
+                    contentDescription = item.label,
+                    tint = MiuixTheme.colorScheme.onSurface,
+                )
+                MiuixText(
+                    text = item.label,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Visible,
+                )
+            }
         }
     }
 }
@@ -896,27 +1061,31 @@ private fun MaterialMainTopBar(
     showBackButton: Boolean,
     onBack: () -> Unit
 ) {
-    TopAppBar(
-        navigationIcon = {
-            if (showBackButton) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.back)
-                    )
-                }
+    val navigationIcon: @Composable () -> Unit = {
+        if (showBackButton) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.back),
+                )
             }
-        },
-        title = {
-            Text(
-                text = title,
-                fontWeight = FontWeight.SemiBold
-            )
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            titleContentColor = MaterialTheme.colorScheme.onSurface
+        }
+    }
+    val titleContent: @Composable () -> Unit = {
+        Text(
+            text = title,
+            fontWeight = FontWeight.SemiBold,
         )
+    }
+    val colors = TopAppBarDefaults.topAppBarColors(
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+    )
+
+    LargeFlexibleTopAppBar(
+        navigationIcon = navigationIcon,
+        title = titleContent,
+        colors = colors,
     )
 }
 
@@ -1044,3 +1213,9 @@ private const val TABLET_NAVIGATION_RAIL_MIN_WIDTH_DP = 600
 private const val ABOUT_ANIMATION_DURATION_MS = 300
 private const val PREDICTIVE_BACK_ANIMATION_DURATION_MS = 200
 private const val RELEASES_URL = "https://github.com/FIOIU8/DevInfo/releases"
+
+private enum class MainContentPage(val navigationOrder: Int) {
+    INFO(navigationOrder = 0),
+    DETAILS(navigationOrder = 0),
+    SETTINGS(navigationOrder = 1),
+}
