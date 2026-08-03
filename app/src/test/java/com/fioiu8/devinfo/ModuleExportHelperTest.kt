@@ -148,6 +148,7 @@ class ModuleExportHelperTest {
         assertFalse(ModuleExportHelper.isSafeZipEntryName("C:/module.prop"))
         assertFalse(ModuleExportHelper.isSafeZipEntryName("system\\module.prop"))
         assertFalse(ModuleExportHelper.isSafeZipEntryName("system/\u0000.prop"))
+        assertFalse(ModuleExportHelper.isSafeZipEntryName("system/\uD800.prop"))
     }
 
     @Test

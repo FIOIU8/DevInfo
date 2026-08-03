@@ -455,7 +455,8 @@ class ModuleExportHelper(private val context: Context) {
         }
 
         private fun isUnsafeEntryCharacter(character: Char): Boolean {
-            return character.code <= 0x1F || character.code == 0x7F
+            return character.code <= 0x1F || character.code == 0x7F ||
+                Character.isSurrogate(character)
         }
     }
 
