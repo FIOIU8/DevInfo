@@ -50,25 +50,40 @@ class LiveHardwareMonitor(context: Context) : SensorEventListener {
 
     @Volatile
     private var movingUntil = 0L
+    private val registeredMotionSensors = mutableSetOf<Sensor>()
+    private var motionRegistrationAttempted = false
     private var lastSectorsRead: Long? = null
     private var lastStorageSampleAt = 0L
     private val recentReadSpeeds = ArrayDeque<Int>()
 
-    fun start() {
+    @Synchronized
+    fun start(collectMotion: Boolean) {
+        if (!collectMotion || motionRegistrationAttempted) return
+        motionRegistrationAttempted = true
         motionSensors.forEach { sensor ->
-            sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL)
+            val registered = runCatching {
+                sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL) == true
+            }.getOrDefault(false)
+            if (registered) registeredMotionSensors += sensor
         }
     }
 
+    @Synchronized
     fun stop() {
         sensorManager?.unregisterListener(this)
+        registeredMotionSensors.clear()
+        motionRegistrationAttempted = false
     }
 
     @Synchronized
-    fun snapshot(): LiveHardwareSnapshot {
-        val (instantSpeed, averageSpeed) = readStorageSpeed()
+    fun snapshot(includeStorageReadSpeed: Boolean = true): LiveHardwareSnapshot {
+        val (instantSpeed, averageSpeed) = if (includeStorageReadSpeed) {
+            readStorageSpeed()
+        } else {
+            null to null
+        }
         return LiveHardwareSnapshot(
-            motionAvailable = motionSensors.isNotEmpty(),
+            motionAvailable = registeredMotionSensors.isNotEmpty(),
             moving = SystemClock.elapsedRealtime() < movingUntil,
             brightnessPercent = readBrightnessPercent(),
             storageReadSpeedMbps = instantSpeed,
@@ -78,6 +93,7 @@ class LiveHardwareMonitor(context: Context) : SensorEventListener {
     }
 
     override fun onSensorChanged(event: SensorEvent) {
+        if (event.values.size < 3) return
         val magnitude = sqrt(
             event.values[0] * event.values[0] +
                 event.values[1] * event.values[1] +

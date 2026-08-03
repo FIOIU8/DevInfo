@@ -283,8 +283,13 @@ fun MainScreen(
         }
     }
 
-    LaunchedEffect(selectedIndex, viewModel) {
-        viewModel.onInfoTabChanged(selectedIndex == INFO_TAB_INDEX)
+    LaunchedEffect(selectedIndex, showDetailsPage, showAboutPage, showThemeSettingsPage, viewModel) {
+        viewModel.onInfoTabChanged(
+            selectedIndex == INFO_TAB_INDEX &&
+                !showDetailsPage &&
+                !showAboutPage &&
+                !showThemeSettingsPage
+        )
     }
 
     LaunchedEffect(showAboutPage) {

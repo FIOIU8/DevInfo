@@ -32,6 +32,9 @@ data class CpuUsageReading(
     val overallUsage: Float?
 )
 
+internal fun cpuSamplingIntervalMs(consecutiveFailures: Int): Long =
+    if (consecutiveFailures >= 3) 5_000L else 2_000L
+
 /** Handler-driven sampler whose scheduled task cannot retain a disposed screen. */
 class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     private val handler = Handler(Looper.getMainLooper())
@@ -39,6 +42,8 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     private val selfReference = WeakReference(this)
     private var onSample: ((CpuUsageReading) -> Unit)? = null
     private var running = false
+    private var consecutiveFailures = 0
+    private var lastDeliveredReading: CpuUsageReading? = null
 
     private val task: Runnable
 
@@ -50,8 +55,14 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
                 sampler.scope.launch {
                     val reading = sampler.read()
                     withContext(Dispatchers.Main.immediate) {
-                        sampler.onSample?.invoke(reading)
-                        if (sampler.running) sampler.handler.postDelayed(sampler.task, SAMPLE_INTERVAL_MS)
+                        if (!sampler.running) return@withContext
+                        if (reading != sampler.lastDeliveredReading) {
+                            sampler.lastDeliveredReading = reading
+                            runCatching { sampler.onSample?.invoke(reading) }
+                        }
+                        if (sampler.running) {
+                            sampler.handler.postDelayed(sampler.task, sampler.nextDelay(reading))
+                        }
                     }
                 }
             }
@@ -61,6 +72,8 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     fun start(callback: (CpuUsageReading) -> Unit) {
         stop()
         running = true
+        consecutiveFailures = 0
+        lastDeliveredReading = null
         onSample = callback
         handler.post(task)
     }
@@ -68,24 +81,34 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     fun stop() {
         running = false
         onSample = null
+        lastDeliveredReading = null
         handler.removeCallbacks(task)
         scope.coroutineContext.cancelChildren()
     }
 
     private fun read(): CpuUsageReading {
-        val cores = collector.getCpuCoreMetrics()
+        val cores = runCatching { collector.getCpuCoreMetrics() }.getOrDefault(emptyList())
         return if (cores.isNotEmpty()) {
             val perCoreAverage = cores.mapNotNull { it.usagePercent }
                 .average()
                 .toFloat()
                 .takeIf { !it.isNaN() }
-            CpuUsageReading(cores, perCoreAverage ?: collector.getCpuUsagePercent())
+            CpuUsageReading(
+                cores,
+                perCoreAverage ?: runCatching { collector.getCpuUsagePercent() }.getOrNull()
+            )
         } else {
-            CpuUsageReading(emptyList(), collector.getCpuUsagePercent())
+            CpuUsageReading(emptyList(), runCatching { collector.getCpuUsagePercent() }.getOrNull())
         }
     }
 
-    private companion object {
-        const val SAMPLE_INTERVAL_MS = 2_000L
+    private fun nextDelay(reading: CpuUsageReading): Long {
+        if (reading.overallUsage == null && reading.coreMetrics.none { it.usagePercent != null }) {
+            consecutiveFailures++
+        } else {
+            consecutiveFailures = 0
+        }
+        return cpuSamplingIntervalMs(consecutiveFailures)
     }
+
 }

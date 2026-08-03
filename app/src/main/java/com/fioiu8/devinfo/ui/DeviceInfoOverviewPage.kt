@@ -68,6 +68,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -124,6 +125,7 @@ private enum class OverviewMetricId {
     BATTERY
 }
 
+@Immutable
 data class OverviewSnapshot(
     val cpuFrequency: String? = null,
     val gpuFrequency: String? = null,
@@ -141,11 +143,13 @@ data class OverviewSnapshot(
     val hardware: LiveHardwareSnapshot = LiveHardwareSnapshot()
 )
 
+@Immutable
 data class CpuUsageSample(
     val timestampMillis: Long,
     val valuesByCore: Map<Int, Float>
 )
 
+@Immutable
 private data class OverviewMetric(
     val id: OverviewMetricId,
     val title: String? = null,
@@ -164,6 +168,7 @@ private data class OverviewMetric(
 )
 
 /** 从已采集信息项中挑选出的静态信息卡片数据 */
+@Immutable
 private data class StaticInfoCardData(
     val keyResId: Int,
     val value: String,
@@ -600,9 +605,9 @@ private fun MiuixHardwareSensorsCard(
                     snapshot.moving -> stringResource(R.string.status_moving)
                     else -> stringResource(R.string.status_stationary)
                 }),
-                Triple(Icons.Outlined.Brightness6, stringResource(R.string.overview_brightness), snapshot.brightnessPercent?.let { "$it%" } ?: "--"),
-                Triple(Icons.Outlined.Storage, stringResource(R.string.overview_storage_read), snapshot.storageReadSpeedMbps?.let { "$it MB/s" } ?: "--"),
-                Triple(Icons.Outlined.Wifi, stringResource(R.string.overview_wifi_signal), snapshot.wifiRssiDbm?.let { "$it dBm" } ?: "--")
+                Triple(Icons.Outlined.Brightness6, stringResource(R.string.overview_brightness), snapshot.brightnessPercent?.let { "$it%" } ?: stringResource(R.string.status_unavailable)),
+                Triple(Icons.Outlined.Storage, stringResource(R.string.overview_storage_read), snapshot.storageReadSpeedMbps?.let { "$it MB/s" } ?: stringResource(R.string.status_unavailable)),
+                Triple(Icons.Outlined.Wifi, stringResource(R.string.overview_wifi_signal), snapshot.wifiRssiDbm?.let { "$it dBm" } ?: stringResource(R.string.status_unavailable))
             )
             if (stackValues) {
                 sensorValues.forEach { (icon, label, value) ->
@@ -1327,9 +1332,9 @@ private fun HardwareSensorsCard(
                     snapshot.moving -> stringResource(R.string.status_moving)
                     else -> stringResource(R.string.status_stationary)
                 }),
-                Triple(Icons.Outlined.Brightness6, stringResource(R.string.overview_brightness), snapshot.brightnessPercent?.let { "$it%" } ?: "--"),
-                Triple(Icons.Outlined.Storage, stringResource(R.string.overview_storage_read), snapshot.storageReadSpeedMbps?.let { "$it MB/s" } ?: "--"),
-                Triple(Icons.Outlined.Wifi, stringResource(R.string.overview_wifi_signal), snapshot.wifiRssiDbm?.let { "$it dBm" } ?: "--")
+                Triple(Icons.Outlined.Brightness6, stringResource(R.string.overview_brightness), snapshot.brightnessPercent?.let { "$it%" } ?: stringResource(R.string.status_unavailable)),
+                Triple(Icons.Outlined.Storage, stringResource(R.string.overview_storage_read), snapshot.storageReadSpeedMbps?.let { "$it MB/s" } ?: stringResource(R.string.status_unavailable)),
+                Triple(Icons.Outlined.Wifi, stringResource(R.string.overview_wifi_signal), snapshot.wifiRssiDbm?.let { "$it dBm" } ?: stringResource(R.string.status_unavailable))
             )
             if (stackValues) {
                 sensorValues.forEach { (icon, label, value) ->
