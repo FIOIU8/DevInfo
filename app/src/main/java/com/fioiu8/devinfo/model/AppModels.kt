@@ -127,6 +127,21 @@ data class DeviceInfoItem(
 data class ItemWithVisibility(val item: DeviceInfoItem, val visible: MutableState<Boolean>)
 
 /**
+ * Controls which optional fields can be included in an exported module.
+ * The default policy intentionally excludes identifiers and build details that
+ * are not required for the module's device-property overrides.
+ */
+data class ModuleExportPolicy(
+    val includeDeviceIdentifier: Boolean = false,
+    val includeBuildFingerprint: Boolean = false,
+    val includeSecurityPatch: Boolean = false,
+) {
+    companion object {
+        val MINIMAL = ModuleExportPolicy()
+    }
+}
+
+/**
  * 改机型模块导出所需精简信息。
  *
  * @property deviceId 持久化设备唯一标识

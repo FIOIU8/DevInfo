@@ -23,8 +23,10 @@ import android.os.Build
 import android.os.Environment
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.ItemWithVisibility
+import com.fioiu8.devinfo.model.ModuleExportPolicy
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -78,20 +80,22 @@ class ModuleExportHelper(private val context: Context) {
         deviceId: String,
         itemsState: List<ItemWithVisibility>,
         onSuccess: (String) -> Unit,
-        onError: (String) -> Unit
+        onError: (String) -> Unit,
+        policy: ModuleExportPolicy = ModuleExportPolicy.MINIMAL
     ) {
+        var directories: ModuleDirectories? = null
         try {
             val buildInfo = readDeviceBuildInfo()
-            val metadata = createModuleMetadata(deviceId, itemsState, buildInfo)
-            val directories = createModuleDirectories()
+            val metadata = createModuleMetadata(itemsState, buildInfo)
+            directories = createModuleDirectories()
 
-            writeModuleFiles(directories, metadata, buildInfo)
+            writeModuleFiles(directories, metadata, buildInfo, deviceId, policy)
             val zipFile = createModuleArchive(directories.root, buildInfo.model)
-            directories.root.deleteRecursively()
             onSuccess(zipFile.absolutePath)
         } catch (e: Exception) {
-            e.printStackTrace()
             onError(e.message ?: "未知错误")
+        } finally {
+            directories?.root?.deleteRecursively()
         }
     }
 
@@ -111,21 +115,19 @@ class ModuleExportHelper(private val context: Context) {
         itemsState: List<ItemWithVisibility>,
         outputStream: OutputStream,
         onSuccess: () -> Unit,
-        onError: (String) -> Unit
+        onError: (String) -> Unit,
+        policy: ModuleExportPolicy = ModuleExportPolicy.MINIMAL
     ) {
         var directories: ModuleDirectories? = null
         try {
             val buildInfo = readDeviceBuildInfo()
-            val metadata = createModuleMetadata(deviceId, itemsState, buildInfo)
+            val metadata = createModuleMetadata(itemsState, buildInfo)
             directories = createModuleDirectories()
 
-            writeModuleFiles(directories, metadata, buildInfo)
-            ZipOutputStream(outputStream).use { zipOut ->
-                zipDirectory(directories.root, "", zipOut)
-            }
+            writeModuleFiles(directories, metadata, buildInfo, deviceId, policy)
+            writeZipArchive(directories.root, outputStream)
             onSuccess()
         } catch (e: Exception) {
-            e.printStackTrace()
             onError(e.message ?: "未知错误")
         } finally {
             directories?.root?.deleteRecursively()
@@ -171,11 +173,10 @@ class ModuleExportHelper(private val context: Context) {
     )
 
     private fun createModuleMetadata(
-        deviceId: String,
         itemsState: List<ItemWithVisibility>,
         buildInfo: DeviceBuildInfo
     ): ModuleMetadata {
-        val moduleId = "Device_${buildInfo.model.replace(Regex("[^a-zA-Z0-9_]"), "_")}"
+        val moduleId = "Device_${sanitizeIdentifier(buildInfo.model)}"
         val deviceName = getDeviceDisplayName(itemsState)
         val moduleName = context.getString(R.string.module_export_name, deviceName)
         val author = "DevInfo"
@@ -197,31 +198,41 @@ class ModuleExportHelper(private val context: Context) {
     }
 
     private fun createModuleDirectories(): ModuleDirectories {
-        val root = File(context.cacheDir, "magisk_module_${System.currentTimeMillis()}")
-        root.mkdirs()
+        val root = java.nio.file.Files.createTempDirectory(
+            context.cacheDir.toPath(),
+            "module-export-"
+        ).toFile()
+        try {
+            val metaInf = File(root, "META-INF/com/google/android").also(::createDirectory)
+            val system = File(root, "system").also(::createDirectory)
+            return ModuleDirectories(root, metaInf, system)
+        } catch (e: Exception) {
+            root.deleteRecursively()
+            throw e
+        }
+    }
 
-        val metaInf = File(root, "META-INF/com/google/android")
-        metaInf.mkdirs()
-
-        val system = File(root, "system")
-        system.mkdirs()
-
-        return ModuleDirectories(root, metaInf, system)
+    private fun createDirectory(directory: File) {
+        if (!directory.isDirectory && !directory.mkdirs()) {
+            throw IOException("无法创建导出临时目录")
+        }
     }
 
     private fun writeModuleFiles(
         directories: ModuleDirectories,
         metadata: ModuleMetadata,
-        buildInfo: DeviceBuildInfo
+        buildInfo: DeviceBuildInfo,
+        deviceId: String,
+        policy: ModuleExportPolicy
     ) {
         writeModuleProp(directories.root, metadata)
-        writeSystemProp(directories.root, buildInfo)
-        writeInstallScript(directories.root, buildInfo)
+        writeSystemProp(directories.root, buildInfo, deviceId, policy)
+        writeInstallScript(directories.root)
         writeRootUpdateBinary(directories.root)
         writeUpdaterScript(directories.metaInf)
         writeMetaUpdateBinary(directories.metaInf)
         writeSystemPlaceholder(directories.system)
-        writePostFsData(directories.root, buildInfo)
+        writePostFsData(directories.root)
         writeServiceScript(directories.root)
     }
 
@@ -237,7 +248,12 @@ class ModuleExportHelper(private val context: Context) {
         )
     }
 
-    private fun writeSystemProp(directory: File, buildInfo: DeviceBuildInfo) {
+    private fun writeSystemProp(
+        directory: File,
+        buildInfo: DeviceBuildInfo,
+        deviceId: String,
+        policy: ModuleExportPolicy
+    ) {
         File(directory, "system.prop").writeText(
             buildSystemProp(
                 brand = buildInfo.brand,
@@ -248,19 +264,15 @@ class ModuleExportHelper(private val context: Context) {
                 fingerprint = buildInfo.fingerprint,
                 versionRelease = buildInfo.versionRelease,
                 versionSdk = buildInfo.versionSdk,
-                securityPatch = buildInfo.securityPatch
+                securityPatch = buildInfo.securityPatch,
+                deviceId = deviceId,
+                policy = policy
             )
         )
     }
 
-    private fun writeInstallScript(directory: File, buildInfo: DeviceBuildInfo) {
-        File(directory, "install.sh").writeText(
-            buildInstallScript(
-                brand = buildInfo.brand,
-                manufacturer = buildInfo.manufacturer,
-                model = buildInfo.model
-            )
-        )
+    private fun writeInstallScript(directory: File) {
+        File(directory, "install.sh").writeText(buildInstallScript())
     }
 
     private fun writeRootUpdateBinary(directory: File) {
@@ -282,9 +294,9 @@ class ModuleExportHelper(private val context: Context) {
         )
     }
 
-    private fun writePostFsData(directory: File, buildInfo: DeviceBuildInfo) {
+    private fun writePostFsData(directory: File) {
         File(directory, "post-fs-data.sh").writeText(
-            buildPostFsDataScript(buildInfo.manufacturer, buildInfo.model)
+            buildPostFsDataScript()
         )
     }
 
@@ -294,16 +306,20 @@ class ModuleExportHelper(private val context: Context) {
 
     private fun createModuleArchive(tempDir: File, model: String): File {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val safeModel = model.replace(Regex("[^a-zA-Z0-9_-]"), "_")
-        val zipFileName = "${safeModel}_${timestamp}.zip"
-        val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        if (!downloadDir.exists()) {
-            downloadDir.mkdirs()
-        }
+        val safeModel = sanitizeIdentifier(model)
+        val zipFileName = sanitizeFileName("${safeModel}_${timestamp}.zip")
+        val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+            ?: File(context.filesDir, "downloads")
+        createDirectory(downloadDir)
 
         val zipFile = File(downloadDir, zipFileName)
-        ZipOutputStream(FileOutputStream(zipFile)).use { zipOut ->
-            zipDirectory(tempDir, "", zipOut)
+        try {
+            FileOutputStream(zipFile).use { outputStream ->
+                writeZipArchive(tempDir, outputStream)
+            }
+        } catch (e: Exception) {
+            zipFile.delete()
+            throw e
         }
         return zipFile
     }
@@ -326,40 +342,120 @@ class ModuleExportHelper(private val context: Context) {
             ?.item
             ?.value
             ?: Build.MODEL
-        return "$manufacturer $model"
+        return sanitizeDisplayValue("$manufacturer $model")
     }
 
     companion object {
+        private const val FALLBACK_FILE_NAME = "module-export"
+        private val REQUIRED_ZIP_ENTRIES = setOf(
+            "module.prop",
+            "system.prop",
+            "META-INF/com/google/android/update-binary",
+            "META-INF/com/google/android/updater-script"
+        )
+
         /**
          * 转义 .prop 文件中的值：转义换行、回车、反斜杠和等号。
          */
         internal fun escapePropValue(value: String): String {
-            return value
-                .replace("\\", "\\\\")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("=", "\\=")
+            return buildString(value.length) {
+                value.forEach { character ->
+                    when (character) {
+                        '\\' -> append("\\\\")
+                        '=' -> append("\\=")
+                        '\n' -> append("\\n")
+                        '\r' -> append("\\r")
+                        '\t' -> append("\\t")
+                        in '\u0000'..'\u001F', '\u007F' -> append('_')
+                        else -> append(character)
+                    }
+                }
+            }
         }
 
         /**
          * 转义 shell 字符串值。
          */
         internal fun escapeShellValue(value: String): String {
-            return value
-                .replace("\\", "\\\\")
-                .replace("'", "'\\''")
-                .replace("\$", "\\$")
-                .replace("`", "\\`")
-                .replace("\"", "\\\"")
-                .replace("\n", " ")
-                .replace("\r", "")
+            return buildString(value.length) {
+                value.forEach { character ->
+                    when (character) {
+                        '\\' -> append("\\\\")
+                        '\'' -> append("'\\''")
+                        '\$' -> append("\\$")
+                        '`' -> append("\\`")
+                        '"' -> append("\\\"")
+                        '\n', '\r', '\t' -> append(' ')
+                        in '\u0000'..'\u001F', '\u007F' -> append(' ')
+                        else -> append(character)
+                    }
+                }
+            }
+        }
+
+        /**
+         * Returns a complete single-quoted shell literal for callers that must
+         * place a dynamic value in a script.
+         */
+        internal fun quoteShellValue(value: String): String {
+            val normalized = value.map { character ->
+                when (character) {
+                    '\n', '\r', '\t' -> ' '
+                    in '\u0000'..'\u001F', '\u007F' -> ' '
+                    else -> character
+                }
+            }.joinToString("")
+            return "'${normalized.replace("'", "'\\''")}'"
         }
 
         /**
          * 净化文件名：只保留字母、数字、下划线、连字符和点。
          */
         internal fun sanitizeFileName(name: String): String {
-            return name.replace(Regex("[^a-zA-Z0-9_.-]"), "_")
+            if (name == "." || name == "..") return FALLBACK_FILE_NAME
+            var sanitized = name.replace(Regex("[^a-zA-Z0-9_.-]"), "_")
+            sanitized = sanitized.replace("..", "_")
+            return sanitized.ifBlank { FALLBACK_FILE_NAME }
+                .takeUnless { it == "." || it == ".." }
+                ?: FALLBACK_FILE_NAME
+        }
+
+        internal fun createExportFileName(model: String): String {
+            return sanitizeFileName("DevInfo_${sanitizeIdentifier(model)}.zip")
+        }
+
+        internal fun isSafeZipEntryName(entryName: String): Boolean {
+            if (entryName.isEmpty() || entryName.any(::isUnsafeEntryCharacter)) return false
+            if (entryName.startsWith('/') || entryName.startsWith('\\')) return false
+            if (entryName.matches(Regex("^[A-Za-z]:.*"))) return false
+            if (entryName.contains('\\')) return false
+            val path = entryName.removeSuffix("/")
+            if (path.isEmpty()) return false
+            return path.split('/').none { it.isEmpty() || it == "." || it == ".." }
+        }
+
+        internal fun validateZipEntries(entryNames: Collection<String>) {
+            require(entryNames.all(::isSafeZipEntryName)) { "ZIP entry 名称不安全" }
+            val files = entryNames.map { it.removeSuffix("/") }.toSet()
+            require(REQUIRED_ZIP_ENTRIES.all(files::contains)) { "ZIP 缺少必要文件" }
+        }
+
+        private fun sanitizeIdentifier(value: String): String {
+            return sanitizeFileName(value).replace('.', '_').ifBlank { FALLBACK_FILE_NAME }
+        }
+
+        private fun sanitizeDisplayValue(value: String): String {
+            return value.map { character ->
+                when (character) {
+                    '\n', '\r', '\t' -> ' '
+                    in '\u0000'..'\u001F', '\u007F' -> ' '
+                    else -> character
+                }
+            }.joinToString("").trim().ifBlank { "Device" }
+        }
+
+        private fun isUnsafeEntryCharacter(character: Char): Boolean {
+            return character.code <= 0x1F || character.code == 0x7F
         }
     }
 
@@ -415,14 +511,29 @@ description=${escapePropValue(description)}
         fingerprint: String,
         versionRelease: String,
         versionSdk: String,
-        securityPatch: String
+        securityPatch: String,
+        deviceId: String,
+        policy: ModuleExportPolicy
     ): String {
+        val optionalProperties = buildString {
+            if (policy.includeBuildFingerprint) {
+                append("ro.build.fingerprint=${escapePropValue(fingerprint)}\n")
+            }
+            if (policy.includeSecurityPatch) {
+                append("ro.build.version.security_patch=${escapePropValue(securityPatch)}\n")
+            }
+            if (policy.includeDeviceIdentifier) {
+                append("devinfo.device_id=${escapePropValue(deviceId)}\n")
+            }
+        }.trimEnd()
+        val supportedAbis = Build.SUPPORTED_ABIS.joinToString(",") { escapePropValue(it) }
+        val supported32BitAbis = Build.SUPPORTED_32_BIT_ABIS.joinToString(",") { escapePropValue(it) }
+        val supported64BitAbis = Build.SUPPORTED_64_BIT_ABIS.joinToString(",") { escapePropValue(it) }
         return """
 # ============================================
 # System Properties for Device Simulation
 # Generated by DeviceInfo App
 # ============================================
-# Target Device: $manufacturer $model
 # Generation Time: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}
 # ============================================
 
@@ -436,20 +547,19 @@ ro.product.device=${escapePropValue(device)}
 ro.product.name=${escapePropValue(product)}
 
 # Build Fingerprint（构建指纹）
-ro.build.fingerprint=${escapePropValue(fingerprint)}
+$optionalProperties
 
 # Version Info（版本信息）
 ro.build.version.release=${escapePropValue(versionRelease)}
 ro.build.version.sdk=${escapePropValue(versionSdk)}
-ro.build.version.security_patch=${escapePropValue(securityPatch)}
 
 # Additional Properties（附加属性）
-ro.build.product=$device
-ro.product.board=$device
-ro.product.cpu.abi=${Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"}
-ro.product.cpu.abilist=${Build.SUPPORTED_ABIS.joinToString(",")}
-ro.product.cpu.abilist32=${Build.SUPPORTED_32_BIT_ABIS.joinToString(",")}
-ro.product.cpu.abilist64=${Build.SUPPORTED_64_BIT_ABIS.joinToString(",")}
+ro.build.product=${escapePropValue(device)}
+ro.product.board=${escapePropValue(device)}
+ro.product.cpu.abi=${escapePropValue(Build.SUPPORTED_ABIS.firstOrNull().orEmpty())}
+ro.product.cpu.abilist=$supportedAbis
+ro.product.cpu.abilist32=$supported32BitAbis
+ro.product.cpu.abilist64=$supported64BitAbis
         """.trimIndent()
     }
 
@@ -462,15 +572,8 @@ ro.product.cpu.abilist64=${Build.SUPPORTED_64_BIT_ABIS.joinToString(",")}
      * @param model 型号
      * @return install.sh 脚本内容
      */
-    private fun buildInstallScript(
-        brand: String,
-        manufacturer: String,
-        model: String
-    ): String {
+    private fun buildInstallScript(): String {
         val dollar = '$'
-        val escapedManufacturer = escapeShellValue(manufacturer)
-        val escapedModel = escapeShellValue(model)
-        val escapedBrand = escapeShellValue(brand)
         return """
 #!/system/bin/sh
 # ============================================
@@ -514,8 +617,8 @@ function ALING(){
         echo "您好！ ${dollar}(pm list users | cut -d : -f2 )！"
     fi
     echo "*******************************"
-    echo "    全局机型模拟 - $escapedManufacturer $escapedModel"
-    echo "    品牌: $escapedBrand"
+    echo "    全局机型模拟模块"
+    echo "    设备属性来源: system.prop"
     echo "*******************************"
     echo "  注意: 刷入后请重启设备以生效！"
     echo "*******************************"
@@ -540,8 +643,8 @@ REPLACE="
 # 模块释放函数：解压模块包中的 system 目录到模块安装目录
 on_install() {
   ui_print "- 正在释放文件..."
-  ui_print "- 目标设备: $manufacturer $model"
-  unzip -o "${dollar}ZIPFILE" 'system/*' -d ${dollar}MODPATH >&2
+  ui_print "- 目标设备属性已写入 system.prop"
+  unzip -o "${dollar}ZIPFILE" 'system/*' -d "${dollar}MODPATH" >&2
   sleep 1
   ui_print "- 文件释放完成！"
 }
@@ -629,7 +732,7 @@ fi
 
 # 解压模块文件到目标路径
 ui_print "- 正在解压模块文件..."
-unzip -o "${dollar}ZIPFILE" -d ${dollar}MODPATH >&2
+unzip -o "${dollar}ZIPFILE" -d "${dollar}MODPATH" >&2
 
 # 如果存在 install.sh，则加载并执行其中的配置和权限设置函数
 if [ -f "${dollar}MODPATH/install.sh" ]; then
@@ -736,7 +839,7 @@ if [ -f "${dollar}ZIPFILE" ]; then
         ui_print "- 正在执行标准安装流程..."
         
         # 解压所有模块文件
-        unzip -o "${dollar}ZIPFILE" -d ${dollar}MODPATH >&2
+        unzip -o "${dollar}ZIPFILE" -d "${dollar}MODPATH" >&2
         
         # 如果存在 install.sh，执行权限设置
         if [ -f "${dollar}MODPATH/install.sh" ]; then
@@ -767,7 +870,7 @@ ui_print "================================="
      * @param model 型号
      * @return post-fs-data.sh 脚本内容
      */
-    private fun buildPostFsDataScript(manufacturer: String, model: String): String {
+    private fun buildPostFsDataScript(): String {
         return """
 #!/system/bin/sh
 # ============================================
@@ -780,8 +883,7 @@ ui_print "================================="
 # resetprop 比 setprop 更强，可以修改只读属性
 
 # 示例：设置设备型号（如果需要覆盖 system.prop 中的设置）
-# resetprop ro.product.model "$model"
-# resetprop ro.product.manufacturer "$manufacturer"
+# The system.prop file contains the exported device properties.
 
 # 注意：
 # 1. 此脚本在系统启动早期执行，此时部分服务可能尚未启动
@@ -833,6 +935,28 @@ exit 0
         """.trimIndent()
     }
 
+    private fun writeZipArchive(root: File, outputStream: OutputStream) {
+        val entryNames = collectZipEntryNames(root, "")
+        validateZipEntries(entryNames)
+        val zipOut = ZipOutputStream(outputStream)
+        zipDirectory(root, "", zipOut)
+        zipOut.finish()
+        zipOut.flush()
+    }
+
+    private fun collectZipEntryNames(dir: File, parentPath: String): List<String> {
+        val children = dir.listFiles()?.sortedBy(File::getName)
+            ?: throw IOException("无法读取导出临时目录")
+        return children.flatMap { file ->
+            val entryPath = if (parentPath.isEmpty()) file.name else "$parentPath/${file.name}"
+            if (file.isDirectory) {
+                listOf("$entryPath/") + collectZipEntryNames(file, entryPath)
+            } else {
+                listOf(entryPath)
+            }
+        }
+    }
+
     /**
      * 递归地将目录及其所有子文件和子文件夹添加到 ZIP 输出流中
      *
@@ -859,10 +983,13 @@ exit 0
      * @param zipOut ZIP 输出流
      */
     private fun zipDirectory(dir: File, parentPath: String, zipOut: ZipOutputStream) {
-        dir.listFiles()?.forEach { file ->
+        val children = dir.listFiles()?.sortedBy(File::getName)
+            ?: throw IOException("无法读取导出临时目录")
+        children.forEach { file ->
             // 构建在 ZIP 中的条目路径
             // 如果是根目录，直接使用文件名；否则添加父路径前缀
             val entryPath = if (parentPath.isEmpty()) file.name else "$parentPath/${file.name}"
+            require(isSafeZipEntryName(entryPath)) { "ZIP entry 名称不安全" }
 
             if (file.isDirectory) {
                 // 如果是目录，在 ZIP 中添加目录条目（以 / 结尾）
