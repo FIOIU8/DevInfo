@@ -1,6 +1,13 @@
 package com.fioiu8.devinfo
 
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -42,6 +49,11 @@ class ModuleExportHelperTest {
     }
 
     @Test
+    fun `escapePropValue should neutralize control characters`() {
+        assertEquals("a_b\\tb\\nb\\rc", ModuleExportHelper.escapePropValue("a\u0000b\tb\nb\rc"))
+    }
+
+    @Test
     fun `escapePropValue should handle normal text unchanged`() {
         assertEquals("SM-S9080", ModuleExportHelper.escapePropValue("SM-S9080"))
     }
@@ -71,12 +83,17 @@ class ModuleExportHelperTest {
 
     @Test
     fun `escapeShellValue should remove carriage returns`() {
-        assertEquals("ab", ModuleExportHelper.escapeShellValue("a\rb"))
+        assertEquals("a b", ModuleExportHelper.escapeShellValue("a\rb"))
     }
 
     @Test
     fun `escapeShellValue should handle empty string`() {
         assertEquals("", ModuleExportHelper.escapeShellValue(""))
+    }
+
+    @Test
+    fun `quoteShellValue should create a safe single quoted literal`() {
+        assertEquals("'a'\\''b c'", ModuleExportHelper.quoteShellValue("a'b\nc"))
     }
 
     // ── sanitizeFileName ─────────────────────────────────────────────
@@ -93,7 +110,7 @@ class ModuleExportHelperTest {
 
     @Test
     fun `sanitizeFileName should handle empty string`() {
-        assertEquals("", ModuleExportHelper.sanitizeFileName(""))
+        assertEquals("module-export", ModuleExportHelper.sanitizeFileName(""))
     }
 
     @Test
@@ -104,5 +121,82 @@ class ModuleExportHelperTest {
     @Test
     fun `sanitizeFileName should handle unicode`() {
         assertEquals("__", ModuleExportHelper.sanitizeFileName("中文"))
+    }
+
+    @Test
+    fun `sanitizeFileName should remove path traversal segments`() {
+        assertEquals("__etc_passwd", ModuleExportHelper.sanitizeFileName("../etc/passwd"))
+        assertEquals("module-export", ModuleExportHelper.sanitizeFileName(".."))
+    }
+
+    @Test
+    fun `createExportFileName should return a safe zip filename`() {
+        val name = ModuleExportHelper.createExportFileName("../Model:One\n")
+
+        assertEquals("DevInfo___Model_One_.zip", name)
+        assertTrue(name.endsWith(".zip"))
+        assertFalse(name.contains('/'))
+        assertFalse(name.contains('\\'))
+    }
+
+    @Test
+    fun `zip entry validation should reject unsafe paths`() {
+        assertTrue(ModuleExportHelper.isSafeZipEntryName("META-INF/com/google/android/update-binary"))
+        assertTrue(ModuleExportHelper.isSafeZipEntryName("system/"))
+        assertFalse(ModuleExportHelper.isSafeZipEntryName("../module.prop"))
+        assertFalse(ModuleExportHelper.isSafeZipEntryName("/module.prop"))
+        assertFalse(ModuleExportHelper.isSafeZipEntryName("C:/module.prop"))
+        assertFalse(ModuleExportHelper.isSafeZipEntryName("system\\module.prop"))
+        assertFalse(ModuleExportHelper.isSafeZipEntryName("system/\u0000.prop"))
+    }
+
+    @Test
+    fun `zip validation should require fixed module files`() {
+        val entries = listOf(
+            "module.prop",
+            "system.prop",
+            "META-INF/com/google/android/update-binary",
+            "META-INF/com/google/android/updater-script",
+            "system/"
+        )
+
+        ModuleExportHelper.validateZipEntries(entries)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `zip validation should reject a missing required file`() {
+        ModuleExportHelper.validateZipEntries(
+            listOf(
+                "module.prop",
+                "system.prop",
+                "META-INF/com/google/android/update-binary"
+            )
+        )
+    }
+
+    @Test
+    fun `zip entry list can be validated after reading archive`() {
+        val output = ByteArrayOutputStream()
+        ZipOutputStream(output).use { zip ->
+            listOf(
+                "module.prop",
+                "system.prop",
+                "META-INF/com/google/android/update-binary",
+                "META-INF/com/google/android/updater-script"
+            ).forEach { name ->
+                zip.putNextEntry(ZipEntry(name))
+                zip.closeEntry()
+            }
+        }
+
+        val entries = mutableListOf<String>()
+        ZipInputStream(ByteArrayInputStream(output.toByteArray())).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                entries += entry.name
+            }
+        }
+
+        ModuleExportHelper.validateZipEntries(entries)
     }
 }
