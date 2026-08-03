@@ -38,6 +38,7 @@ class LanguagePreferences(context: Context) : BasePreferences<String>(context, P
         stringPreference(
             key = KEY_CUSTOM_LOCALE,
             defaultValue = "",
+            isValid = PreferenceValidators::isValidLocaleTag,
         )
 
     val appLanguage: Flow<AppLanguage> = appLanguagePreference.flow
@@ -48,8 +49,10 @@ class LanguagePreferences(context: Context) : BasePreferences<String>(context, P
         appLanguagePreference.set(language)
     }
 
-    fun setCustomLocaleTag(tag: String) {
-        customLocaleTagPreference.set(tag)
+    fun setCustomLocaleTag(tag: String): Boolean {
+        val normalizedTag = PreferenceValidators.normalizedLocaleTag(tag) ?: return false
+        customLocaleTagPreference.set(normalizedTag)
+        return true
     }
 
     fun getAppLanguageSnapshot(): AppLanguage = appLanguagePreference.snapshot
@@ -60,7 +63,7 @@ class LanguagePreferences(context: Context) : BasePreferences<String>(context, P
         val lang = appLanguagePreference.snapshot
         return if (lang == AppLanguage.CUSTOM) {
             val tag = customLocaleTagPreference.snapshot
-            if (tag.isBlank()) null else tag
+            PreferenceValidators.normalizedLocaleTag(tag)
         } else {
             lang.localeTag
         }

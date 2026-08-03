@@ -24,64 +24,57 @@ import java.util.UUID
 
 class DeviceIdManager(private val context: Context) {
 
-    private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     /**
-     * 获取或创建设备唯一标识
-     * 优先使用 ANDROID_ID，如果失败则使用自定义生成的 UUID
+     * Returns an application-local identifier used for internal identification and export help.
+     * This value must not be sent to a remote service.
      */
     fun getOrCreateDeviceId(): String {
-        // 1. 首先尝试从 SharedPreferences 获取已保存的 ID
-        prefs.getString(KEY_DEVICE_ID, null)?.let { savedId ->
-            return savedId
-        }
+        readSavedId(KEY_DEVICE_ID)?.let { return it }
 
-        // 2. 尝试获取 ANDROID_ID
         val androidId = try {
             Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
 
-        // 3. 如果 ANDROID_ID 有效且不是已知的无效值，则使用它
-        val deviceId = if (!androidId.isNullOrEmpty() && androidId != INVALID_ANDROID_ID) {
-            androidId
-        } else {
-            // 4. 否则生成一个 UUID 作为备选
-            generateUUID()
-        }
-
-        // 5. 保存生成的 ID
-        prefs.edit().putString(KEY_DEVICE_ID, deviceId).apply()
-
+        val deviceId = androidId?.trim()?.takeIf(::isUsableDeviceId) ?: generateUUID() ?: fallbackId
+        runCatching { prefs.edit().putString(KEY_DEVICE_ID, deviceId).apply() }
         return deviceId
     }
 
-    /**
-     * 生成唯一的 UUID
-     */
-    private fun generateUUID(): String {
-        // 尝试从 SharedPreferences 获取已保存的 UUID
-        prefs.getString("uuid", null)?.let { savedUUID ->
-            return savedUUID
-        }
+    private fun generateUUID(): String? {
+        readSavedId(KEY_GENERATED_UUID)?.let { return it }
 
-        // 生成新的 UUID
-        val uuid = UUID.randomUUID().toString()
-        prefs.edit().putString("uuid", uuid).apply()
-        return uuid
+        return runCatching { UUID.randomUUID().toString() }.getOrNull()?.also { uuid ->
+            runCatching { prefs.edit().putString(KEY_GENERATED_UUID, uuid).apply() }
+        }
     }
 
-    /**
-     * 重置设备 ID（可选功能）
-     */
+    private fun readSavedId(key: String): String? =
+        runCatching { prefs.getString(key, null) }
+            .getOrNull()
+            ?.trim()
+            ?.takeIf(::isUsableDeviceId)
+
+    private fun isUsableDeviceId(value: String): Boolean =
+        value.isNotEmpty() && value.length <= MAX_ID_LENGTH && value != INVALID_ANDROID_ID
+
+    private val fallbackId: String by lazy {
+        runCatching { UUID.randomUUID().toString() }.getOrElse { context.packageName }
+    }
+
     fun resetDeviceId() {
-        prefs.edit().remove(KEY_DEVICE_ID).apply()
+        runCatching { prefs.edit().remove(KEY_DEVICE_ID).apply() }
     }
 
     private companion object {
         const val PREFS_NAME = "device_prefs"
         const val KEY_DEVICE_ID = "device_unique_id"
+        const val KEY_GENERATED_UUID = "generated_uuid"
         const val INVALID_ANDROID_ID = "9774d56d682e549c"
+        const val MAX_ID_LENGTH = 128
     }
 }

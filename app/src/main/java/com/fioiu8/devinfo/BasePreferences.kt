@@ -51,13 +51,20 @@ abstract class BasePreferences<T : CharSequence>(
             serialize = { it.name },
         )
 
+    /** Reads an enum without allowing malformed persisted data to escape to callers. */
+    private inline fun <reified V : Enum<V>> readEnumOrDefault(
+        key: String,
+        defaultValue: V,
+    ): V = enumValueOrDefault(readStringSafely(key), defaultValue)
+
     protected fun stringPreference(
         key: T,
         defaultValue: String,
+        isValid: (String) -> Boolean = { true },
     ): PersistentValue<String> =
         persistentValue(
             key = key,
-            deserialize = { it ?: defaultValue },
+            deserialize = { it?.takeIf(isValid) ?: defaultValue },
             serialize = { it },
         )
 
@@ -74,10 +81,11 @@ abstract class BasePreferences<T : CharSequence>(
     protected fun floatPreference(
         key: T,
         defaultValue: Float,
+        isValid: (Float) -> Boolean = { it.isFinite() },
     ): PersistentValue<Float> =
         persistentValue(
             key = key,
-            deserialize = { it?.toFloatOrNull() ?: defaultValue },
+            deserialize = { it?.toFloatOrNull()?.takeIf(isValid) ?: defaultValue },
             serialize = { it.toString() },
         )
 
@@ -88,17 +96,31 @@ abstract class BasePreferences<T : CharSequence>(
     ): PersistentValue<V> =
         PersistentValue(
             key = key,
-            initialValue = deserialize(preferences.getString(key.toString(), null)),
+            readValue = { deserialize(readStringSafely(key.toString())) },
             serialize = serialize,
         )
 
+    private fun readStringSafely(key: String): String? =
+        runCatching { preferences.getString(key, null) }.getOrNull()
+
     protected inner class PersistentValue<V : Any> internal constructor(
         private val key: T,
-        initialValue: V,
+        readValue: () -> V,
         private val serialize: (V) -> String,
     ) {
 
-        private val mutableValue = MutableStateFlow(initialValue)
+        private val mutableValue = MutableStateFlow(readValue())
+
+        private val preferenceListener =
+            SharedPreferences.OnSharedPreferenceChangeListener { _, changedKey ->
+                if (changedKey == key.toString()) {
+                    mutableValue.value = readValue()
+                }
+            }
+
+        init {
+            preferences.registerOnSharedPreferenceChangeListener(preferenceListener)
+        }
 
         val flow: StateFlow<V> = mutableValue.asStateFlow()
 
@@ -106,8 +128,10 @@ abstract class BasePreferences<T : CharSequence>(
             get() = mutableValue.value
 
         fun set(value: V) {
-            preferences.edit().putString(key.toString(), serialize(value)).apply()
-            mutableValue.value = value
+            runCatching {
+                preferences.edit().putString(key.toString(), serialize(value)).apply()
+                mutableValue.value = value
+            }
         }
     }
 }

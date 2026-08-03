@@ -55,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import com.fioiu8.devinfo.PreferenceValidators
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -155,6 +156,7 @@ private fun MaterialSettingsPage(
 
     var showCustomLocaleDialog by rememberSaveable { mutableStateOf(false) }
     var customLocaleInput by rememberSaveable { mutableStateOf(customLocaleTag) }
+    var customLocaleError by rememberSaveable { mutableStateOf(false) }
     val uiStyleEntries = listOf(
         UiStyle.MIUIX to stringResource(R.string.ui_style_miuix),
         UiStyle.MATERIAL3 to stringResource(R.string.ui_style_material3),
@@ -171,10 +173,19 @@ private fun MaterialSettingsPage(
                     Spacer(Modifier.height(12.dp))
                     OutlinedTextField(
                         value = customLocaleInput,
-                        onValueChange = { customLocaleInput = it },
+                        onValueChange = {
+                            customLocaleInput = it
+                            customLocaleError = false
+                        },
                         label = { Text(stringResource(R.string.custom_locale_title)) },
                         placeholder = { Text(stringResource(R.string.custom_locale_placeholder)) },
                         singleLine = true,
+                        isError = customLocaleError,
+                        supportingText = if (customLocaleError) {
+                            { Text(stringResource(R.string.custom_locale_invalid)) }
+                        } else {
+                            null
+                        },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -187,8 +198,12 @@ private fun MaterialSettingsPage(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        onCustomLocaleTagChange(customLocaleInput.trim())
-                        showCustomLocaleDialog = false
+                        if (PreferenceValidators.isValidLocaleTag(customLocaleInput)) {
+                            onCustomLocaleTagChange(customLocaleInput.trim())
+                            showCustomLocaleDialog = false
+                        } else {
+                            customLocaleError = true
+                        }
                     },
                 ) {
                     Text(stringResource(R.string.custom_locale_apply))
@@ -368,6 +383,7 @@ private fun MiuixSettingsPage(
 ) {
     var showCustomLocaleDialog by rememberSaveable { mutableStateOf(false) }
     var customLocaleInput by rememberSaveable { mutableStateOf(customLocaleTag) }
+    var customLocaleError by rememberSaveable { mutableStateOf(false) }
     val uiStyleEntries = listOf(
         UiStyle.MIUIX to stringResource(R.string.ui_style_miuix),
         UiStyle.MATERIAL3 to stringResource(R.string.ui_style_material3),
@@ -387,7 +403,10 @@ private fun MiuixSettingsPage(
                 )
                 BasicTextField(
                     value = customLocaleInput,
-                    onValueChange = { customLocaleInput = it },
+                    onValueChange = {
+                        customLocaleInput = it
+                        customLocaleError = false
+                    },
                     singleLine = true,
                     textStyle = TextStyle(color = MiuixTheme.colorScheme.onSurface),
                     modifier = Modifier
@@ -398,6 +417,12 @@ private fun MiuixSettingsPage(
                         )
                         .padding(14.dp),
                 )
+                if (customLocaleError) {
+                    MiuixText(
+                        text = stringResource(R.string.custom_locale_invalid),
+                        color = MiuixTheme.colorScheme.error,
+                    )
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -409,8 +434,12 @@ private fun MiuixSettingsPage(
                     MiuixTextButton(
                         text = stringResource(R.string.custom_locale_apply),
                         onClick = {
-                            onCustomLocaleTagChange(customLocaleInput.trim())
-                            showCustomLocaleDialog = false
+                            if (PreferenceValidators.isValidLocaleTag(customLocaleInput)) {
+                                onCustomLocaleTagChange(customLocaleInput.trim())
+                                showCustomLocaleDialog = false
+                            } else {
+                                customLocaleError = true
+                            }
                         },
                     )
                 }
