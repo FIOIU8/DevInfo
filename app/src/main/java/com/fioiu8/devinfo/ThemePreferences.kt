@@ -81,7 +81,11 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
         booleanPreference(key = KEY_ENABLE_FLOATING_BOTTOM_BAR_BLUR, defaultValue = true)
 
     private val pageScalePreference =
-        floatPreference(key = KEY_PAGE_SCALE, defaultValue = DEFAULT_PAGE_SCALE)
+        floatPreference(
+            key = KEY_PAGE_SCALE,
+            defaultValue = PreferenceValidators.DEFAULT_PAGE_SCALE,
+            isValid = { it in PreferenceValidators.MIN_PAGE_SCALE..PreferenceValidators.MAX_PAGE_SCALE },
+        )
 
     private val enablePredictiveBackPreference =
         booleanPreference(key = KEY_ENABLE_PREDICTIVE_BACK, defaultValue = true)
@@ -139,7 +143,7 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
     }
 
     fun setPageScale(scale: Float) {
-        pageScalePreference.set(scale.coerceIn(MIN_PAGE_SCALE, MAX_PAGE_SCALE))
+        pageScalePreference.set(PreferenceValidators.pageScaleOrDefault(scale))
     }
 
     fun setEnablePredictiveBack(enabled: Boolean) {
@@ -170,8 +174,5 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
         const val KEY_ENABLE_FLOATING_BOTTOM_BAR_BLUR = "enable_floating_bottom_bar_blur"
         const val KEY_PAGE_SCALE = "page_scale"
         const val KEY_ENABLE_PREDICTIVE_BACK = "enable_predictive_back"
-        const val MIN_PAGE_SCALE = 0.8f
-        const val MAX_PAGE_SCALE = 1.1f
-        const val DEFAULT_PAGE_SCALE = 1.0f
     }
 }

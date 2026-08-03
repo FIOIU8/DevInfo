@@ -25,9 +25,13 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * 更新检查器 — 封装 GitHub API + 12 小时缓存。
  */
-class UpdateChecker(private val context: Context) {
+class UpdateChecker(context: Context) {
 
-    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val cacheRepository: PreferenceRepository = runCatching {
+        DataStorePreferenceRepository(context)
+    }.getOrElse {
+        SharedPreferencesPreferenceRepository(context, LEGACY_PREFERENCE_NAME)
+    }
 
     private val _state = MutableStateFlow(UpdateState.IDLE)
     val state: StateFlow<UpdateState> = _state.asStateFlow()
@@ -45,10 +49,13 @@ class UpdateChecker(private val context: Context) {
         _state.value = UpdateState.CHECKING
 
         // 12小时缓存
-        val lastCheck = prefs.getLong(KEY_LAST_CHECK, 0)
         val now = System.currentTimeMillis()
+        val lastCheck = PreferenceValidators.validLastCheckTimeOrZero(
+            cacheRepository.readLong(KEY_LAST_CHECK) ?: 0L,
+            now,
+        )
         if (now - lastCheck < CACHE_DURATION_MS) {
-            val cachedTag = prefs.getString(KEY_CACHED_TAG, currentVersion) ?: currentVersion
+            val cachedTag = cacheRepository.readString(KEY_CACHED_TAG) ?: currentVersion
             if (!GitHubClient.isNewerVersion(cachedTag, currentVersion)) {
                 _state.value = UpdateState.UP_TO_DATE
                 return
@@ -59,10 +66,8 @@ class UpdateChecker(private val context: Context) {
             is GitHubClient.ApiResult.Success -> {
                 val info = result.data
                 _releaseInfo.value = info
-                prefs.edit()
-                    .putLong(KEY_LAST_CHECK, now)
-                    .putString(KEY_CACHED_TAG, info.tagName)
-                    .apply()
+                cacheRepository.writeLong(KEY_LAST_CHECK, now)
+                cacheRepository.writeString(KEY_CACHED_TAG, info.tagName)
                 _state.value = if (info.tagName.isNotBlank() &&
                     GitHubClient.isNewerVersion(info.tagName, currentVersion)
                 ) {
@@ -83,7 +88,7 @@ class UpdateChecker(private val context: Context) {
     // ── 常量 ──
 
     companion object {
-        private const val PREFS_NAME = "devinfo_update"
+        private const val LEGACY_PREFERENCE_NAME = "devinfo_update"
         private const val KEY_LAST_CHECK = "last_check_time"
         private const val KEY_CACHED_TAG = "cached_tag"
         private const val CACHE_DURATION_MS = 12 * 60 * 60 * 1000L // 12 小时

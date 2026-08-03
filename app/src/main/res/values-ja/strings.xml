@@ -53,6 +53,7 @@
     <string name="custom_locale_apply">適用</string>
     <string name="custom_locale_title">カスタム言語</string>
     <string name="custom_locale_placeholder">ロケールコードを入力…</string>
+    <string name="custom_locale_invalid">有効な言語タグを入力してください</string>
 
     <!-- Language names (displayed in dropdown) -->
 

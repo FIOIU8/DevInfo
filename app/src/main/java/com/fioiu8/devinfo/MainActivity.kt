@@ -165,9 +165,10 @@ class MainActivity : ComponentActivity() {
                         if (!selected.isCustom) recreate()
                     },
                     onCustomLocaleTagChange = { tag ->
-                        languagePrefs.setCustomLocaleTag(tag)
-                        languagePrefs.setAppLanguage(AppLanguage.CUSTOM)
-                        recreate()
+                        if (languagePrefs.setCustomLocaleTag(tag)) {
+                            languagePrefs.setAppLanguage(AppLanguage.CUSTOM)
+                            recreate()
+                        }
                     }
                 )
             }

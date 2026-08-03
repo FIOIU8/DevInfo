@@ -53,6 +53,7 @@
     <string name="custom_locale_apply">应用</string>
     <string name="custom_locale_title">自定义语言</string>
     <string name="custom_locale_placeholder">输入区域代码…</string>
+    <string name="custom_locale_invalid">请输入有效的语言标签</string>
 
 
     <string name="theme_mode_system">跟随系统</string>
