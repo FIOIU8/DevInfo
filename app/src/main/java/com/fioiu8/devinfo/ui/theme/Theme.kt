@@ -43,6 +43,10 @@ import com.fioiu8.devinfo.model.ThemeMode
 import com.fioiu8.devinfo.model.UiStyle
 
 val LocalUiStyle = staticCompositionLocalOf { UiStyle.MATERIAL3 }
+private val LocalDevInfoDarkTheme = staticCompositionLocalOf { false }
+
+@Composable
+fun isInDarkTheme(): Boolean = LocalDevInfoDarkTheme.current
 
 // 静态 fallback — 用于非动态模式或 Android 12 以下
 private val DarkColorScheme = darkColorScheme(
@@ -163,7 +167,10 @@ fun DevInfoTheme(
         else -> LightColorScheme
     }
 
-    CompositionLocalProvider(LocalUiStyle provides uiStyle) {
+    CompositionLocalProvider(
+        LocalUiStyle provides uiStyle,
+        LocalDevInfoDarkTheme provides darkTheme,
+    ) {
         when (uiStyle) {
             UiStyle.MIUIX -> MiuixDevInfoTheme(
                 themeMode = themeMode,
