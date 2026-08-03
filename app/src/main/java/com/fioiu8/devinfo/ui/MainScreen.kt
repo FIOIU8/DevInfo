@@ -20,7 +20,6 @@ package com.fioiu8.devinfo.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -216,6 +215,7 @@ fun MainScreen(
     val detailOffsetX = remember { Animatable(0f) }
     val alreadyLatestMessage = stringResource(R.string.already_latest)
     val exportFailedLabel = stringResource(R.string.export_failed)
+    val exportFileName = remember { ModuleExportHelper.createExportFileName(android.os.Build.MODEL) }
     val materialSnackbarHostState = remember { SnackbarHostState() }
     val miuixSnackbarHostState = remember { MiuixSnackbarHostState() }
     val showMessage = rememberDevInfoMessageHandler(
@@ -228,6 +228,9 @@ fun MainScreen(
         contract = ActivityResultContracts.CreateDocument("application/zip")
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult // 用户取消
+        fun removeFailedExport() {
+            runCatching { context.contentResolver.delete(uri, null, null) }
+        }
         scope.launch(Dispatchers.IO) {
             try {
                 context.contentResolver.openOutputStream(uri)?.use { outputStream ->
@@ -235,6 +238,7 @@ fun MainScreen(
                         deviceId = settings.deviceId,
                         itemsState = deviceInfoItems,
                         outputStream = outputStream,
+                        policy = com.fioiu8.devinfo.model.ModuleExportPolicy.MINIMAL,
                         onSuccess = {
                             scope.launch {
                                 exportedFileUri = uri
@@ -242,13 +246,16 @@ fun MainScreen(
                             }
                         },
                         onError = { error ->
+                            removeFailedExport()
                             showMessage("$exportFailedLabel: $error")
                         }
                     )
                 } ?: run {
+                    removeFailedExport()
                     showMessage("$exportFailedLabel: 无法打开文件")
                 }
             } catch (e: Exception) {
+                removeFailedExport()
                 showMessage("$exportFailedLabel: ${e.message}")
             }
         }
@@ -679,9 +686,10 @@ fun MainScreen(
 
     ExportConfirmDialog(
         show = showExportDialog,
+        fileName = exportFileName,
         onConfirm = {
             showExportDialog = false
-            saveExportLauncher.launch("DevInfo_${Build.MODEL}.zip")
+            saveExportLauncher.launch(exportFileName)
         },
         onDismiss = { showExportDialog = false }
     )

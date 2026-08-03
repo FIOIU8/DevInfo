@@ -121,6 +121,7 @@
     <!-- Export dialog -->
     <string name="export_title">导出模块</string>
     <string name="export_confirm_text">即将导出当前设备信息为改机型模块</string>
+    <string name="export_risk_warning">风险提示：文件类型为 ZIP，可能包含设备信息。刷入模块可能影响系统行为，请仅在理解风险后继续。你可以随时取消导出。</string>
     <string name="export_format_label">导出格式</string>
     <string name="export_format_value">ZIP 压缩包</string>
     <string name="export_save_location">保存位置</string>
