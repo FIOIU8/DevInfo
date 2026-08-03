@@ -46,9 +46,10 @@ class BatteryObserver(context: Context) {
             override fun onReceive(ctx: Context?, intent: Intent?) {
                 if (intent?.action != Intent.ACTION_BATTERY_CHANGED) return
                 val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-                val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+                val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
                 val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN)
-                val pct = if (scale > 0) (level * 100) / scale else 0
+                if (scale <= 0 || level !in 0..scale) return
+                val pct = (level * 100) / scale
                 val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
                                status == BatteryManager.BATTERY_STATUS_FULL
                 trySend(BatteryState(pct.coerceIn(0, 100), charging))
@@ -56,12 +57,18 @@ class BatteryObserver(context: Context) {
         }
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
         // Battery updates are sent by the system, so the receiver must be exported.
-        ContextCompat.registerReceiver(
-            appContext,
-            receiver,
-            filter,
-            ContextCompat.RECEIVER_EXPORTED
-        )
+        val registered = runCatching {
+            ContextCompat.registerReceiver(
+                appContext,
+                receiver,
+                filter,
+                ContextCompat.RECEIVER_EXPORTED
+            )
+        }.isSuccess
+        if (!registered) {
+            close(IllegalStateException("Battery receiver registration failed"))
+            return@callbackFlow
+        }
 
         // 立即发送一次当前值（sticky broadcast 在 registerReceiver 时就能拿到）
         // 但 callbackFlow 需要 emit；registerReceiver 的回调在 register 时就会触发 sticky intent

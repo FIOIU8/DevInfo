@@ -31,10 +31,12 @@ import com.fioiu8.devinfo.GitHubClient
 import com.fioiu8.devinfo.LiveHardwareMonitor
 import com.fioiu8.devinfo.ThemePreferences
 import com.fioiu8.devinfo.LiveHardwareSnapshot
+import com.fioiu8.devinfo.SecuritySnapshot
 import com.fioiu8.devinfo.UpdateChecker
 import com.fioiu8.devinfo.UpdateState
 import com.fioiu8.devinfo.model.ItemWithVisibility
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -48,6 +50,21 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+
+enum class MonitorMode {
+    STOPPED,
+    LOW_FREQUENCY,
+    ACTIVE
+}
+
+fun monitorModeFor(
+    isForeground: Boolean,
+    isOverviewVisible: Boolean
+): MonitorMode = when {
+    !isForeground -> MonitorMode.STOPPED
+    isOverviewVisible -> MonitorMode.ACTIVE
+    else -> MonitorMode.LOW_FREQUENCY
+}
 
 /** Owns device data loading and foreground-only hardware monitoring for the main screen. */
 class MainViewModel(
@@ -86,6 +103,8 @@ class MainViewModel(
     private var hardwareMonitoringJob: Job? = null
     private var isForeground = false
     private var isInfoTabSelected = true
+    private val _monitorMode = MutableStateFlow(MonitorMode.STOPPED)
+    val monitorMode: StateFlow<MonitorMode> = _monitorMode.asStateFlow()
 
     init {
         refresh()
@@ -175,36 +194,27 @@ class MainViewModel(
 
     private suspend fun loadOverviewSnapshot() {
         val hardware = runCatching { liveHardwareMonitor.snapshot() }.getOrDefault(LiveHardwareSnapshot())
-        updateOverview {
-            OverviewSnapshot(
-                batteryLevel = it.batteryLevel,
-                batteryCharging = it.batteryCharging,
-                hardware = hardware
-            )
-        }
-
-        updateOverview { snapshot ->
-            snapshot.copy(cpuFrequency = collector.getCpuFrequency())
-        }
-
-        val coreMetrics = collector.getCpuCoreMetrics()
-        updateOverview { snapshot ->
-            if (coreMetrics.isNotEmpty()) {
-                val overallUsage = coreMetrics.mapNotNull { it.usagePercent }
-                    .average()
-                    .toFloat()
-                    .takeIf { !it.isNaN() }
-                    ?: collector.getCpuUsagePercent()
-                snapshot.copy(cpuCoreMetrics = coreMetrics).withCpuUsageReading(
-                    CpuUsageReading(coreMetrics, overallUsage)
-                )
-            } else {
-                snapshot.copy(cpuUsage = collector.getCpuUsagePercent())
-            }
-        }
-
+        val cpuFrequency = runCatching { collector.getCpuFrequency() }.getOrNull()
+        val coreMetrics = runCatching { collector.getCpuCoreMetrics() }.getOrDefault(emptyList())
+        val overallUsage = coreMetrics.mapNotNull { it.usagePercent }
+            .average()
+            .toFloat()
+            .takeIf { !it.isNaN() }
+            ?: runCatching { collector.getCpuUsagePercent() }.getOrNull()
+        val cpuReading = CpuUsageReading(coreMetrics, overallUsage)
         val dynamicMetrics = readDynamicMetrics()
-        updateOverview { snapshot -> snapshot.withDynamicMetrics(dynamicMetrics) }
+        updateOverview { snapshot ->
+            OverviewSnapshot(
+                batteryLevel = snapshot.batteryLevel,
+                batteryCharging = snapshot.batteryCharging,
+                hardware = hardware,
+                cpuFrequency = cpuFrequency,
+                cpuCoreMetrics = coreMetrics,
+                securityPatch = dynamicMetrics.securityPatch,
+                lockScreenEnabled = dynamicMetrics.lockScreenEnabled,
+                usbDebuggingEnabled = dynamicMetrics.usbDebuggingEnabled
+            ).withCpuUsageReading(cpuReading).withDynamicMetrics(dynamicMetrics)
+        }
     }
 
     private suspend fun refreshDynamicMetrics() {
@@ -215,12 +225,12 @@ class MainViewModel(
     }
 
     private suspend fun readDynamicMetrics(): DynamicMetrics = withContext(Dispatchers.Default) {
-        val security = collector.getSecuritySnapshot()
+        val security = runCatching { collector.getSecuritySnapshot() }.getOrDefault(SecuritySnapshot(null, null, null))
         DynamicMetrics(
-            gpuFrequency = collector.getGpuFrequency(),
-            gpuUsage = collector.getGpuUsagePercent(),
-            memoryPercent = collector.getMemoryUsagePercent(),
-            storagePercent = collector.getStorageUsagePercent(),
+            gpuFrequency = runCatching { collector.getGpuFrequency() }.getOrNull(),
+            gpuUsage = runCatching { collector.getGpuUsagePercent() }.getOrNull(),
+            memoryPercent = runCatching { collector.getMemoryUsagePercent() }.getOrNull(),
+            storagePercent = runCatching { collector.getStorageUsagePercent() }.getOrNull(),
             securityPatch = security.securityPatch,
             lockScreenEnabled = security.lockScreenEnabled,
             usbDebuggingEnabled = security.usbDebuggingEnabled
@@ -228,18 +238,28 @@ class MainViewModel(
     }
 
     private fun updateMonitoring() {
-        if (isForeground) {
-            startBatteryObserver()
-            startHardwareMonitoring()
-        } else {
-            stopBatteryObserver()
-            stopHardwareMonitoring()
-        }
+        val mode = monitorModeFor(isForeground, isInfoTabSelected)
+        if (_monitorMode.value == mode) return
+        _monitorMode.value = mode
 
-        if (isForeground && isInfoTabSelected) {
-            startDynamicMonitoring()
-        } else {
-            stopDynamicMonitoring()
+        when (mode) {
+            MonitorMode.STOPPED -> {
+                stopBatteryObserver()
+                stopHardwareMonitoring()
+                stopDynamicMonitoring()
+            }
+
+            MonitorMode.LOW_FREQUENCY -> {
+                startBatteryObserver()
+                startHardwareMonitoring(mode)
+                stopDynamicMonitoring()
+            }
+
+            MonitorMode.ACTIVE -> {
+                startBatteryObserver()
+                startHardwareMonitoring(mode)
+                startDynamicMonitoring()
+            }
         }
     }
 
@@ -247,12 +267,21 @@ class MainViewModel(
         if (batteryJob?.isActive == true) return
 
         batteryJob = viewModelScope.launch {
-            batteryObserver.batteryState.collect { state ->
-                updateOverview { snapshot ->
-                    snapshot.copy(
-                        batteryLevel = state.level,
-                        batteryCharging = state.isCharging
-                    )
+            while (isActive) {
+                try {
+                    batteryObserver.batteryState.collect { state ->
+                        updateOverview { snapshot ->
+                            snapshot.copy(
+                                batteryLevel = state.level,
+                                batteryCharging = state.isCharging
+                            )
+                        }
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    updateOverview { snapshot -> snapshot.copy(batteryLevel = null, batteryCharging = false) }
+                    delay(BATTERY_RETRY_INTERVAL_MS)
                 }
             }
         }
@@ -271,7 +300,7 @@ class MainViewModel(
         }
         dynamicMetricsJob = viewModelScope.launch {
             while (isActive) {
-                delay(DYNAMIC_REFRESH_INTERVAL_MS)
+                delay(ACTIVE_REFRESH_INTERVAL_MS)
                 refreshDynamicMetrics()
             }
         }
@@ -283,15 +312,26 @@ class MainViewModel(
         cpuUsageSampler.stop()
     }
 
-    private fun startHardwareMonitoring() {
-        if (hardwareMonitoringJob?.isActive == true) return
+    private fun startHardwareMonitoring(mode: MonitorMode) {
+        if (hardwareMonitoringJob?.isActive == true) stopHardwareMonitoring()
 
-        liveHardwareMonitor.start()
+        liveHardwareMonitor.start(collectMotion = mode == MonitorMode.ACTIVE)
+        val interval = if (mode == MonitorMode.ACTIVE) ACTIVE_REFRESH_INTERVAL_MS else LOW_FREQUENCY_REFRESH_INTERVAL_MS
         hardwareMonitoringJob = viewModelScope.launch {
             while (isActive) {
-                val hardware = withContext(Dispatchers.Default) { liveHardwareMonitor.snapshot() }
-                updateOverview { snapshot -> snapshot.copy(hardware = hardware) }
-                delay(DYNAMIC_REFRESH_INTERVAL_MS)
+                val hardware = try {
+                    withContext(Dispatchers.Default) {
+                        liveHardwareMonitor.snapshot(includeStorageReadSpeed = mode == MonitorMode.ACTIVE)
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    null
+                }
+                hardware?.let {
+                    updateOverview { snapshot -> snapshot.copy(hardware = hardware) }
+                }
+                delay(interval)
             }
         }
     }
@@ -324,7 +364,9 @@ class MainViewModel(
     }
 
     companion object {
-        private const val DYNAMIC_REFRESH_INTERVAL_MS = 2_000L
+        private const val ACTIVE_REFRESH_INTERVAL_MS = 2_000L
+        private const val LOW_FREQUENCY_REFRESH_INTERVAL_MS = 10_000L
+        private const val BATTERY_RETRY_INTERVAL_MS = 10_000L
 
         /** Publish loaded items in batches so the UI updates a few times, not once per item. */
         private const val ITEM_BATCH_SIZE = 8
