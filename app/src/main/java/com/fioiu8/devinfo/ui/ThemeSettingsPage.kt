@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,6 +47,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.MenuOpen
+import androidx.compose.material.icons.rounded.AspectRatio
+import androidx.compose.material.icons.rounded.BlurOn
+import androidx.compose.material.icons.rounded.CallToAction
+import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.Card as MaterialCard
 import androidx.compose.material3.CardDefaults as MaterialCardDefaults
@@ -60,7 +66,6 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider as MaterialSlider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text as MaterialText
 import androidx.compose.material3.TopAppBar as MaterialTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -79,6 +84,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -88,7 +94,6 @@ import com.fioiu8.devinfo.model.PaletteStyle
 import com.fioiu8.devinfo.model.ThemeColor
 import com.fioiu8.devinfo.model.ThemeMode
 import com.fioiu8.devinfo.model.UiStyle
-import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -152,6 +157,7 @@ private fun MaterialColorCircle(
 /** Theme settings rendered with the active UI component system. */
 @Composable
 fun ThemeSettingsPage(
+    uiStyle: UiStyle,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     themeColor: ThemeColor,
@@ -172,7 +178,7 @@ fun ThemeSettingsPage(
     onEnablePredictiveBackChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
-    when (LocalUiStyle.current) {
+    when (uiStyle) {
         UiStyle.MATERIAL3 -> MaterialThemeSettingsPage(
             themeMode = themeMode,
             onThemeModeChange = onThemeModeChange,
@@ -414,7 +420,7 @@ private fun MaterialThemeSettingsPage(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Switch(
+                            DevInfoExpressiveSwitch(
                                 checked = enableBlur,
                                 onCheckedChange = onEnableBlurChange,
                             )
@@ -454,7 +460,7 @@ private fun MaterialThemeSettingsPage(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Switch(
+                            DevInfoExpressiveSwitch(
                                 checked = enablePredictiveBack,
                                 onCheckedChange = onEnablePredictiveBackChange,
                             )
@@ -548,7 +554,7 @@ private fun MaterialThemeSwitchCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Switch(
+            DevInfoExpressiveSwitch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
             )
@@ -629,17 +635,27 @@ private fun MaterialThemePreviewCard(
                 .padding(20.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                MaterialText(
-                    text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_launcher_foreground),
+                    contentDescription = stringResource(R.string.app_name),
+                    modifier = Modifier.size(42.dp),
                 )
-                MaterialText(
-                    text = stringResource(R.string.theme_preview_summary),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    MaterialText(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    MaterialText(
+                        text = stringResource(R.string.theme_preview_summary),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -813,18 +829,42 @@ private fun MiuixThemeSettingsPage(
                         summary = stringResource(R.string.theme_blur_summary),
                         checked = enableBlur,
                         onCheckedChange = onEnableBlurChange,
+                        startAction = {
+                            Icon(
+                                imageVector = Icons.Rounded.BlurOn,
+                                contentDescription = stringResource(R.string.theme_blur),
+                                modifier = Modifier.padding(end = 6.dp),
+                                tint = MiuixTheme.colorScheme.onBackground,
+                            )
+                        },
                     )
                     SwitchPreference(
                         title = stringResource(R.string.theme_predictive_back),
                         summary = stringResource(R.string.theme_predictive_back_summary),
                         checked = enablePredictiveBack,
                         onCheckedChange = onEnablePredictiveBackChange,
+                        startAction = {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.MenuOpen,
+                                contentDescription = stringResource(R.string.theme_predictive_back),
+                                modifier = Modifier.padding(end = 6.dp),
+                                tint = MiuixTheme.colorScheme.onBackground,
+                            )
+                        },
                     )
                     SwitchPreference(
                         title = stringResource(R.string.theme_floating_navigation_bar),
                         summary = stringResource(R.string.theme_floating_navigation_bar_summary),
                         checked = enableFloatingBottomBar,
                         onCheckedChange = onEnableFloatingBottomBarChange,
+                        startAction = {
+                            Icon(
+                                imageVector = Icons.Rounded.CallToAction,
+                                contentDescription = stringResource(R.string.theme_floating_navigation_bar),
+                                modifier = Modifier.padding(end = 6.dp),
+                                tint = MiuixTheme.colorScheme.onBackground,
+                            )
+                        },
                     )
                     if (enableFloatingBottomBar) {
                         SwitchPreference(
@@ -832,6 +872,14 @@ private fun MiuixThemeSettingsPage(
                             summary = stringResource(R.string.theme_floating_navigation_bar_blur_summary),
                             checked = enableFloatingBottomBarBlur,
                             onCheckedChange = onEnableFloatingBottomBarBlurChange,
+                            startAction = {
+                                Icon(
+                                    imageVector = Icons.Rounded.WaterDrop,
+                                    contentDescription = stringResource(R.string.theme_floating_navigation_bar_blur),
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    tint = MiuixTheme.colorScheme.onBackground,
+                                )
+                            },
                         )
                     }
                 }
@@ -862,6 +910,12 @@ private fun MiuixPageScalePreference(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Icon(
+                imageVector = Icons.Rounded.AspectRatio,
+                contentDescription = stringResource(R.string.theme_page_scale),
+                modifier = Modifier.padding(end = 12.dp),
+                tint = MiuixTheme.colorScheme.onBackground,
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.theme_page_scale),
@@ -911,18 +965,28 @@ private fun MiuixThemePreviewCard(
                 .padding(20.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(
-                    text = stringResource(R.string.app_name),
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MiuixTheme.colorScheme.onSurface,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_launcher_foreground),
+                    contentDescription = stringResource(R.string.app_name),
+                    modifier = Modifier.size(42.dp),
                 )
-                Text(
-                    text = stringResource(R.string.theme_preview_summary),
-                    fontSize = 14.sp,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MiuixTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = stringResource(R.string.theme_preview_summary),
+                        fontSize = 14.sp,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
