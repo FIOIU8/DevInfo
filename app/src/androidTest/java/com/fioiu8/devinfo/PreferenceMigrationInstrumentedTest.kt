@@ -14,33 +14,35 @@ import org.junit.runner.RunWith
 class PreferenceMigrationInstrumentedTest {
 
     @Test
-    fun legacyUpdateValuesMigrateWithoutDeletingRollbackData() = runBlocking {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val preferenceName = "migration_test_preferences"
-        val dataStoreFileName = "migration_test.preferences_pb"
-        val dataStoreFile = context.preferencesDataStoreFile(dataStoreFileName)
+    fun legacyUpdateValuesMigrateWithoutDeletingRollbackData() {
+        runBlocking {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val preferenceName = "migration_test_preferences"
+            val dataStoreFileName = "migration_test.preferences_pb"
+            val dataStoreFile = context.preferencesDataStoreFile(dataStoreFileName)
 
-        context.deleteSharedPreferences(preferenceName)
-        dataStoreFile.delete()
-        val seeded = context.getSharedPreferences(preferenceName, Context.MODE_PRIVATE).edit()
-            .putLong("last_check_time", 42L)
-            .putString("cached_tag", "release-1")
-            .commit()
-        assertTrue(seeded)
+            context.deleteSharedPreferences(preferenceName)
+            dataStoreFile.delete()
+            val seeded = context.getSharedPreferences(preferenceName, Context.MODE_PRIVATE).edit()
+                .putLong("last_check_time", 42L)
+                .putString("cached_tag", "release-1")
+                .commit()
+            assertTrue(seeded)
 
-        val repository = DataStorePreferenceRepository(context, preferenceName, dataStoreFileName)
+            val repository = DataStorePreferenceRepository(context, preferenceName, dataStoreFileName)
 
-        assertEquals(42L, repository.readLong("last_check_time"))
-        assertEquals("release-1", repository.readString("cached_tag"))
+            assertEquals(42L, repository.readLong("last_check_time"))
+            assertEquals("release-1", repository.readString("cached_tag"))
 
-        val rollbackPreferences = context.getSharedPreferences(preferenceName, Context.MODE_PRIVATE)
-        assertEquals(42L, rollbackPreferences.getLong("last_check_time", 0L))
-        assertEquals("release-1", rollbackPreferences.getString("cached_tag", null))
+            val rollbackPreferences = context.getSharedPreferences(preferenceName, Context.MODE_PRIVATE)
+            assertEquals(42L, rollbackPreferences.getLong("last_check_time", 0L))
+            assertEquals("release-1", rollbackPreferences.getString("cached_tag", null))
 
-        assertTrue(repository.writeLong("last_check_time", 84L))
-        assertEquals(84L, rollbackPreferences.getLong("last_check_time", 0L))
+            assertTrue(repository.writeLong("last_check_time", 84L))
+            assertEquals(84L, rollbackPreferences.getLong("last_check_time", 0L))
 
-        context.deleteSharedPreferences(preferenceName)
-        dataStoreFile.delete()
+            context.deleteSharedPreferences(preferenceName)
+            dataStoreFile.delete()
+        }
     }
 }
