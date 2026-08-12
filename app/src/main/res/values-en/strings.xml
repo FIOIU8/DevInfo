@@ -389,6 +389,17 @@
     <string name="status_sim_io_error">Card I/O Error</string>
     <string name="status_sim_restricted">Card Restricted</string>
     <string name="status_unknown_state">Unknown State</string>
+
+    <!-- CPU Root monitoring -->
+    <string name="cpu_root_mode">Root Mode (Realtime Usage)</string>
+    <string name="cpu_normal_mode">Normal Mode (Frequency Only)</string>
+    <string name="cpu_system_restricted">System Restricted</string>
+    <string name="cpu_usage_restricted">Restricted by System</string>
+    <string name="root_mode_enabled">Root monitoring enabled</string>
+    <string name="root_mode_failed">Root read failed</string>
+    <string name="root_required_title">Root Required</string>
+    <string name="root_required_message">Device is not rooted. Advanced CPU monitoring is unavailable.\n\nTips:\n• Rooted devices can read per-core CPU usage\n• Currently showing CPU frequency only</string>
+    <string name="root_fab_desc">Toggle CPU monitoring mode</string>
     <string name="status_wifi">Wi-Fi</string>
     <string name="status_cellular">Cellular</string>
     <string name="status_ethernet">Ethernet</string>

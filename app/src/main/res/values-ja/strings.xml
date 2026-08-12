@@ -387,6 +387,17 @@
     <string name="status_sim_io_error">カードI/Oエラー</string>
     <string name="status_sim_restricted">カード制限</string>
     <string name="status_unknown_state">不明な状態</string>
+
+    <!-- CPU Root monitoring -->
+    <string name="cpu_root_mode">Root モード（リアルタイム使用率）</string>
+    <string name="cpu_normal_mode">通常モード（周波数のみ）</string>
+    <string name="cpu_system_restricted">システム制限</string>
+    <string name="cpu_usage_restricted">システムにより制限</string>
+    <string name="root_mode_enabled">Root モニタリングを有効化</string>
+    <string name="root_mode_failed">Root 読み取り失敗</string>
+    <string name="root_required_title">Root 権限が必要</string>
+    <string name="root_required_message">デバイスが Root 化されていません。高度な CPU モニタリングは利用できません。\n\nヒント：\n• Root 化デバイスではコアごとの CPU 使用率を取得可能\n• 現在は CPU 周波数のみ表示</string>
+    <string name="root_fab_desc">CPU モニタリングモード切替</string>
     <string name="status_wifi">Wi-Fi</string>
     <string name="status_cellular">モバイルネットワーク</string>
     <string name="status_ethernet">イーサネット</string>
