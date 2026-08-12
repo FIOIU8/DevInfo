@@ -48,6 +48,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
@@ -106,6 +107,9 @@ class MainViewModel(
     private val _monitorMode = MutableStateFlow(MonitorMode.STOPPED)
     val monitorMode: StateFlow<MonitorMode> = _monitorMode.asStateFlow()
 
+    private val _isRootModeEnabled = MutableStateFlow(false)
+    val isRootModeEnabled: StateFlow<Boolean> = _isRootModeEnabled.asStateFlow()
+
     init {
         refresh()
         checkForUpdates()
@@ -124,6 +128,30 @@ class MainViewModel(
     fun onForegroundChanged(foreground: Boolean) {
         isForeground = foreground
         updateMonitoring()
+    }
+
+    /** 检测 Root 权限是否可用 */
+    suspend fun checkRootAvailable(): Boolean = runCatching {
+        withContext(Dispatchers.IO) { collector.isRootAvailable() }
+    }.getOrDefault(false)
+
+    /**
+     * 尝试启用 Root 监控模式。
+     * @return Root 模式是否成功启用
+     */
+    suspend fun enableRootMode(): Boolean {
+        val metrics = runCatching {
+            withContext(Dispatchers.IO) { collector.getCpuCoreMetricsWithRoot() }
+        }.getOrDefault(emptyList())
+        if (metrics.isEmpty()) return false
+        _isRootModeEnabled.value = true
+        val overallUsage = metrics.mapNotNull { it.usagePercent }
+            .average()
+            .toFloat()
+            .takeIf { !it.isNaN() }
+        val cpuReading = CpuUsageReading(metrics, overallUsage)
+        updateOverview { snapshot -> snapshot.withCpuUsageReading(cpuReading) }
+        return true
     }
 
     fun onInfoTabChanged(selected: Boolean) {
