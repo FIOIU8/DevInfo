@@ -385,6 +385,17 @@
     <string name="status_sim_io_error">卡IO错误</string>
     <string name="status_sim_restricted">卡受限</string>
     <string name="status_unknown_state">未知状态</string>
+
+    <!-- CPU Root 监控 -->
+    <string name="cpu_root_mode">Root 模式（实时占用率）</string>
+    <string name="cpu_normal_mode">普通模式（仅频率）</string>
+    <string name="cpu_system_restricted">系统限制</string>
+    <string name="cpu_usage_restricted">受系统限制</string>
+    <string name="root_mode_enabled">已启用 Root 监控模式</string>
+    <string name="root_mode_failed">Root 读取失败</string>
+    <string name="root_required_title">需要 Root 权限</string>
+    <string name="root_required_message">设备未 Root，无法启用高级 CPU 监控模式。\n\n提示：\n• 已 Root 设备可获取每核心真实占用率\n• 当前仅显示 CPU 频率</string>
+    <string name="root_fab_desc">CPU 监控模式切换</string>
     <string name="status_wifi">Wi-Fi</string>
     <string name="status_cellular">移动网络</string>
     <string name="status_ethernet">以太网</string>
