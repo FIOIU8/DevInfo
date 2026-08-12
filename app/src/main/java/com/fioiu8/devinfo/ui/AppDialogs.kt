@@ -510,7 +510,7 @@ fun UpdateAvailableDialog(
 }
 
 @Composable
-private fun MiuixActionDialog(
+fun MiuixActionDialog(
     title: String,
     message: String,
     confirmLabel: String,
