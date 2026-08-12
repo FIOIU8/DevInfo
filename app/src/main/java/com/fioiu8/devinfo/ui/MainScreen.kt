@@ -51,6 +51,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.systemBars
@@ -63,6 +64,8 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
@@ -72,6 +75,7 @@ import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -124,6 +128,8 @@ import com.fioiu8.devinfo.ui.theme.isInDarkTheme
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.FloatingActionButton as MiuixFloatingActionButton
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
 import top.yukonga.miuix.kmp.basic.NavigationRail as MiuixNavigationRail
@@ -138,6 +144,7 @@ import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.math.roundToInt
 
@@ -191,6 +198,7 @@ fun MainScreen(
     val isOverviewLoading by viewModel.isOverviewLoading.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val releaseInfo by viewModel.releaseInfo.collectAsStateWithLifecycle()
+    val isRootModeEnabled by viewModel.isRootModeEnabled.collectAsStateWithLifecycle()
 
     var selectedIndex by rememberSaveable { mutableIntStateOf(INFO_TAB_INDEX) }
     var showDetailsPage by remember { mutableStateOf(false) }
@@ -203,6 +211,7 @@ fun MainScreen(
     var showExportSuccessDialog by remember { mutableStateOf(false) }
     var exportedFileUri by remember { mutableStateOf<Uri?>(null) }
     var showUpdateDialog by remember { mutableStateOf(false) }
+    var showRootRequiredDialog by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
     val useNavigationRail = configuration.screenWidthDp >= TABLET_NAVIGATION_RAIL_MIN_WIDTH_DP
@@ -354,6 +363,22 @@ fun MainScreen(
         }
     }
 
+    fun onRootFabClick(
+        rootEnabledMsg: String,
+        rootFailedMsg: String,
+    ) {
+        if (isRootModeEnabled) return
+        scope.launch {
+            val hasRoot = withContext(Dispatchers.IO) { viewModel.checkRootAvailable() }
+            if (!hasRoot) {
+                showRootRequiredDialog = true
+                return@launch
+            }
+            val success = withContext(Dispatchers.IO) { viewModel.enableRootMode() }
+            showMessage(if (success) rootEnabledMsg else rootFailedMsg)
+        }
+    }
+
     val navigationItems = listOf(
         MainNavigationItem(
             label = stringResource(R.string.nav_info),
@@ -383,6 +408,9 @@ fun MainScreen(
         MainContentPage.SETTINGS -> stringResource(R.string.title_settings)
     }
     val showTopBarBackButton = contentPage == MainContentPage.DETAILS
+
+    val rootEnabledMsg = stringResource(R.string.root_mode_enabled)
+    val rootFailedMsg = stringResource(R.string.root_mode_failed)
 
     DevInfoFeedbackScope(
         materialHostState = materialSnackbarHostState,
@@ -571,6 +599,15 @@ fun MainScreen(
                     .padding(horizontal = 16.dp)
                     .padding(bottom = snackbarBottomPadding),
             )
+
+            RootModeFab(
+                isRootModeEnabled = isRootModeEnabled,
+                onClick = { onRootFabClick(rootEnabledMsg, rootFailedMsg) },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp)
+                    .padding(bottom = snackbarBottomPadding + 56.dp),
+            )
         }
     }
 
@@ -682,6 +719,11 @@ fun MainScreen(
             showUpdateDialog = false
             viewModel.resetUpdateState()
         }
+    )
+
+    RootRequiredDialog(
+        show = showRootRequiredDialog,
+        onDismiss = { showRootRequiredDialog = false }
     )
 
     ExportConfirmDialog(
@@ -1203,6 +1245,98 @@ private fun MiuixMainNavigationRail(
         }
         Spacer(modifier = Modifier.weight(1f))
     }
+}
+
+@Composable
+private fun BoxScope.RootModeFab(
+    isRootModeEnabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixFloatingActionButton(
+            onClick = onClick,
+            modifier = modifier,
+            containerColor = if (isRootModeEnabled) {
+                MiuixTheme.colorScheme.primary
+            } else {
+                MiuixTheme.colorScheme.surfaceVariant
+            },
+        ) {
+            MiuixIcon(
+                imageVector = MiuixIcons.Settings,
+                contentDescription = stringResource(R.string.root_fab_desc),
+            )
+        }
+    } else {
+        FloatingActionButton(
+            onClick = onClick,
+            modifier = modifier,
+            containerColor = if (isRootModeEnabled) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Settings,
+                contentDescription = stringResource(R.string.root_fab_desc),
+                tint = if (isRootModeEnabled) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun RootRequiredDialog(
+    show: Boolean,
+    onDismiss: () -> Unit,
+) {
+    if (!show) return
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixActionDialog(
+            title = stringResource(R.string.root_required_title),
+            message = stringResource(R.string.root_required_message),
+            confirmLabel = stringResource(R.string.confirm),
+            onConfirm = onDismiss,
+            dismissLabel = stringResource(R.string.cancel),
+            onDismiss = onDismiss,
+        )
+        return
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Outlined.Settings,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
+        title = {
+            Text(
+                text = stringResource(R.string.root_required_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Text(
+                text = stringResource(R.string.root_required_message),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.confirm))
+            }
+        }
+    )
 }
 
 private fun openUrl(
