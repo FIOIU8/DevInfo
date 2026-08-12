@@ -361,6 +361,69 @@ class DeviceInfoCollector(private val context: Context) {
         }
     }.getOrElse { getCpuCoreTopologyMetrics() }
 
+    /** 检测设备是否已 Root（su 命令是否可用） */
+    fun isRootAvailable(): Boolean = runCatching {
+        val process = ProcessBuilder("su", "-c", "echo", "test")
+            .redirectErrorStream(true)
+            .start()
+            val exited = process.waitFor(ROOT_COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        if (!exited) {
+            process.destroyForcibly()
+            return@runCatching false
+        }
+        val output = process.inputStream.bufferedReader().readText().trim()
+        process.destroy()
+        output == "test"
+    }.getOrDefault(false)
+
+    /** 通过 Root 权限读取 /proc/stat 并计算每核心占用率 */
+    fun getCpuCoreMetricsWithRoot(): List<CpuCoreMetric> = runCatching {
+        val first = readCpuTimesByCoreWithRoot()
+        if (first.isEmpty()) return@runCatching emptyList()
+        Thread.sleep(180)
+        val second = readCpuTimesByCoreWithRoot()
+        (first.keys + second.keys).toSortedSet().map { index ->
+            val firstTimes = first[index]
+            val secondTimes = second[index]
+            val usage = if (firstTimes == null || secondTimes == null) {
+                null
+            } else {
+                val totalDelta = secondTimes.total - firstTimes.total
+                val idleDelta = secondTimes.idle - firstTimes.idle
+                if (totalDelta <= 0L) null else {
+                    ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
+                }
+            }
+            CpuCoreMetric(index, getCpuCoreFrequency(index), usage)
+        }
+    }.getOrDefault(emptyList())
+
+    private fun readCpuTimesByCoreWithRoot(): Map<Int, CpuTimes> {
+        val result = mutableMapOf<Int, CpuTimes>()
+        readLinesWithRoot("/proc/stat").forEach { line ->
+            val parts = line.trim().split(Regex("\\s+"))
+            val index = parts.firstOrNull()?.removePrefix("cpu")?.toIntOrNull() ?: return@forEach
+            parseCpuTimes(parts.drop(1))?.let { result[index] = it }
+        }
+        return result
+    }
+
+    private fun readLinesWithRoot(path: String): List<String> = runCatching {
+        val process = ProcessBuilder("su", "-c", "cat $path")
+            .redirectErrorStream(true)
+            .start()
+        try {
+            val lines = process.inputStream.bufferedReader().useLines { it.toList() }
+            if (!process.waitFor(ROOT_COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                process.destroyForcibly()
+                return@runCatching emptyList()
+            }
+            lines
+        } finally {
+            process.destroy()
+        }
+    }.getOrDefault(emptyList())
+
     fun getGpuFrequency(): String? = readFrequency(
         "/sys/class/kgsl/kgsl-3d0/gpuclk",
         "/sys/class/devfreq/1c00000.qcom,kgsl-3d0/cur_freq",
@@ -457,14 +520,18 @@ class DeviceInfoCollector(private val context: Context) {
             }
 
     private fun readFirstLine(vararg paths: String): String? = paths.firstNotNullOfOrNull { path ->
+        // Do not call isFile/canRead first: SELinux-backed proc/sysfs nodes can
+        // reject those metadata checks while still allowing the actual read.
+        // Note: ProcessBuilder-based shell fallback was attempted but the child
+        // process inherits the app's SELinux context, so cat/top are equally denied.
         runCatching {
-            // Do not call isFile/canRead first: SELinux-backed proc/sysfs nodes can
-            // reject those metadata checks while still allowing the actual read.
             File(path).bufferedReader().use { it.readLine() }
         }.getOrNull()?.trim()?.takeIf { it.isNotBlank() }
     }
 
     private fun readLines(path: String): List<String> = runCatching {
+        // Android 8.0+ SELinux denies untrusted_app direct read of /proc/stat;
+        // the shell fallback was ineffective (child inherits app context).
         File(path).bufferedReader().useLines { it.toList() }
     }.getOrDefault(emptyList())
 
@@ -958,6 +1025,7 @@ class DeviceInfoCollector(private val context: Context) {
 
     private companion object {
         const val TOP_COMMAND_TIMEOUT_MS = 1_500L
+        const val ROOT_COMMAND_TIMEOUT_MS = 5_000L
     }
 }
 
