@@ -23,11 +23,6 @@ on:
         options:
           - debug
           - release
-      create_release:
-        description: 'Create GitHub Release'
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -60,7 +55,6 @@ jobs:
       version_name: ${{ steps.version.outputs.version_name }}
       version_code: ${{ steps.version.outputs.version_code }}
       signature_type: ${{ steps.version.outputs.signature_type }}
-      create_release: ${{ steps.version.outputs.create_release }}
       trigger_type: ${{ steps.version.outputs.trigger_type }}
       trigger_actor: ${{ steps.version.outputs.trigger_actor }}
       trigger_type_display: ${{ steps.version.outputs.trigger_type_display }}
@@ -76,8 +70,6 @@ jobs:
       # -------------------------------
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # Fetch full history for changelog generation
 
       # -------------------------------
       # 2. Set up Java 21 (Temurin)
@@ -119,14 +111,12 @@ jobs:
             TRIGGER_ACTOR="${{ github.actor }}"
             VERSION_NAME="${{ github.event.inputs.version_name }}"
             SIGNATURE_TYPE="${{ github.event.inputs.signature_type }}"
-            CREATE_RELEASE="${{ github.event.inputs.create_release }}"
           else
             TRIGGER_TYPE="push"
             TRIGGER_TYPE_DISPLAY="Push trigger"
             TRIGGER_ACTOR="${{ github.actor }}"
             VERSION_NAME="dev-${GITHUB_SHA::7}"
             SIGNATURE_TYPE="debug"
-            CREATE_RELEASE="false"
           fi
 
           VERSION_CODE="${{ github.run_number }}"
@@ -134,11 +124,10 @@ jobs:
           BRANCH_NAME="${GITHUB_REF_NAME}"
           RUN_ID="${{ github.run_id }}"
 
-          # Output for later jobs
+          # Output for later steps
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "signature_type=$SIGNATURE_TYPE" >> $GITHUB_OUTPUT
-          echo "create_release=$CREATE_RELEASE" >> $GITHUB_OUTPUT
           echo "trigger_type=$TRIGGER_TYPE" >> $GITHUB_OUTPUT
           echo "trigger_type_display=$TRIGGER_TYPE_DISPLAY" >> $GITHUB_OUTPUT
           echo "trigger_actor=$TRIGGER_ACTOR" >> $GITHUB_OUTPUT
@@ -149,7 +138,6 @@ jobs:
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
           echo "SIGNATURE_TYPE=$SIGNATURE_TYPE" >> $GITHUB_ENV
-          echo "CREATE_RELEASE=$CREATE_RELEASE" >> $GITHUB_ENV
           echo "TRIGGER_TYPE=$TRIGGER_TYPE" >> $GITHUB_ENV
           echo "TRIGGER_TYPE_DISPLAY=$TRIGGER_TYPE_DISPLAY" >> $GITHUB_ENV
           echo "TRIGGER_ACTOR=$TRIGGER_ACTOR" >> $GITHUB_ENV
@@ -167,10 +155,6 @@ jobs:
             TITLE="Release Build"
           else
             TITLE="Test Build"
-          fi
-
-          if [[ "${{ env.CREATE_RELEASE }}" == "true" ]]; then
-            TITLE="${TITLE} (Publish to Releases)"
           fi
 
           echo "title=$TITLE" >> $GITHUB_OUTPUT
@@ -347,237 +331,3 @@ jobs:
             app-*.apk
             git-info.txt
           retention-days: 30
-
-  # ------------------------------------------------------------------
-  # Job: generate-changelog (only when creating a release)
-  # ------------------------------------------------------------------
-  generate-changelog:
-    name: Generate Release Notes
-    needs: build
-    runs-on: ubuntu-latest
-    if: needs.build.outputs.create_release == 'true'
-    outputs:
-      changelog: ${{ steps.changelog.outputs.changelog }}
-
-    steps:
-      # Checkout code to access git history
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # Generate categorized changelog from commits since last tag
-      - name: Generate changelog from commits
-        id: changelog
-        run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
-          if [ -n "$LAST_TAG" ]; then
-            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s" --reverse)
-          else
-            COMMITS=$(git log --pretty=format:"%s" --reverse)
-          fi
-
-          # Initialize category strings
-          UI=""
-          LOGIC=""
-          REPO=""
-          FIX=""
-          DOCS=""
-          CI=""
-          FEAT=""
-          PERF=""
-          REFACTOR=""
-          CHORE=""
-          STYLE=""
-          TEST=""
-          OTHER=""
-
-          while IFS= read -r line; do
-            [ -z "$line" ] && continue
-
-            # Categorize by commit prefix
-            if [[ "$line" =~ ^ui: ]]; then
-              msg="${line#ui: }"
-              UI="${UI}- ${msg}"$'\n'
-            elif [[ "$line" =~ ^logic: ]]; then
-              msg="${line#logic: }"
-              LOGIC="${LOGIC}- ${msg}"$'\n'
-            elif [[ "$line" =~ ^repo: ]]; then
-              msg="${line#repo: }"
-              REPO="${REPO}- ${msg}"$'\n'
-            elif [[ "$line" =~ ^fix: ]]; then
-              msg="${line#fix: }"
-              FIX="${FIX}- ${msg}"$'\n'
-            elif [[ "$line" =~ ^docs: ]]; then
-              msg="${line#docs: }"
-              DOCS="${DOCS}- ${msg}"$'\n'
-            elif [[ "$line" =~ ^ci: ]]; then
-              msg="${line#ci: }"
-              CI="${CI}- ${msg}"$'\n'
-            elif [[ "$line" =~ ^feat: ]]; then
-              msg="${line#feat: }"
-              FEAT="${FEAT}- ${msg}"$'\n'
-            elif [[ "$line" =~ ^perf: ]]; then
-              msg="${line#perf: }"
-              PERF="${PERF}- ${msg}"$'\n'
-            elif [[ "$line" =~ ^refactor: ]]; then
-              msg="${line#refactor: }"
-              REFACTOR="${REFACTOR}- ${msg}"$'\n'
-            elif [[ "$line" =~ ^chore: ]]; then
-              msg="${line#chore: }"
-              CHORE="${CHORE}- ${msg}"$'\n'
-            elif [[ "$line" =~ ^style: ]]; then
-              msg="${line#style: }"
-              STYLE="${STYLE}- ${msg}"$'\n'
-            elif [[ "$line" =~ ^test: ]]; then
-              msg="${line#test: }"
-              TEST="${TEST}- ${msg}"$'\n'
-            else
-              OTHER="${OTHER}- ${line}"$'\n'
-            fi
-          done <<< "$COMMITS"
-
-          # Build sections in release body
-          UPDATES=""
-          [ -n "$UI" ] && UPDATES="${UPDATES}### UI"$'\n'$'\n'"${UI}"$'\n'
-          [ -n "$LOGIC" ] && UPDATES="${UPDATES}### Logic/Core"$'\n'$'\n'"${LOGIC}"$'\n'
-          [ -n "$REPO" ] && UPDATES="${UPDATES}### Repo/Build"$'\n'$'\n'"${REPO}"$'\n'
-          [ -n "$FIX" ] && UPDATES="${UPDATES}### Bug Fixes"$'\n'$'\n'"${FIX}"$'\n'
-          [ -n "$DOCS" ] && UPDATES="${UPDATES}### Documentation"$'\n'$'\n'"${DOCS}"$'\n'
-          [ -n "$CI" ] && UPDATES="${UPDATES}### CI/CD"$'\n'$'\n'"${CI}"$'\n'
-          [ -n "$FEAT" ] && UPDATES="${UPDATES}### Features"$'\n'$'\n'"${FEAT}"$'\n'
-          [ -n "$PERF" ] && UPDATES="${UPDATES}### Performance Improvements"$'\n'$'\n'"${PERF}"$'\n'
-          [ -n "$REFACTOR" ] && UPDATES="${UPDATES}### Refactoring"$'\n'$'\n'"${REFACTOR}"$'\n'
-          [ -n "$CHORE" ] && UPDATES="${UPDATES}### Chores"$'\n'$'\n'"${CHORE}"$'\n'
-          [ -n "$STYLE" ] && UPDATES="${UPDATES}### Code Style"$'\n'$'\n'"${STYLE}"$'\n'
-          [ -n "$TEST" ] && UPDATES="${UPDATES}### Tests"$'\n'$'\n'"${TEST}"$'\n'
-          [ -n "$OTHER" ] && UPDATES="${UPDATES}### Other"$'\n'$'\n'"${OTHER}"$'\n'
-
-          if [ -z "$UPDATES" ]; then
-            UPDATES="No detailed update log available. Please check the commit history."$'\n'
-          fi
-
-          # Retrieve build outputs from previous job
-          VERSION_NAME="${{ needs.build.outputs.version_name }}"
-          SIGNATURE_TYPE="${{ needs.build.outputs.signature_type }}"
-          TRIGGER_TYPE="${{ needs.build.outputs.trigger_type }}"
-          TRIGGER_TYPE_DISPLAY="${{ needs.build.outputs.trigger_type_display }}"
-          TRIGGER_ACTOR="${{ needs.build.outputs.trigger_actor }}"
-          BUILD_TIME="${{ needs.build.outputs.build_time }}"
-          RUN_ID="${{ needs.build.outputs.run_id }}"
-          BUILD_DURATION="${{ needs.build.outputs.build_duration }}"
-          BUILD_TITLE="${{ needs.build.outputs.build_title }}"
-
-          # Create full release body markdown
-          cat > release_body.md <<RELEASE_EOF
-          ## ${BUILD_TITLE}
-
-          > Generated automatically from commit history.
-          > This project is fully open-source and free, licensed under MIT.
-
-          ---
-
-          ### Update Contents
-
-          ${UPDATES}
-
-          ---
-
-          ### Build Information
-
-          | Item | Value |
-          |------|-------|
-          | Status | Success |
-          | Duration | ${BUILD_DURATION} |
-          | Trigger | ${TRIGGER_TYPE} (${TRIGGER_TYPE_DISPLAY}) by @${TRIGGER_ACTOR} |
-          | Artifact | DevInfo-${VERSION_NAME}-${SIGNATURE_TYPE} |
-          | Architectures | universal |
-          | Output APK | app-${SIGNATURE_TYPE}.apk |
-          | Build Details | [View Build Log #${RUN_ID}](https://github.com/${{ github.repository }}/actions/runs/${RUN_ID}) |
-
-          ---
-
-          *Generated by GitHub Actions*
-          RELEASE_EOF
-
-          # Output multiline changelog for next job
-          {
-            echo 'changelog<<EOF'
-            cat release_body.md
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
-
-      - name: Display Release Notes
-        run: |
-          echo "========================================"
-          echo "Release Notes Generated"
-          echo "========================================"
-          cat release_body.md
-
-  # ------------------------------------------------------------------
-  # Job: release (only when create_release is true)
-  # ------------------------------------------------------------------
-  release:
-    name: Create Release
-    needs: [build, generate-changelog]
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    if: needs.build.outputs.create_release == 'true'
-
-    steps:
-      # Download the single APK artifact
-      - name: Download APK
-        uses: actions/download-artifact@v4
-        with:
-          name: DevInfo-${{ needs.build.outputs.version_name }}-${{ needs.build.outputs.signature_type }}
-          path: apk/
-
-      # Rename APK with version for release (keep git-info.txt if needed)
-      - name: Prepare APK for release
-        run: |
-          cd apk/
-          # The artifact contains app-release.apk or app-debug.apk and git-info.txt
-          APK_FILE=$(ls app-*.apk 2>/dev/null | head -1)
-          if [ -z "$APK_FILE" ]; then
-            echo "APK file not found in artifact!"
-            exit 1
-          fi
-          SIGNATURE_TYPE="${{ needs.build.outputs.signature_type }}"
-          VERSION_NAME="${{ needs.build.outputs.version_name }}"
-          NEW_NAME="DevInfo-v${VERSION_NAME}-${SIGNATURE_TYPE}.apk"
-          mv "$APK_FILE" "$NEW_NAME"
-          echo "Release APK: $NEW_NAME"
-          ls -lh "$NEW_NAME"
-
-      # Create GitHub Release with the renamed APK
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: "v${{ needs.build.outputs.version_name }}"
-          name: "v${{ needs.build.outputs.version_name }}"
-          body: ${{ needs.generate-changelog.outputs.changelog }}
-          files: |
-            apk/*.apk
-          draft: false
-          prerelease: ${{ needs.build.outputs.signature_type == 'debug' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Release Success Output
-        if: success()
-        run: |
-          echo ""
-          echo "========================================"
-          echo "${{ needs.build.outputs.build_title }}"
-          echo "========================================"
-          echo ""
-          echo "Release Info:"
-          echo "  Version: v${{ needs.build.outputs.version_name }}"
-          echo "  Tag: v${{ needs.build.outputs.version_name }}"
-          echo "  Signature Type: ${{ needs.build.outputs.signature_type }}"
-          echo "  APK: DevInfo-v${{ needs.build.outputs.version_name }}-${{ needs.build.outputs.signature_type }}.apk"
-          echo ""
-          echo "Link:"
-          echo "  https://github.com/${{ github.repository }}/releases/tag/v${{ needs.build.outputs.version_name }}"
