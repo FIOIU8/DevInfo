@@ -58,6 +58,9 @@ private inline fun safeGet(default: String, block: () -> String): String {
     }
 }
 
+/** Delay between two CPU time samples for usage calculation (milliseconds). */
+private const val CPU_USAGE_SAMPLE_DELAY_MS = 180L
+
 data class CpuCoreMetric(
     val index: Int,
     val frequency: String?,
@@ -344,7 +347,7 @@ class DeviceInfoCollector(private val context: Context) {
     suspend fun getCpuCoreMetrics(): List<CpuCoreMetric> = runCatching {
         val first = readCpuTimesByCore()
         if (first.isEmpty()) return@runCatching getCpuCoreTopologyMetrics()
-        delay(180)
+        delay(CPU_USAGE_SAMPLE_DELAY_MS)
         val second = readCpuTimesByCore()
         (first.keys + second.keys).toSortedSet().map { index ->
             val firstTimes = first[index]
@@ -381,7 +384,7 @@ class DeviceInfoCollector(private val context: Context) {
     suspend fun getCpuCoreMetricsWithRoot(): List<CpuCoreMetric> = runCatching {
         val first = readCpuTimesByCoreWithRoot()
         if (first.isEmpty()) return@runCatching emptyList()
-        delay(180)
+        delay(CPU_USAGE_SAMPLE_DELAY_MS)
         val second = readCpuTimesByCoreWithRoot()
         (first.keys + second.keys).toSortedSet().map { index ->
             val firstTimes = first[index]
@@ -438,7 +441,7 @@ class DeviceInfoCollector(private val context: Context) {
         if (first == null && firstUptime == null) {
             return@runCatching readCpuUsageFromTop()
         }
-        delay(180)
+        delay(CPU_USAGE_SAMPLE_DELAY_MS)
         if (first != null) {
             val second = readCpuTimes() ?: return@runCatching null
             val totalDelta = second.total - first.total
