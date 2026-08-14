@@ -41,6 +41,15 @@ import com.fioiu8.devinfo.ui.theme.DevInfoTheme
 
 class MainActivity : ComponentActivity() {
 
+    private var themePrefs: ThemePreferences? = null
+    private var languagePrefs: LanguagePreferences? = null
+
+    override fun onDestroy() {
+        super.onDestroy()
+        themePrefs?.close()
+        languagePrefs?.close()
+    }
+
     override fun attachBaseContext(base: Context) {
         val languagePrefs = LanguagePreferences(base)
         val tag = languagePrefs.getEffectiveLocaleTag()
@@ -83,8 +92,8 @@ class MainActivity : ComponentActivity() {
 
         // 模块导出助手
         val exportHelper = ModuleExportHelper(this)
-        val themePrefs = ThemePreferences(this)
-        val languagePrefs = LanguagePreferences(this)
+        val themePrefs = ThemePreferences(this).also { this.themePrefs = it }
+        val languagePrefs = LanguagePreferences(this).also { this.languagePrefs = it }
         val appContext = applicationContext
         val collector = DeviceInfoCollector(appContext)
         val mainViewModelFactory = MainViewModel.factory(
