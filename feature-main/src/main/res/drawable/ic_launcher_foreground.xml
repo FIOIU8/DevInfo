@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 背景圆形 -->
+    <path
+        android:fillColor="#4A90D9"
+        android:pathData="M54,54m-32,0a32,32 0,1 1,64 0a32,32 0,1 1,-64 0" />
+
+    <!-- 手机图标 (Material "Phone Android" 路径，居中缩放) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M42,32h24c2.5,0 4.5,2 4.5,4.5v35c0,2.5 -2,4.5 -4.5,4.5H42c-2.5,0 -4.5,-2 -4.5,-4.5v-35c0,-2.5 2,-4.5 4.5,-4.5zM39,71.5c0,1.1 0.9,2 2,2h26c1.1,0 2,-0.9 2,-2v-35c0,-1.1 -0.9,-2 -2,-2H41c-1.1,0 -2,0.9 -2,2v35zM51,76h6v3h-6z" />
+
+</vector>

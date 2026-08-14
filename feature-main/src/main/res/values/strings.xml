@@ -1,0 +1,415 @@
+<resources>
+    <string name="app_name">DevInfo</string>
+
+    <!-- Language settings -->
+    <string name="language_system">跟随系统</string>
+    <string name="language_chinese">简体中文</string>
+    <string name="language_english">English</string>
+    <string name="language_japanese">日本語</string>
+    <string name="language_custom">自定义语言</string>
+
+    <!-- Navigation -->
+    <string name="nav_info">信息</string>
+    <string name="nav_settings">设置</string>
+    <string name="title_device_info">设备信息</string>
+    <string name="title_device_details">详细信息</string>
+    <string name="title_settings">设置</string>
+
+    <!-- Settings categories -->
+    <string name="category_appearance">外观</string>
+    <string name="category_tools">工具</string>
+    <string name="category_about">关于</string>
+    <string name="category_language">语言</string>
+
+    <!-- UI style settings -->
+    <string name="ui_style">界面风格</string>
+    <string name="ui_style_material3">Material 3</string>
+    <string name="ui_style_miuix">Miuix</string>
+
+    <string name="theme_settings_title">主题设置</string>
+    <string name="theme_settings_summary">主题模式、Monet 与主题色</string>
+    <string name="theme_monet">Monet 动态颜色</string>
+    <string name="theme_monet_summary">使用系统壁纸颜色或自定义主题色</string>
+    <string name="theme_key_color">主题色</string>
+    <string name="theme_preview_summary">预览当前主题外观</string>
+    <string name="theme_floating_navigation_bar">悬浮导航栏</string>
+    <string name="theme_floating_navigation_bar_summary">以悬浮样式显示底部导航栏</string>
+    <string name="theme_floating_navigation_bar_blur">悬浮导航栏毛玻璃</string>
+    <string name="theme_floating_navigation_bar_blur_summary">为悬浮导航栏应用毛玻璃效果</string>
+    <string name="theme_page_scale">页面缩放</string>
+    <string name="theme_page_scale_summary">调整应用界面的显示比例</string>
+    <string name="theme_blur">毛玻璃效果</string>
+    <string name="theme_blur_summary">为悬浮导航按钮应用背景模糊</string>
+    <string name="theme_predictive_back">预测返回手势</string>
+    <string name="theme_predictive_back_summary">返回时预览目标页面</string>
+    <string name="theme_palette_style">颜色风格</string>
+    <string name="theme_color_spec">颜色标准</string>
+
+    <!-- Theme settings -->
+
+    <!-- Language settings -->
+    <string name="language_setting">语言设置</string>
+    <string name="custom_locale_hint">输入语言标签（如 ja, ko, de）</string>
+    <string name="custom_locale_apply">应用</string>
+    <string name="custom_locale_title">自定义语言</string>
+    <string name="custom_locale_placeholder">输入区域代码…</string>
+    <string name="custom_locale_invalid">请输入有效的语言标签</string>
+
+
+    <string name="theme_mode_system">跟随系统</string>
+    <string name="theme_mode_light">浅色模式</string>
+    <string name="theme_mode_dark">深色模式</string>
+    <string name="theme_mode_dynamic_system">动态颜色·跟随系统</string>
+    <string name="theme_mode_dynamic_light">动态颜色·浅色</string>
+    <string name="theme_mode_dynamic_dark">动态颜色·深色</string>
+
+    <!-- Mount theme color names -->
+    <string name="mount_color_default">默认</string>
+    <string name="mount_color_red">红色</string>
+    <string name="mount_color_orange">橙色</string>
+    <string name="mount_color_green">绿色</string>
+    <string name="mount_color_teal">青色</string>
+    <string name="mount_color_purple">紫色</string>
+    <string name="mount_color_pink">粉色</string>
+    <string name="mount_color_dark">深色</string>
+    <string name="mount_color_yellow">黄色</string>
+    <string name="mount_color_cyan">青色</string>
+    <string name="mount_color_blue">蓝色</string>
+    <string name="mount_color_indigo">靛蓝</string>
+    <string name="mount_color_deep_purple">深紫</string>
+    <string name="mount_color_brown">棕色</string>
+    <string name="mount_color_blue_grey">蓝灰</string>
+    <string name="mount_color_sakura">樱花粉</string>
+    <string name="mount_color_desc_default">清新蓝色</string>
+    <string name="mount_color_desc_red">热情红色</string>
+    <string name="mount_color_desc_orange">活力橙色</string>
+    <string name="mount_color_desc_green">自然绿色</string>
+    <string name="mount_color_desc_teal">清新青色</string>
+    <string name="mount_color_desc_purple">优雅紫色</string>
+    <string name="mount_color_desc_pink">甜美粉色</string>
+    <string name="mount_color_desc_dark">沉稳深色</string>
+    <string name="mount_color_desc_yellow">明亮黄色</string>
+    <string name="mount_color_desc_cyan">清新青色</string>
+    <string name="mount_color_desc_blue">沉稳蓝色</string>
+    <string name="mount_color_desc_indigo">深邃靛蓝</string>
+    <string name="mount_color_desc_deep_purple">优雅深紫</string>
+    <string name="mount_color_desc_brown">自然棕色</string>
+    <string name="mount_color_desc_blue_grey">低调蓝灰</string>
+    <string name="mount_color_desc_sakura">温柔樱花粉</string>
+
+    <!-- InfoCategory display names -->
+    <string name="category_device">设备</string>
+    <string name="category_identifiers">标识符</string>
+    <string name="category_system">系统</string>
+    <string name="category_locale">区域</string>
+    <string name="category_display">显示</string>
+    <string name="category_storage">存储</string>
+    <string name="category_battery">电池</string>
+    <string name="category_network">网络</string>
+    <string name="category_app">应用</string>
+
+    <!-- InfoCategory descriptions -->
+    <string name="category_desc_device">设备硬件与构建信息</string>
+    <string name="category_desc_identifiers">设备唯一标识信息</string>
+    <string name="category_desc_system">操作系统与CPU信息</string>
+    <string name="category_desc_locale">语言、国家与时区</string>
+    <string name="category_desc_display">屏幕相关参数</string>
+    <string name="category_desc_storage">内存与存储空间</string>
+    <string name="category_desc_battery">电池状态信息</string>
+    <string name="category_desc_network">网络连接与运营商</string>
+    <string name="category_desc_app">应用自身信息</string>
+
+    <!-- Export dialog -->
+    <string name="export_title">导出模块</string>
+    <string name="export_confirm_text">即将导出当前设备信息为改机型模块</string>
+    <string name="export_risk_warning">风险提示：文件类型为 ZIP，可能包含设备信息。刷入模块可能影响系统行为，请仅在理解风险后继续。你可以随时取消导出。</string>
+    <string name="export_format_label">导出格式</string>
+    <string name="export_format_value">ZIP 压缩包</string>
+    <string name="export_save_location">保存位置</string>
+    <string name="export_filename">文件名</string>
+    <string name="export_confirm">确认导出？</string>
+    <string name="export_success">导出成功</string>
+    <string name="export_saved_to">文件已保存至：</string>
+    <string name="export_long_press_hint">长按路径可复制</string>
+    <string name="module_export_name">机型模拟-%1$s</string>
+    <string name="module_export_description">这是一个自动化程序生成的机型模拟模块，用于模拟 %1$s %2$s 设备。\n生成时间: %3$s\n注意: 使用此模块具有一定风险，请自行评估。</string>
+    <string name="device_id_fetch_failed">获取失败: %1$s</string>
+    <string name="cancel">取消</string>
+    <string name="confirm_export">确认导出</string>
+    <string name="confirm">确定</string>
+
+    <!-- External link dialog -->
+    <string name="external_link_open_browser">将会打开外部浏览器</string>
+    <string name="open">打开</string>
+    <string name="share">分享</string>
+
+    <!-- Update dialog -->
+    <string name="update_check_failed">检查更新失败</string>
+    <string name="update_found">发现新版本</string>
+    <string name="update_network_error">无法连接到GitHub，请检查网络后重试</string>
+    <string name="current_version">当前版本</string>
+    <string name="retry">重试</string>
+    <string name="manual_go">手动前往</string>
+    <string name="later">稍后</string>
+    <string name="close">关闭</string>
+    <string name="go_to_download">前往下载</string>
+
+    <!-- Toast messages -->
+    <string name="already_latest">已是最新版本</string>
+    <string name="export_failed">导出失败</string>
+    <string name="cannot_open_link">无法打开链接</string>
+    <string name="cannot_open_file">无法打开文件</string>
+    <string name="path_copied">路径已复制</string>
+
+    <!-- Network / API error messages -->
+    <string name="error_fetch_release">无法获取版本信息</string>
+    <string name="error_fetch_contributors">无法获取贡献者</string>
+    <string name="error_fetch_languages">无法获取语言信息</string>
+    <string name="error_network">网络异常</string>
+    <string name="error_create_export_dir">无法创建导出临时目录</string>
+    <string name="error_read_export_dir">无法读取导出临时目录</string>
+
+    <!-- About page -->
+    <string name="back">返回</string>
+    <string name="app_description">设备信息查看器</string>
+    <string name="version">版本</string>
+    <string name="open_source_license">开源协议</string>
+    <string name="gpl_license_desc">本项目基于 GNU 通用公共许可证第 3 版或更高版本（GPL-3.0-or-later）开源</string>
+    <string name="gpl_allow_free">可自由运行、研究、修改和再分发</string>
+    <string name="gpl_require_source">分发修改版时须提供对应源代码并保持相同许可证</string>
+    <string name="view_gpl_license">查看 GPL-3.0 全文</string>
+    <string name="contributors">贡献者</string>
+    <string name="contributors_count">%d 位贡献者</string>
+    <string name="no_data">暂无数据</string>
+    <string name="project_languages">项目使用语言</string>
+    <string name="project_links">项目链接</string>
+    <string name="view_source">查看源代码</string>
+    <string name="report_issues">反馈问题</string>
+    <string name="join_community">加入社区</string>
+    <string name="will_open_browser">即将跳转到外部浏览器</string>
+    <string name="app_icon_label">图标</string>
+    <string name="contributor_commits_count">%d 次提交</string>
+    <string name="view_homepage">查看 %s 的主页</string>
+
+    <!-- Device info page -->
+    <string name="overview_title">设备概览</string>
+    <string name="overview_loading">正在读取设备信息</string>
+    <string name="overview_storage">存储使用</string>
+    <string name="overview_memory">内存使用</string>
+    <string name="overview_battery">电池电量</string>
+    <string name="overview_cpu_frequency">CPU 频率</string>
+    <string name="overview_cpu_usage">CPU 占用</string>
+    <string name="overview_gpu_frequency">GPU 频率</string>
+    <string name="overview_gpu_usage">GPU 占用</string>
+    <string name="previous_page">上一页</string>
+    <string name="next_page">下一页</string>
+    <string name="page_info">第 %1$d / %2$d 页</string>
+    <string name="items_count">%d 项</string>
+    <string name="copied_to_clipboard">%s 已复制</string>
+    <string name="overview_realtime_title">实时动态</string>
+    <string name="overview_realtime_cpu">CPU 波形 · 2 秒采样</string>
+    <string name="overview_cpu_frequency_monitor">使用率受系统限制 · 实时核心频率</string>
+    <string name="overview_cpu_core_count">%d 核</string>
+    <string name="overview_cpu_cores_detail">每核心占用</string>
+    <string name="overview_hardware_title">硬件传感器</string>
+    <string name="overview_motion">陀螺仪 / 加速度计</string>
+    <string name="overview_brightness">屏幕亮度</string>
+    <string name="overview_storage_read">实时读速</string>
+    <string name="overview_storage_average">平均读速：%d MB/s</string>
+    <string name="overview_storage_average_unknown">平均读速：采样中</string>
+    <string name="overview_wifi_signal">Wi-Fi 信号</string>
+    <string name="status_stationary">静止</string>
+    <string name="status_moving">运动中</string>
+    <string name="status_unavailable">不可用</string>
+    <string name="overview_security_title">系统安全与隐私</string>
+    <string name="security_patch_updated">安全补丁已更新（%s）</string>
+    <string name="security_lock_enabled">锁屏密码：已启用</string>
+    <string name="security_lock_disabled">锁屏密码：未启用</string>
+    <string name="security_lock_unknown">锁屏密码：状态未知</string>
+    <string name="security_usb_enabled">USB 调试：已开启</string>
+    <string name="security_usb_disabled">USB 调试：已关闭</string>
+    <string name="security_usb_unknown">USB 调试：状态未知</string>
+    <string name="security_usb_dialog_title">USB 调试已开启</string>
+    <string name="security_usb_dialog_text">USB 调试开启时，连接电脑可执行调试命令。如非开发需要，建议关闭。</string>
+    <string name="security_open_developer_options">打开开发者选项</string>
+
+    <!-- Tool settings -->
+    <string name="export_tool">导出模块</string>
+    <string name="export_summary">导出当前设备信息为改机型模块</string>
+    <string name="about_app">关于 DevInfo</string>
+    <string name="about_summary">查看应用信息、贡献者与开源协议</string>
+    <string name="about_source_link" translatable="false">在%1$s 上查看源码</string>
+    <string name="settings_check_update">检查更新</string>
+    <string name="settings_check_update_summary">打开应用时自动检查是否有新版本</string>
+    <string name="footer_tag">设备信息查看器</string>
+
+    <!-- Test version warning -->
+    <string name="test_version_warning">测试版本</string>
+    <string name="test_version_desc">当前为开发测试版，不建议在生产环境使用</string>
+    <string name="warning_icon_desc">警告</string>
+
+    <!-- Device data labels (from DeviceInfoCollector) -->
+    <string name="device_android_id">Android ID</string>
+    <string name="device_serial">序列号</string>
+    <string name="device_brand">品牌</string>
+    <string name="device_manufacturer">制造商</string>
+    <string name="device_model">型号</string>
+    <string name="device_product">产品</string>
+    <string name="device_device">设备</string>
+    <string name="device_board">主板</string>
+    <string name="device_hardware">硬件</string>
+    <string name="device_bootloader">引导程序</string>
+    <string name="device_build_id">构建ID</string>
+    <string name="device_tags">标签</string>
+    <string name="device_time">时间</string>
+    <string name="device_type">类型</string>
+    <string name="system_cpu_arch">CPU架构</string>
+    <string name="system_cpu_cores">CPU核心数</string>
+    <string name="system_sdk_version">SDK版本</string>
+    <string name="system_android_version">Android版本</string>
+    <string name="system_security_patch">安全补丁</string>
+    <string name="system_baseband">基带版本</string>
+    <string name="system_uptime">运行时间</string>
+    <string name="system_kernel">内核版本</string>
+    <string name="system_abis_32">32 位 ABI</string>
+    <string name="system_abis_64">64 位 ABI</string>
+    <string name="system_features">设备特性</string>
+    <string name="locale_language">语言</string>
+    <string name="locale_country">国家</string>
+    <string name="locale_timezone">时区</string>
+    <string name="display_dpi">屏幕DPI</string>
+    <string name="display_density">屏幕密度</string>
+    <string name="display_width">屏幕宽度</string>
+    <string name="display_height">屏幕高度</string>
+    <string name="display_size">屏幕 dp 尺寸</string>
+    <string name="display_refresh_rate">刷新率</string>
+    <string name="display_font_scale">字体缩放</string>
+    <string name="storage_total_ram">总内存</string>
+    <string name="storage_available_ram">可用内存</string>
+    <string name="storage_total">存储总量</string>
+    <string name="storage_available">可用存储</string>
+    <string name="battery_level_label">电池电量</string>
+    <string name="battery_charging_state">充电状态</string>
+    <string name="battery_temperature">电池温度</string>
+    <string name="battery_health">电池健康</string>
+    <string name="battery_voltage">电池电压</string>
+    <string name="battery_technology">电池技术</string>
+    <string name="network_nfc">NFC功能</string>
+    <string name="network_camera_count">摄像头数量</string>
+    <string name="network_bluetooth_state">蓝牙状态</string>
+    <string name="network_type">网络类型</string>
+    <string name="network_operator">运营商</string>
+    <string name="network_sim_state">SIM卡状态</string>
+    <string name="app_package">包名</string>
+    <string name="app_version_name">应用版本名</string>
+    <string name="app_version_code">应用版本码</string>
+    <string name="device_build_display">构建版本显示</string>
+    <string name="device_incremental">增量版本</string>
+    <string name="device_fingerprint">构建指纹</string>
+    <string name="device_host">构建主机</string>
+    <string name="device_user">构建用户</string>
+    <string name="device_soc_manufacturer">SoC制造商</string>
+    <string name="device_soc_model">SoC型号</string>
+    <string name="system_java_vm">Java虚拟机</string>
+    <string name="system_opengl_version">OpenGL ES版本</string>
+    <string name="system_google_play_services">Google Play服务</string>
+    <string name="system_treble">Treble支持</string>
+    <string name="system_sensor_count">传感器数量</string>
+    <string name="system_boot_time">开机时间</string>
+    <string name="system_usb_debugging">USB调试</string>
+    <string name="system_lock_screen">锁屏保护</string>
+    <string name="locale_display_name">区域名称</string>
+    <string name="locale_tag">语言标签</string>
+    <string name="locale_timezone_offset">时区偏移</string>
+    <string name="locale_currency">货币</string>
+    <string name="locale_system_locales">系统语言列表</string>
+    <string name="locale_24_hour">24小时制</string>
+    <string name="display_orientation">屏幕方向</string>
+    <string name="display_dark_mode">深色模式</string>
+    <string name="display_hdr">HDR支持</string>
+    <string name="display_wide_color_gamut">广色域</string>
+    <string name="display_brightness">屏幕亮度</string>
+    <string name="display_timeout">息屏时间</string>
+    <string name="display_supported_refresh_rates">支持的刷新率</string>
+    <string name="storage_low_memory">低内存状态</string>
+    <string name="storage_memory_threshold">低内存阈值</string>
+    <string name="storage_internal_total">内部存储总量</string>
+    <string name="storage_internal_available">内部可用存储</string>
+    <string name="storage_app_heap">应用堆内存限制</string>
+    <string name="storage_emulated">模拟存储</string>
+    <string name="storage_removable">可移除存储</string>
+    <string name="battery_plug_type">充电方式</string>
+    <string name="battery_current_now">实时电流</string>
+    <string name="battery_charge_counter">当前电量容量</string>
+    <string name="battery_capacity_design">设计容量</string>
+    <string name="battery_cycle_count">循环次数</string>
+    <string name="battery_power_save">省电模式</string>
+    <string name="network_sim_operator">SIM运营商</string>
+    <string name="network_sim_country">SIM国家代码</string>
+    <string name="network_phone_type">电话类型</string>
+    <string name="network_wifi_enabled">Wi-Fi开关</string>
+    <string name="network_metered">计费网络</string>
+    <string name="network_vpn">VPN状态</string>
+    <string name="network_airplane_mode">飞行模式</string>
+    <string name="network_data_roaming">数据漫游</string>
+    <string name="network_link_speed">链路速率</string>
+    <string name="app_first_install">首次安装时间</string>
+    <string name="app_last_update">最近更新时间</string>
+    <string name="app_target_sdk">目标SDK</string>
+    <string name="app_min_sdk">最低SDK</string>
+    <string name="app_installer">安装来源</string>
+    <string name="app_installed_count">可见应用数</string>
+    <string name="status_yes">是</string>
+    <string name="status_no">否</string>
+    <string name="status_landscape">横屏</string>
+    <string name="status_portrait">竖屏</string>
+    <string name="status_plugged_ac">交流充电</string>
+    <string name="status_plugged_usb">USB充电</string>
+    <string name="status_plugged_wireless">无线充电</string>
+    <string name="status_unplugged">未连接</string>
+    <string name="status_none">无</string>
+    <string name="status_sideloaded">手动安装</string>
+
+    <!-- Status strings from collector -->
+    <string name="status_charging">充电中</string>
+    <string name="status_health_good">良好</string>
+    <string name="status_health_overheat">过热</string>
+    <string name="status_health_dead">故障</string>
+    <string name="status_health_over_voltage">过压</string>
+    <string name="status_health_failure">未知故障</string>
+    <string name="status_health_cold">过冷</string>
+    <string name="status_not_charging">未充电</string>
+    <string name="status_supported">支持</string>
+    <string name="status_not_supported">不支持</string>
+    <string name="status_enabled">开启</string>
+    <string name="status_disabled">关闭</string>
+    <string name="status_unknown">未知</string>
+    <string name="status_sim_ready">就绪</string>
+    <string name="status_sim_absent">无SIM卡</string>
+    <string name="status_sim_network_locked">网络锁定</string>
+    <string name="status_sim_pin_required">需要PIN</string>
+    <string name="status_sim_puk_required">需要PUK</string>
+    <string name="status_sim_not_ready">未就绪</string>
+    <string name="status_sim_permanently_disabled">永久禁用</string>
+    <string name="status_sim_io_error">卡IO错误</string>
+    <string name="status_sim_restricted">卡受限</string>
+    <string name="status_unknown_state">未知状态</string>
+
+    <!-- CPU Root 监控 -->
+    <string name="cpu_root_mode">Root 模式（实时占用率）</string>
+    <string name="cpu_normal_mode">普通模式（仅频率）</string>
+    <string name="cpu_system_restricted">系统限制</string>
+    <string name="cpu_usage_restricted">受系统限制</string>
+    <string name="root_mode_enabled">已启用 Root 监控模式</string>
+    <string name="root_mode_failed">Root 读取失败</string>
+    <string name="root_required_title">需要 Root 权限</string>
+    <string name="root_required_message">设备未 Root，无法启用高级 CPU 监控模式。\n\n提示：\n• 已 Root 设备可获取每核心真实占用率\n• 当前仅显示 CPU 频率</string>
+    <string name="root_fab_desc">CPU 监控模式切换</string>
+    <string name="status_wifi">Wi-Fi</string>
+    <string name="status_cellular">移动网络</string>
+    <string name="status_ethernet">以太网</string>
+    <string name="status_bluetooth">蓝牙</string>
+
+    <!-- Copyright -->
+    <string name="copyright">© 2026 FIOIU8</string>
+</resources>
