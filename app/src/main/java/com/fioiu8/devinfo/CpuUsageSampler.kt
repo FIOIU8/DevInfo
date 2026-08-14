@@ -86,7 +86,7 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
         scope.coroutineContext.cancelChildren()
     }
 
-    private fun read(): CpuUsageReading {
+    private suspend fun read(): CpuUsageReading {
         val cores = runCatching { collector.getCpuCoreMetrics() }.getOrDefault(emptyList())
         return if (cores.isNotEmpty()) {
             val perCoreAverage = cores.mapNotNull { it.usagePercent }

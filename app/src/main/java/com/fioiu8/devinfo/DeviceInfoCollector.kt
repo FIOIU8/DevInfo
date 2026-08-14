@@ -48,6 +48,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.delay
 
 private inline fun safeGet(default: String, block: () -> String): String {
     return try {
@@ -340,10 +341,10 @@ class DeviceInfoCollector(private val context: Context) {
 
     fun getCpuFrequency(): String? = readFrequency(*cpuFrequencyPaths(0).toTypedArray())
 
-    fun getCpuCoreMetrics(): List<CpuCoreMetric> = runCatching {
+    suspend fun getCpuCoreMetrics(): List<CpuCoreMetric> = runCatching {
         val first = readCpuTimesByCore()
         if (first.isEmpty()) return@runCatching getCpuCoreTopologyMetrics()
-        Thread.sleep(180)
+        delay(180)
         val second = readCpuTimesByCore()
         (first.keys + second.keys).toSortedSet().map { index ->
             val firstTimes = first[index]
@@ -377,10 +378,10 @@ class DeviceInfoCollector(private val context: Context) {
     }.getOrDefault(false)
 
     /** 通过 Root 权限读取 /proc/stat 并计算每核心占用率 */
-    fun getCpuCoreMetricsWithRoot(): List<CpuCoreMetric> = runCatching {
+    suspend fun getCpuCoreMetricsWithRoot(): List<CpuCoreMetric> = runCatching {
         val first = readCpuTimesByCoreWithRoot()
         if (first.isEmpty()) return@runCatching emptyList()
-        Thread.sleep(180)
+        delay(180)
         val second = readCpuTimesByCoreWithRoot()
         (first.keys + second.keys).toSortedSet().map { index ->
             val firstTimes = first[index]
@@ -431,13 +432,13 @@ class DeviceInfoCollector(private val context: Context) {
         "/sys/devices/platform/17000000.gpu/devfreq/17000000.gpu/cur_freq"
     )
 
-    fun getCpuUsagePercent(): Float? = runCatching {
+    suspend fun getCpuUsagePercent(): Float? = runCatching {
         val first = readCpuTimes()
         val firstUptime = if (first == null) readCpuUptime() else null
         if (first == null && firstUptime == null) {
             return@runCatching readCpuUsageFromTop()
         }
-        Thread.sleep(180)
+        delay(180)
         if (first != null) {
             val second = readCpuTimes() ?: return@runCatching null
             val totalDelta = second.total - first.total
