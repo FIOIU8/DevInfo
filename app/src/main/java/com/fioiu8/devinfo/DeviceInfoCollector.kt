@@ -40,7 +40,6 @@ import android.telephony.TelephonyManager
 import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.DeviceInfoItem
 import com.fioiu8.devinfo.model.InfoCategory
-import com.fioiu8.devinfo.ui.itemIconByResId
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Currency
@@ -1022,8 +1021,7 @@ class DeviceInfoCollector(private val context: Context) {
             key = context.resources.getResourceEntryName(keyResId),
             keyResId = keyResId,
             value = normalizedValue,
-            category = category,
-            icon = itemIconByResId(keyResId)
+            category = category
         )
     }
 

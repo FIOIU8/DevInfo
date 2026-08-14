@@ -88,6 +88,7 @@ import com.fioiu8.devinfo.R
 import com.fioiu8.devinfo.model.InfoCategory
 import com.fioiu8.devinfo.model.ItemWithVisibility
 import com.fioiu8.devinfo.model.UiStyle
+import com.fioiu8.devinfo.ui.itemIconByResId
 import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.BasicComponent as MiuixBasicComponent
@@ -467,7 +468,7 @@ private fun MiuixCategoryCard(
                             InfoRow(
                                 label = resources.getString(item.item.keyResId) + ":",
                                 value = item.item.value,
-                                icon = item.item.icon
+                                icon = itemIconByResId(item.item.keyResId)
                             )
                         }
                     }
@@ -992,7 +993,7 @@ private fun CategoryCard(
                                 InfoRow(
                                     label = stringResource(item.item.keyResId) + ":",
                                     value = item.item.value,
-                                    icon = item.item.icon
+                                    icon = itemIconByResId(item.item.keyResId)
                                 )
                             }
                         }
