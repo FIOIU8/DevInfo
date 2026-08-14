@@ -89,7 +89,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -149,7 +149,7 @@ fun DeviceInfoPage(
     }
 
     val resources = LocalResources.current
-    val clipboard = LocalClipboard.current
+    val clipboard = LocalClipboardManager.current
     val showMessage = rememberDevInfoMessageHandler()
     val scope = rememberCoroutineScope()
     val categories = InfoCategory.entries
@@ -284,7 +284,7 @@ private fun MiuixDeviceInfoPage(
     initialCategory: InfoCategory,
 ) {
     val resources = LocalResources.current
-    val clipboard = LocalClipboard.current
+    val clipboard = LocalClipboardManager.current
     val showMessage = rememberDevInfoMessageHandler()
     val scope = rememberCoroutineScope()
     val categories = InfoCategory.entries
