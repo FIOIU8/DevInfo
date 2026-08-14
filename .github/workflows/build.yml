@@ -29,27 +29,59 @@ permissions:
   actions: read
 
 jobs:
+  # -------------------------------
+  # Job 1: Verify (Test, Lint, Assemble)
+  # Runs on every push and PR
+  # -------------------------------
   verify:
-    name: Verify (Test, Lint, Assemble)
+    name: Verify
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
-      - name: Run verify checks
-        run: |
-          chmod +x gradlew
-          ./gradlew testDebugUnitTest ktlintCheck lintDebug assembleDebug --stacktrace
 
+      - name: Grant execute permission
+        run: chmod +x gradlew
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Run ktlint check
+        run: ./gradlew ktlintCheck --stacktrace
+
+      - name: Run lint
+        run: ./gradlew lintDebug --stacktrace
+
+      - name: Assemble debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.*
+          retention-days: 7
+
+  # -------------------------------
+  # Job 2: Build APK
+  # Only runs on push to main/test or workflow_dispatch (skips PR from forks)
+  # -------------------------------
   build:
     name: Build APK
     needs: verify
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     outputs:
       version_name: ${{ steps.version.outputs.version_name }}
@@ -70,6 +102,8 @@ jobs:
       # -------------------------------
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # -------------------------------
       # 2. Set up Java 21 (Temurin)
@@ -80,14 +114,8 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: 缓存 Gradle Wrapper
-        uses: actions/cache@v4
-        with:
-          path: ~/.gradle/wrapper
-          key: gradle-wrapper-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties') }}
-
       # -------------------------------
-      # 3. Configure Gradle
+      # 3. Setup Gradle (includes built-in caching)
       # -------------------------------
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -169,36 +197,32 @@ jobs:
             if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
               echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
               echo "Release keystore decoded"
-              ls -la release.keystore
             else
-              echo "Error: KEYSTORE_BASE64 secret not found — cannot sign release build"
+              echo "Error: KEYSTORE_BASE64 secret not found - cannot sign release build"
               exit 1
             fi
           fi
 
-          # For debug builds, create a temporary debug keystore
           if [[ "${{ steps.version.outputs.signature_type }}" == "debug" ]]; then
-            keytool -genkey -v \
-              -keystore debug.keystore \
-              -alias androiddebugkey \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=Debug-CI, O=Android, C=CN" \
-              -storepass android \
-              -keypass android
-            echo "Debug keystore created"
+            if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+              echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > debug.keystore
+              echo "Using stored keystore for debug build"
+            else
+              echo "No keystore secret found, using default debug keystore"
+            fi
           fi
 
       # -------------------------------
-      # 8. Build single universal APK (not per-ABI)
-      #    Output: app-release.apk or app-debug.apk
+      # 8. Build APK based on signature type
       # -------------------------------
-      - name: Build universal APK
+      - name: Build APK
         run: |
           chmod +x gradlew
-          # Build the release variant (will be signed with the appropriate keystore via Gradle config)
-          ./gradlew assembleRelease --stacktrace
+          if [[ "${{ steps.version.outputs.signature_type }}" == "release" ]]; then
+            ./gradlew assembleRelease --stacktrace
+          else
+            ./gradlew assembleDebug --stacktrace
+          fi
         env:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
@@ -208,19 +232,21 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       # -------------------------------
-      # 9. Rename APK to a simple name like app-release.apk
+      # 9. Rename APK
       # -------------------------------
       - name: Rename APK
         if: success()
         run: |
           SIGNATURE_TYPE="${{ steps.version.outputs.signature_type }}"
-          # Find the built APK (usually in app/build/outputs/apk/release/)
-          APK_FILE=$(find app/build/outputs/apk -name "*.apk" -type f | head -1)
+          if [[ "$SIGNATURE_TYPE" == "release" ]]; then
+            APK_FILE=$(find app/build/outputs/apk/release -name "*.apk" -type f | head -1)
+          else
+            APK_FILE=$(find app/build/outputs/apk/debug -name "*.apk" -type f | head -1)
+          fi
           if [ -z "$APK_FILE" ]; then
             echo "Error: APK not found"
             exit 1
           fi
-          # Rename to app-{signature}.apk (e.g., app-release.apk, app-debug.apk)
           NEW_NAME="app-${SIGNATURE_TYPE}.apk"
           cp "$APK_FILE" "$NEW_NAME"
           echo "Renamed APK to $NEW_NAME"
