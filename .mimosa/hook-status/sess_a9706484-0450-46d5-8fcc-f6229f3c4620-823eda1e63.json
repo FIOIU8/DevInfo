@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "mimosa-hook-status/v1",
+  "recordedAt": "2026-08-14T07:12:31.079Z",
+  "sessionId": "sess_a9706484-0450-46d5-8fcc-f6229f3c4620",
+  "event": "PostToolUse",
+  "toolName": "Edit",
+  "file": "core/src/test/java/com/fioiu8/devinfo/core/cpu/CpuTopologyParserTest.kt",
+  "outcome": "clear",
+  "coverage": "complete",
+  "findingCount": 0,
+  "durationMs": 37,
+  "hostState": "hook_complete",
+  "reportHint": ".mimosa/reports/"
+}

@@ -110,10 +110,11 @@ const val CPU_USAGE_SAMPLE_DELAY_MS = 180L
 }
 
 /** Format CPU frequency from raw value (Hz) to human-readable string */
- fun formatCpuFrequency(rawHz: Long): String {
+fun formatCpuFrequency(rawHz: Long): String {
     return when {
-        rawHz >= 1_000_000 -> "%.2f GHz".format(rawHz / 1_000_000.0)
-        rawHz >= 1_000 -> "%.0f MHz".format(rawHz / 1_000.0)
+        rawHz >= 1_000_000_000 -> "%.2f GHz".format(rawHz / 1_000_000_000.0)
+        rawHz >= 1_000_000 -> "%.0f MHz".format(rawHz / 1_000_000.0)
+        rawHz >= 1_000 -> "%.0f kHz".format(rawHz / 1_000.0)
         else -> "$rawHz Hz"
     }
 }
