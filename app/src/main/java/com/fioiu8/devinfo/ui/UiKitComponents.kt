@@ -102,6 +102,10 @@ import top.yukonga.miuix.kmp.blur.drawBackdrop
 import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
+/** Shared navigation bar geometry constants. */
+private val NAV_BAR_HEIGHT = 64.dp
+private val NAV_BAR_ITEM_PADDING = 4.dp
+
 private val LocalMaterialSnackbarHostState = staticCompositionLocalOf<SnackbarHostState?> { null }
 private val LocalMiuixSnackbarHostState = staticCompositionLocalOf<MiuixSnackbarHostState?> { null }
 
@@ -231,7 +235,7 @@ private fun MaterialFloatingNavigationBar(
     Row(
         modifier = modifier
             .width(IntrinsicSize.Min)
-            .height(64.dp)
+            .height(NAV_BAR_HEIGHT)
             .shadow(elevation = 14.dp, shape = shape, clip = false)
             .then(
                 if (glassEffect && blurBackdrop != null) {
@@ -253,7 +257,7 @@ private fun MaterialFloatingNavigationBar(
                 shape = shape,
             )
             .clip(shape)
-            .padding(4.dp),
+            .padding(NAV_BAR_ITEM_PADDING),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         items.forEachIndexed { index, item ->
@@ -346,7 +350,7 @@ fun DevInfoMiuixFloatingNavigationBar(
     Row(
         modifier = modifier
             .width(IntrinsicSize.Min)
-            .height(64.dp)
+            .height(NAV_BAR_HEIGHT)
             .shadow(elevation = 10.dp, shape = shape, clip = false)
             .then(
                 if (glassEffect && blurBackdrop != null) {
@@ -366,7 +370,7 @@ fun DevInfoMiuixFloatingNavigationBar(
                 shape = shape,
             )
             .clip(shape)
-            .padding(4.dp),
+            .padding(NAV_BAR_ITEM_PADDING),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         items.forEachIndexed { index, item ->
