@@ -89,7 +89,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -149,8 +149,9 @@ fun DeviceInfoPage(
     }
 
     val resources = LocalResources.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val showMessage = rememberDevInfoMessageHandler()
+    val scope = rememberCoroutineScope()
     val categories = InfoCategory.entries
     val itemsByCategory = remember(itemsState) {
         itemsState.groupBy { it.item.category }
@@ -158,9 +159,9 @@ fun DeviceInfoPage(
     val pageCountsByCategory = remember(itemsByCategory) {
         itemsByCategory.mapValues { (_, categoryItems) -> categoryItems.pageCount() }
     }
-    val onItemCopy: (ItemWithVisibility) -> Unit = remember(clipboardManager, resources, showMessage) {
+    val onItemCopy: (ItemWithVisibility) -> Unit = remember(clipboard, resources, showMessage) {
         { item ->
-            clipboardManager.setText(AnnotatedString(item.item.value))
+            scope.launch { clipboard.setText(AnnotatedString(item.item.value)) }
             val itemLabel = resources.getString(item.item.keyResId)
             showMessage(
                 resources.getString(
@@ -283,7 +284,7 @@ private fun MiuixDeviceInfoPage(
     initialCategory: InfoCategory,
 ) {
     val resources = LocalResources.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val showMessage = rememberDevInfoMessageHandler()
     val scope = rememberCoroutineScope()
     val categories = InfoCategory.entries
@@ -333,7 +334,7 @@ private fun MiuixDeviceInfoPage(
                     }
                 },
                 onItemClick = { item ->
-                    clipboardManager.setText(AnnotatedString(item.item.value))
+                    scope.launch { clipboard.setText(AnnotatedString(item.item.value)) }
                     showMessage(
                         resources.getString(
                             R.string.copied_to_clipboard,
@@ -453,7 +454,6 @@ private fun MiuixCategoryCard(
                                 MiuixCpuCoreSection(overviewSnapshot.cpuCoreMetrics)
                             }
                         }
-                        else -> { }
                     }
                 }
             }
