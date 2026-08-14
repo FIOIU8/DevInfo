@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ktlint)
+    id("com.github.ben-manes.versions") version "0.52.0"
 }
 
 android {
