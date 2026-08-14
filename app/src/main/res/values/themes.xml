@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- 基础主题：无 ActionBar -->
-    <style name="Theme.DevInfo" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+      Base theme: No ActionBar, transparent system bars for edge-to-edge Compose content.
+      Compose handles all UI theming via DevInfoTheme; this only affects the window chrome.
+    -->
+    <style name="Theme.DevInfo" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Transparent status/navigation bars for edge-to-edge -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
 
     <!-- 启动屏主题（浅色） -->
     <style name="Theme.DevInfo.Splash" parent="Theme.SplashScreen">
