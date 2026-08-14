@@ -32,7 +32,7 @@ import com.fioiu8.devinfo.ui.CpuUsageSample
 import com.fioiu8.devinfo.ui.DeviceInfoOverviewPage
 import com.fioiu8.devinfo.ui.OverviewSnapshot
 import com.fioiu8.devinfo.ui.theme.DevInfoTheme
-import com.fioiu8.devinfo.model.ThemeMode
+import com.fioiu8.devinfo.data.ThemeMode
 import org.junit.Rule
 
 import org.junit.Test

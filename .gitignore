@@ -30,3 +30,4 @@ debug.keystore
 logs/
 local/
 
+build/

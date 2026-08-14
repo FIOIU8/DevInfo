@@ -32,11 +32,19 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.fioiu8.devinfo.model.AppLanguage
-import com.fioiu8.devinfo.model.PaletteStyle
-import com.fioiu8.devinfo.ui.MainScreen
-import com.fioiu8.devinfo.ui.MainScreenSettings
-import com.fioiu8.devinfo.ui.MainViewModel
+import com.fioiu8.devinfo.data.BatteryObserver
+import com.fioiu8.devinfo.data.DeviceInfoCollector
+import com.fioiu8.devinfo.data.LanguagePreferences
+import com.fioiu8.devinfo.data.LiveHardwareMonitor
+import com.fioiu8.devinfo.data.ModuleExportHelper
+import com.fioiu8.devinfo.data.ThemePreferences
+import com.fioiu8.devinfo.data.UpdateChecker
+import com.fioiu8.devinfo.data.AppLanguage
+import com.fioiu8.devinfo.data.CpuUsageSampler
+import com.fioiu8.devinfo.core.model.PaletteStyle
+import com.fioiu8.devinfo.feature.main.MainScreen
+import com.fioiu8.devinfo.feature.main.MainScreenSettings
+import com.fioiu8.devinfo.feature.main.MainViewModel
 import com.fioiu8.devinfo.ui.theme.DevInfoTheme
 
 class MainActivity : ComponentActivity() {
@@ -85,7 +93,7 @@ class MainActivity : ComponentActivity() {
 
         // 设备唯一标识
         val deviceId = try {
-            DeviceIdManager(this).getOrCreateDeviceId()
+            com.fioiu8.devinfo.data.DeviceIdManager(this).getOrCreateDeviceId()
         } catch (e: Exception) {
             getString(R.string.device_id_fetch_failed, e.message.orEmpty())
         }
@@ -114,7 +122,7 @@ class MainActivity : ComponentActivity() {
             val mainViewModel: MainViewModel = viewModel(factory = mainViewModelFactory)
             val checkUpdate by themePrefs.checkUpdate.collectAsState(initial = true)
             val paletteStyle by themePrefs.paletteStyle.collectAsState(initial = PaletteStyle.DEFAULT)
-            val colorSpec by themePrefs.colorSpec.collectAsState(initial = com.fioiu8.devinfo.model.ColorSpec.DEFAULT)
+            val colorSpec by themePrefs.colorSpec.collectAsState(initial = com.fioiu8.devinfo.core.model.ColorSpec.DEFAULT)
             val enableBlur by themePrefs.enableBlur.collectAsState(initial = false)
             val enableFloatingBottomBar by themePrefs.enableFloatingBottomBar.collectAsState(initial = true)
             val enableFloatingBottomBarBlur by themePrefs.enableFloatingBottomBarBlur.collectAsState(initial = true)
