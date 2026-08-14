@@ -7,8 +7,10 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- 蓝牙权限 -->
-    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <!-- 蓝牙权限 (Android 12 以下需要) -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
     <!-- Android 12+ 蓝牙权限 -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
