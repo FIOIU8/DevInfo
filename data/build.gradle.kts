@@ -40,7 +40,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
 
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation(libs.kotlinx.coroutines.android)
 
     // JSON (org.json is part of Android, no extra dep needed)
 
