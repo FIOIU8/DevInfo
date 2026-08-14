@@ -160,7 +160,16 @@
     <string name="already_latest">最新バージョンです</string>
     <string name="export_failed">エクスポートに失敗しました</string>
     <string name="cannot_open_link">リンクを開けません</string>
+    <string name="cannot_open_file">ファイルを開けません</string>
     <string name="path_copied">パスをコピーしました</string>
+
+    <!-- Network / API error messages -->
+    <string name="error_fetch_release">リリース情報を取得できません</string>
+    <string name="error_fetch_contributors">貢献者を取得できません</string>
+    <string name="error_fetch_languages">言語情報を取得できません</string>
+    <string name="error_network">ネットワークエラー</string>
+    <string name="error_create_export_dir">エクスポート用一時ディレクトリを作成できません</string>
+    <string name="error_read_export_dir">エクスポート用一時ディレクトリを読み取れません</string>
 
     <!-- About page -->
     <string name="back">戻る</string>

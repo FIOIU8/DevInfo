@@ -164,7 +164,16 @@
     <string name="already_latest">Already up-to-date</string>
     <string name="export_failed">Export failed</string>
     <string name="cannot_open_link">Cannot open link</string>
+    <string name="cannot_open_file">Cannot open file</string>
     <string name="path_copied">Path copied</string>
+
+    <!-- Network / API error messages -->
+    <string name="error_fetch_release">Unable to fetch release info</string>
+    <string name="error_fetch_contributors">Unable to fetch contributors</string>
+    <string name="error_fetch_languages">Unable to fetch language info</string>
+    <string name="error_network">Network error</string>
+    <string name="error_create_export_dir">Unable to create export temp directory</string>
+    <string name="error_read_export_dir">Unable to read export temp directory</string>
 
     <!-- About page -->
     <string name="back">Back</string>

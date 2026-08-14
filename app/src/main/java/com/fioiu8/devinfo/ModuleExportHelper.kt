@@ -214,7 +214,7 @@ class ModuleExportHelper(private val context: Context) {
 
     private fun createDirectory(directory: File) {
         if (!directory.isDirectory && !directory.mkdirs()) {
-            throw IOException("无法创建导出临时目录")
+            throw IOException(context.getString(R.string.error_create_export_dir))
         }
     }
 
@@ -947,7 +947,7 @@ exit 0
 
     private fun collectZipEntryNames(dir: File, parentPath: String): List<String> {
         val children = dir.listFiles()?.sortedBy(File::getName)
-            ?: throw IOException("无法读取导出临时目录")
+            ?: throw IOException(context.getString(R.string.error_read_export_dir))
         return children.flatMap { file ->
             val entryPath = if (parentPath.isEmpty()) file.name else "$parentPath/${file.name}"
             if (file.isDirectory) {
@@ -985,7 +985,7 @@ exit 0
      */
     private fun zipDirectory(dir: File, parentPath: String, zipOut: ZipOutputStream) {
         val children = dir.listFiles()?.sortedBy(File::getName)
-            ?: throw IOException("无法读取导出临时目录")
+            ?: throw IOException(context.getString(R.string.error_read_export_dir))
         children.forEach { file ->
             // 构建在 ZIP 中的条目路径
             // 如果是根目录，直接使用文件名；否则添加父路径前缀

@@ -158,7 +158,16 @@
     <string name="already_latest">已是最新版本</string>
     <string name="export_failed">导出失败</string>
     <string name="cannot_open_link">无法打开链接</string>
+    <string name="cannot_open_file">无法打开文件</string>
     <string name="path_copied">路径已复制</string>
+
+    <!-- Network / API error messages -->
+    <string name="error_fetch_release">无法获取版本信息</string>
+    <string name="error_fetch_contributors">无法获取贡献者</string>
+    <string name="error_fetch_languages">无法获取语言信息</string>
+    <string name="error_network">网络异常</string>
+    <string name="error_create_export_dir">无法创建导出临时目录</string>
+    <string name="error_read_export_dir">无法读取导出临时目录</string>
 
     <!-- About page -->
     <string name="back">返回</string>

@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * 更新检查器 — 封装 GitHub API + 12 小时缓存。
  */
-class UpdateChecker(context: Context) {
+class UpdateChecker(private val context: Context) {
 
     private val cacheRepository: PreferenceRepository = runCatching {
         DataStorePreferenceRepository(context)
@@ -62,7 +62,7 @@ class UpdateChecker(context: Context) {
             }
         }
 
-        when (val result = GitHubClient.getLatestRelease()) {
+        when (val result = GitHubClient.getLatestRelease(context)) {
             is GitHubClient.ApiResult.Success -> {
                 val info = result.data
                 _releaseInfo.value = info

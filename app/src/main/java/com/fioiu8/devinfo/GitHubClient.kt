@@ -17,6 +17,7 @@
 
 package com.fioiu8.devinfo
 
+import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -35,6 +36,22 @@ object GitHubClient {
     private const val BASE = "https://api.github.com"
     private const val OWNER = "FIOIU8"
     private const val REPO = "DevInfo"
+
+    /** Resolved error messages from string resources. Populated lazily on first use. */
+    private var errorMessageRelease: String? = null
+    private var errorMessageContributors: String? = null
+    private var errorMessageLanguages: String? = null
+    private var errorMessageNetwork: String? = null
+
+    private fun ensureMessages(context: Context) {
+        if (errorMessageRelease == null) {
+            val res = context.applicationContext.resources
+            errorMessageRelease = res.getString(R.string.error_fetch_release)
+            errorMessageContributors = res.getString(R.string.error_fetch_contributors)
+            errorMessageLanguages = res.getString(R.string.error_fetch_languages)
+            errorMessageNetwork = res.getString(R.string.error_network)
+        }
+    }
 
     /** GitHub Release 信息 */
     data class ReleaseInfo(
@@ -81,10 +98,11 @@ object GitHubClient {
         )
     }
 
-    suspend fun getLatestRelease(): ApiResult<ReleaseInfo> = withContext(Dispatchers.IO) {
+    suspend fun getLatestRelease(context: Context): ApiResult<ReleaseInfo> = withContext(Dispatchers.IO) {
         try {
+            ensureMessages(context)
             val json = getJson("/repos/$OWNER/$REPO/releases/latest") ?: run {
-                return@withContext ApiResult.Error("无法获取版本信息")
+                return@withContext ApiResult.Error(errorMessageRelease!!)
             }
             val assets = json.optJSONArray("assets")
             val downloadUrl = assets
@@ -102,14 +120,15 @@ object GitHubClient {
             )
         } catch (e: Exception) {
             Log.e(TAG, "getLatestRelease failed", e)
-            ApiResult.Error(e.message ?: "网络异常")
+            ApiResult.Error(e.message ?: errorMessageNetwork!!)
         }
     }
 
-    suspend fun getContributors(): ApiResult<List<Contributor>> = withContext(Dispatchers.IO) {
+    suspend fun getContributors(context: Context): ApiResult<List<Contributor>> = withContext(Dispatchers.IO) {
         try {
+            ensureMessages(context)
             val arr = getJsonArray("/repos/$OWNER/$REPO/contributors?per_page=10") ?: run {
-                return@withContext ApiResult.Error("无法获取贡献者")
+                return@withContext ApiResult.Error(errorMessageContributors!!)
             }
             val list = (0 until arr.length()).map { i ->
                 val obj = arr.getJSONObject(i)
@@ -123,14 +142,15 @@ object GitHubClient {
             ApiResult.Success(list)
         } catch (e: Exception) {
             Log.e(TAG, "getContributors failed", e)
-            ApiResult.Error(e.message ?: "网络异常")
+            ApiResult.Error(e.message ?: errorMessageNetwork!!)
         }
     }
 
-    suspend fun getLanguages(): ApiResult<Map<String, Int>> = withContext(Dispatchers.IO) {
+    suspend fun getLanguages(context: Context): ApiResult<Map<String, Int>> = withContext(Dispatchers.IO) {
         try {
+            ensureMessages(context)
             val json = getJson("/repos/$OWNER/$REPO/languages") ?: run {
-                return@withContext ApiResult.Error("无法获取语言信息")
+                return@withContext ApiResult.Error(errorMessageLanguages!!)
             }
             val map = mutableMapOf<String, Int>()
             val keys = json.keys()
@@ -141,7 +161,7 @@ object GitHubClient {
             ApiResult.Success(map)
         } catch (e: Exception) {
             Log.e(TAG, "getLanguages failed", e)
-            ApiResult.Error(e.message ?: "网络异常")
+            ApiResult.Error(e.message ?: errorMessageNetwork!!)
         }
     }
 
