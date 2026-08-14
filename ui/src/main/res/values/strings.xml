@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Test version warning -->
+    <string name="test_version_warning">测试版本</string>
+    <string name="test_version_desc">当前为开发测试版，不建议在生产环境使用</string>
+    <string name="warning_icon_desc">警告</string>
+
+    <!-- InfoCategory display names -->
+    <string name="category_device">设备</string>
+    <string name="category_identifiers">标识符</string>
+    <string name="category_system">系统</string>
+    <string name="category_locale">区域</string>
+    <string name="category_display">显示</string>
+    <string name="category_storage">存储</string>
+    <string name="category_battery">电池</string>
+    <string name="category_network">网络</string>
+    <string name="category_app">应用</string>
+
+    <!-- InfoCategory descriptions -->
+    <string name="category_desc_device">设备硬件与构建信息</string>
+    <string name="category_desc_identifiers">设备唯一标识信息</string>
+    <string name="category_desc_system">操作系统与CPU信息</string>
+    <string name="category_desc_locale">语言、国家与时区</string>
+    <string name="category_desc_display">屏幕相关参数</string>
+    <string name="category_desc_storage">内存与存储空间</string>
+    <string name="category_desc_battery">电池状态信息</string>
+    <string name="category_desc_network">网络连接与运营商</string>
+    <string name="category_desc_app">应用自身信息</string>
+
+    <!-- Theme color names -->
+    <string name="mount_color_default">默认</string>
+    <string name="mount_color_red">红色</string>
+    <string name="mount_color_orange">橙色</string>
+    <string name="mount_color_yellow">黄色</string>
+    <string name="mount_color_green">绿色</string>
+    <string name="mount_color_teal">青色</string>
+    <string name="mount_color_cyan">青色</string>
+    <string name="mount_color_blue">蓝色</string>
+    <string name="mount_color_indigo">靛蓝</string>
+    <string name="mount_color_deep_purple">深紫</string>
+    <string name="mount_color_purple">紫色</string>
+    <string name="mount_color_pink">粉色</string>
+    <string name="mount_color_brown">棕色</string>
+    <string name="mount_color_blue_grey">蓝灰</string>
+    <string name="mount_color_sakura">樱花粉</string>
+    <string name="mount_color_dark">深色</string>
+</resources>
