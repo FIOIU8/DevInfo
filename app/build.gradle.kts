@@ -70,7 +70,7 @@ android {
     }
 }
 
-// ✅ 放在 android 块外面，根级别
+// 放在 android 块外面，根级别
 kotlin {
     jvmToolchain(21)
     compilerOptions {
