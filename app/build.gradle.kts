@@ -100,7 +100,7 @@ dependencies {
     implementation(libs.miuix.shader)
     implementation(libs.miuix.blur)
 
-    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation(libs.androidx.core.splashscreen)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
