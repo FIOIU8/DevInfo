@@ -26,3 +26,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "DevInfo"
 include(":app")
+include(":core")
+include(":data")
+include(":ui")
+include(":feature-main")
