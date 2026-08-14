@@ -195,7 +195,7 @@ private val staticCardResIds = listOf(
 private fun buildStaticInfoCards(items: List<ItemWithVisibility>): List<StaticInfoCardData> =
     staticCardResIds.mapNotNull { resId ->
         val item = items.firstOrNull { it.item.keyResId == resId }?.item ?: return@mapNotNull null
-        StaticInfoCardData(resId, item.value, item.category, item.icon)
+        StaticInfoCardData(resId, item.value, item.category, itemIconByResId(resId))
     }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
