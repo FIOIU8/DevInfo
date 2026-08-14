@@ -33,10 +33,14 @@ import kotlinx.coroutines.flow.asStateFlow
 abstract class BasePreferences<T : CharSequence>(
     context: Context,
     preferenceName: String,
-) {
+) : AutoCloseable {
 
     private val preferences: SharedPreferences =
         context.getSharedPreferences(preferenceName, Context.MODE_PRIVATE)
+
+    /** Tracks all registered listeners so they can be unregistered on close. */
+    private val registeredListeners =
+        mutableListOf<SharedPreferences.OnSharedPreferenceChangeListener>()
 
     protected fun <V : Enum<V>> enumPreference(
         key: T,
@@ -120,6 +124,7 @@ abstract class BasePreferences<T : CharSequence>(
 
         init {
             preferences.registerOnSharedPreferenceChangeListener(preferenceListener)
+            registeredListeners.add(preferenceListener)
         }
 
         val flow: StateFlow<V> = mutableValue.asStateFlow()
@@ -133,5 +138,14 @@ abstract class BasePreferences<T : CharSequence>(
                 mutableValue.value = value
             }
         }
+    }
+
+    /**
+     * Unregisters all preference listeners to prevent memory leaks.
+     * Call this when the preferences instance is no longer needed (e.g. Activity.onDestroy).
+     */
+    override fun close() {
+        registeredListeners.forEach { preferences.unregisterOnSharedPreferenceChangeListener(it) }
+        registeredListeners.clear()
     }
 }
