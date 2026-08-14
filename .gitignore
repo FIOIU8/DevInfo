@@ -1,9 +1,11 @@
+# Build outputs
 *.iml
 .gradle
 /local.properties
 .idea/
 .DS_Store
 /build
+/docs
 /captures
 .externalNativeBuild
 .cxx
@@ -12,4 +14,19 @@ local.properties
 *.log
 *.bak
 replay_*
+
+# Signing keys — never commit these
+*.keystore
+*.jks
+release.keystore
+debug.keystore
+
+# Build artifacts
+*.apk
+*.aab
+
+# Misc
+.kotlin/
+logs/
+local/
 
