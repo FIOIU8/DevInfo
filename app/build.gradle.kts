@@ -32,11 +32,6 @@ android {
 
         buildConfigField("boolean", "IS_OFFICIAL", "false")
         buildConfigField("String", "BUILD_TYPE_NAME", "\"dev\"")
-
-        // 添加 NDK ABI 过滤器
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
-        }
     }
 
     buildTypes {
@@ -72,23 +67,6 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-
-    // ===== ABI 拆分配置 =====
-    splits {
-        abi {
-            // 启用 ABI 拆分
-            isEnable = true
-
-            // 重置 ABI 列表
-            reset()
-
-            // 包含所有需要的架构
-            include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
-
-            // 生成通用 APK（包含所有架构）
-            isUniversalApk = true
-        }
     }
 }
 
