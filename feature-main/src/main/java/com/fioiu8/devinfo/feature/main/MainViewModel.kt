@@ -20,6 +20,7 @@ import com.fioiu8.devinfo.ui.DevInfoFeedbackScope
 import com.fioiu8.devinfo.core.model.CpuUsageSample
 import com.fioiu8.devinfo.core.model.OverviewSnapshot
 
+import androidx.annotation.MainThread
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -119,7 +120,7 @@ class MainViewModel(
 
     /** Starts a refresh in the ViewModel scope, sharing an existing refresh when one is underway. */
     fun refresh() {
-        startRefreshIfNeeded()
+        viewModelScope.launch { startRefreshIfNeeded() }
     }
 
     /** Lets pull-to-refresh wait for ViewModel-owned work without owning its lifetime. */
@@ -127,6 +128,7 @@ class MainViewModel(
         startRefreshIfNeeded().join()
     }
 
+    @MainThread
     fun onForegroundChanged(foreground: Boolean) {
         isForeground = foreground
         updateMonitoring()
@@ -156,6 +158,7 @@ class MainViewModel(
         return true
     }
 
+    @MainThread
     fun onInfoTabChanged(selected: Boolean) {
         isInfoTabSelected = selected
         updateMonitoring()
@@ -169,11 +172,12 @@ class MainViewModel(
         updateChecker.reset()
     }
 
-    private fun startRefreshIfNeeded(): Job {
-        val existingJob = refreshJob
-        if (existingJob?.isActive == true) return existingJob
+    private val refreshMutex = Mutex()
 
-        return viewModelScope.launch(start = CoroutineStart.DEFAULT) {
+    private suspend fun startRefreshIfNeeded(): Job = refreshMutex.withLock {
+        refreshJob?.takeIf { it.isActive }?.let { return it }
+
+        viewModelScope.launch(start = CoroutineStart.DEFAULT) {
             reloadDeviceInfo()
         }.also { refreshJob = it }
     }
@@ -453,9 +457,9 @@ private fun OverviewSnapshot.withDynamicMetrics(metrics: DynamicMetrics): Overvi
 private fun OverviewSnapshot.withCpuUsageReading(reading: CpuUsageReading): OverviewSnapshot {
     val currentMetrics = reading.coreMetrics.ifEmpty { cpuCoreMetrics }
     val perCoreValues = if (reading.coreMetrics.isNotEmpty()) {
-        reading.coreMetrics.mapNotNull { metric ->
-            metric.usagePercent?.let { usage -> metric.index to usage }
-        }.toMap()
+        reading.coreMetrics.associate { metric ->
+            metric.index to (metric.usagePercent ?: -1f)
+        }
     } else {
         emptyMap()
     }

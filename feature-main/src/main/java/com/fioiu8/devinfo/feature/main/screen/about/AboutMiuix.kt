@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
@@ -128,6 +129,7 @@ fun AboutScreenMiuix(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .onGloballyPositioned { logoHeightPx = it.size.height }
                     .padding(
                         top = logoPadding.calculateTopPadding() + 52.dp,
                         start = logoPadding.calculateStartPadding(LocalLayoutDirection.current),
@@ -176,12 +178,7 @@ fun AboutScreenMiuix(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(
-                                logoPadding.calculateTopPadding() + 52.dp + 100.dp + 12.dp + 40.dp + 5.dp + 40.dp
-                            )
-                            .onSizeChanged { size ->
-                                logoHeightPx = size.height
-                            },
+                            .height(with(density) { logoHeightPx.toDp() }),
                         contentAlignment = Alignment.TopCenter,
                         content = { },
                     )

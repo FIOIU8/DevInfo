@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2026 FIOIU8
  *
  * This program is free software: you can redistribute it and/or modify
@@ -117,7 +117,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 private const val ITEMS_PER_PAGE = 8
 
 private fun List<ItemWithVisibility>.pageCount(): Int =
-    ((size + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE).coerceAtLeast(1)
+    if (isEmpty()) 0 else ((size + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE)
 
 /**
  * 设备信息页 — 分类浏览 + 下拉刷新。
@@ -239,8 +239,9 @@ fun DeviceInfoPage(
                 // Category Hero Card with directional animation + pagination
                 item {
                     // 超出页码范围时自动修正
-                    LaunchedEffect(selectedCategoryIndex, totalPages) {
-                        if (currentPage >= totalPages) currentPage = 0
+                    val selectedItems = itemsByCategory[categories[selectedCategoryIndex]].orEmpty()
+                    LaunchedEffect(selectedCategoryIndex, selectedItems.size) {
+                        if (currentPage >= selectedItems.pageCount()) currentPage = 0
                     }
                     val animDirection = if (selectedCategoryIndex > previousCategoryIndex) 1 else -1
                     AnimatedContent(
@@ -995,8 +996,8 @@ private fun CategoryCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .combinedClickable(
-                                        onLongClick = { onItemCopy(item) },
-                                        onClick = {}
+                                        onClick = { onItemCopy(item) },
+                                        onLongClick = { onItemCopy(item) }
                                     )
                                     .padding(vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
