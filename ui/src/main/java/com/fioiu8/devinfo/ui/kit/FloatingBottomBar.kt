@@ -267,7 +267,7 @@ fun FloatingBottomBar(
         ).also { holder.instance = it }
     }
 
-    LaunchedEffect(selectedIndex) {
+    LaunchedEffect(Unit) {
         snapshotFlow { selectedIndex() }.collectLatest { currentIndex = it }
     }
     LaunchedEffect(dampedDragAnimation) {
@@ -304,7 +304,7 @@ fun FloatingBottomBar(
                 .onGloballyPositioned { coords ->
                     totalWidthPx = coords.size.width.toFloat()
                     val contentWidthPx = totalWidthPx - with(density) { 8.dp.toPx() }
-                    tabWidthPx = (contentWidthPx / tabsCount).coerceAtLeast(0f)
+                    tabWidthPx = if (tabsCount > 0) (contentWidthPx / tabsCount) else 0f
                 }
                 .graphicsLayer { translationX = panelOffset }
                 .dropShadow(

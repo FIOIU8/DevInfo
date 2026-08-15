@@ -2,6 +2,7 @@ package com.fioiu8.devinfo.ui.kit.animation
 
 import android.annotation.SuppressLint
 import android.graphics.RuntimeShader
+import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.VisibilityThreshold
@@ -41,7 +42,7 @@ class InteractiveHighlight(
     val offset: Offset get() = positionAnimation.value - startPosition
 
     @Language("AGSL")
-    private val shader =
+    private val shader: RuntimeShader? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         RuntimeShader(
             """
     uniform float2 size;
@@ -55,6 +56,7 @@ class InteractiveHighlight(
         return color * intensity;
     }"""
         )
+    } else null
 
     val modifier: Modifier =
         Modifier.drawWithContent {
@@ -64,21 +66,26 @@ class InteractiveHighlight(
                     Color.White.copy(0.06f * progress),
                     blendMode = BlendMode.Plus
                 )
-                shader.apply {
+                shader?.let { shader ->
                     val position = position(size, positionAnimation.value)
-                    setFloatUniform("size", size.width, size.height)
-                    setColorUniform("color", Color.White.copy(0.12f * progress).toArgb())
-                    setFloatUniform("radius", size.minDimension * 1.2f)
-                    setFloatUniform(
-                        "position",
-                        position.x.fastCoerceIn(0f, size.width),
-                        position.y.fastCoerceIn(0f, size.height)
+                    shader.apply {
+                        setFloatUniform("size", size.width, size.height)
+                        setColorUniform(
+                            "color",
+                            Color.White.copy(0.12f * progress).toArgb()
+                        )
+                        setFloatUniform("radius", size.minDimension * 1.2f)
+                        setFloatUniform(
+                            "position",
+                            position.x.fastCoerceIn(0f, size.width),
+                            position.y.fastCoerceIn(0f, size.height)
+                        )
+                    }
+                    drawRect(
+                        ShaderBrush(shader),
+                        blendMode = BlendMode.Plus
                     )
                 }
-                drawRect(
-                    ShaderBrush(shader),
-                    blendMode = BlendMode.Plus
-                )
             }
 
             drawContent()
