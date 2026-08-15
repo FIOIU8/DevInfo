@@ -31,6 +31,7 @@ class DeviceIdManager(private val context: Context) {
      * Returns an application-local identifier used for internal identification and export help.
      * This value must not be sent to a remote service.
      */
+    @Synchronized
     fun getOrCreateDeviceId(): String {
         readSavedId(KEY_DEVICE_ID)?.let { return it }
 

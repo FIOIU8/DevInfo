@@ -39,10 +39,10 @@ object GitHubClient {
     private const val REPO = "DevInfo"
 
     /** Resolved error messages from string resources. Populated lazily on first use. */
-    private var errorMessageRelease: String? = null
-    private var errorMessageContributors: String? = null
-    private var errorMessageLanguages: String? = null
-    private var errorMessageNetwork: String? = null
+    @Volatile private var errorMessageRelease: String? = null
+    @Volatile private var errorMessageContributors: String? = null
+    @Volatile private var errorMessageLanguages: String? = null
+    @Volatile private var errorMessageNetwork: String? = null
 
     private fun ensureMessages(context: Context) {
         if (errorMessageRelease == null) {
@@ -185,9 +185,10 @@ object GitHubClient {
 
     /** 返回 (responseCode, body) */
     private fun httpGet(path: String): Pair<Int, String?> {
-        return try {
+        var conn: HttpURLConnection? = null
+        try {
             val url = URL("$BASE$path")
-            val conn = url.openConnection() as HttpURLConnection
+            conn = url.openConnection() as HttpURLConnection
             conn.connectTimeout = 10_000
             conn.readTimeout = 10_000
             conn.setRequestProperty("Accept", "application/vnd.github+json")
@@ -202,11 +203,12 @@ object GitHubClient {
             } catch (_: Exception) {
                 conn.errorStream?.bufferedReader()?.use { it.readText() }
             }
-            conn.disconnect()
-            Pair(code, body)
+            return Pair(code, body)
         } catch (e: Exception) {
             Log.e(TAG, "HTTP GET $path failed", e)
-            Pair(-1, e.message)
+            return Pair(-1, e.message)
+        } finally {
+            conn?.disconnect()
         }
     }
 }

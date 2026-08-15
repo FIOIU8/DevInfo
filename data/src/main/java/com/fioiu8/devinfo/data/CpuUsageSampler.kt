@@ -37,8 +37,8 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val selfReference = WeakReference(this)
     private var onSample: ((CpuUsageReading) -> Unit)? = null
-    private var running = false
-    private var consecutiveFailures = 0
+    @Volatile private var running = false
+    @Volatile private var consecutiveFailures = 0
     private var lastDeliveredReading: CpuUsageReading? = null
 
     private val task: Runnable
