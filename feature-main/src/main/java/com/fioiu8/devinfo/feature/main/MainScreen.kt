@@ -235,6 +235,7 @@ fun MainScreen(
     val detailOffsetX = remember { Animatable(0f) }
     val alreadyLatestMessage = stringResource(R.string.already_latest)
     val exportFailedLabel = stringResource(R.string.export_failed)
+    val cannotOpenFileMessage = stringResource(R.string.cannot_open_file)
     val exportFileName = remember { ModuleExportHelper.createExportFileName(android.os.Build.MODEL) }
     val materialSnackbarHostState = remember { SnackbarHostState() }
     val miuixSnackbarHostState = remember { MiuixSnackbarHostState() }
@@ -272,7 +273,7 @@ fun MainScreen(
                     )
                 } ?: run {
                     removeFailedExport()
-                    showMessage("$exportFailedLabel: ${stringResource(R.string.cannot_open_file)}")
+                    showMessage("$exportFailedLabel: $cannotOpenFileMessage")
                 }
             } catch (e: Exception) {
                 removeFailedExport()
