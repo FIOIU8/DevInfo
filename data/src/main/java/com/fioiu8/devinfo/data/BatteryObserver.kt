@@ -56,13 +56,17 @@ class BatteryObserver(context: Context) {
             }
         }
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        // Battery updates are sent by the system, so the receiver must be exported.
+        // ACTION_BATTERY_CHANGED is a system-only sticky broadcast.
+        // RECEIVER_NOT_EXPORTED is sufficient and reduces attack surface.
+        // NOTE: If real-device testing shows the broadcast is not received
+        // (some OEM or older system may not support NOT_EXPORTED for system
+        // sticky broadcasts), revert to RECEIVER_EXPORTED and document why.
         val registered = runCatching {
             ContextCompat.registerReceiver(
                 appContext,
                 receiver,
                 filter,
-                ContextCompat.RECEIVER_EXPORTED
+                ContextCompat.RECEIVER_NOT_EXPORTED
             )
         }.isSuccess
         if (!registered) {
