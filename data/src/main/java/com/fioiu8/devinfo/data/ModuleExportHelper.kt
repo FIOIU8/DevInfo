@@ -939,10 +939,10 @@ exit 0
     private fun writeZipArchive(root: File, outputStream: OutputStream) {
         val entryNames = collectZipEntryNames(root, "")
         validateZipEntries(entryNames)
-        val zipOut = ZipOutputStream(outputStream)
-        zipDirectory(root, "", zipOut)
-        zipOut.finish()
-        zipOut.flush()
+        ZipOutputStream(outputStream).use { zipOut ->
+            zipDirectory(root, "", zipOut)
+            zipOut.finish()
+        }
     }
 
     private fun collectZipEntryNames(dir: File, parentPath: String): List<String> {

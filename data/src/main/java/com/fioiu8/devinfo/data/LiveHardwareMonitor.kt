@@ -40,7 +40,7 @@ class LiveHardwareMonitor(context: Context) : SensorEventListener {
     )
     private val wifiManager = appContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
 
-    private var movingUntil = 0L
+    @Volatile private var movingUntil = 0L
     private val registeredMotionSensors = mutableSetOf<Sensor>()
     private var motionRegistrationAttempted = false
     private var lastSectorsRead: Long? = null
@@ -139,7 +139,7 @@ class LiveHardwareMonitor(context: Context) : SensorEventListener {
     }
 
     private fun readSectors(): Long? = runCatching {
-        File("/proc/diskstats").takeIf { it.isFile && it.canRead() }?.useLines { lines ->
+        File("/proc/diskstats").useLines { lines ->
             val stats = lines.mapNotNull { line ->
                 val fields = line.trim().split(Regex("\\s+"))
                 val device = fields.getOrNull(2) ?: return@mapNotNull null

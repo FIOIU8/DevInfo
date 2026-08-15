@@ -385,7 +385,7 @@ class DeviceInfoCollector(private val context: Context) {
                 val process = ProcessBuilder("su", "-c", "echo", "test")
                     .redirectErrorStream(true)
                     .start()
-                val output = process.inputStream.bufferedReader().readText().trim()
+                val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
                 process.destroy()
                 output == "test"
             }.getOrDefault(false)
@@ -895,7 +895,7 @@ class DeviceInfoCollector(private val context: Context) {
         val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
         val microAmps = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
         if (microAmps == Int.MIN_VALUE || microAmps == 0) return@safeGet statusUnknown
-        "%.0f mA".format(Locale.US, microAmps / 1000f)
+        "%.0f mA".format(Locale.US, kotlin.math.abs(microAmps) / 1000f)
     }
 
     private fun getBatteryChargeCounter(): String = safeGet(statusUnknown) {
@@ -993,7 +993,10 @@ class DeviceInfoCollector(private val context: Context) {
         val nc = cm.getNetworkCapabilities(cm.activeNetwork) ?: return@safeGet statusUnknown
         val down = nc.linkDownstreamBandwidthKbps / 1000
         val up = nc.linkUpstreamBandwidthKbps / 1000
-        if (down <= 0 && up <= 0) statusUnknown else "↓ $down Mbps / ↑ $up Mbps"
+        if (down <= 0 && up <= 0) return@safeGet statusUnknown
+        val downStr = if (down > 0) "$down" else "?"
+        val upStr = if (up > 0) "$up" else "?"
+        "↓ $downStr Mbps / ↑ $upStr Mbps"
     }
 
     // ── APP 补充项 ──
@@ -1085,8 +1088,8 @@ internal fun parseCpuTimes(fields: List<String>): com.fioiu8.devinfo.core.cpu.Cp
 internal fun parseCpuUptime(value: String?): com.fioiu8.devinfo.core.cpu.CpuUptimeTimes? {
     val fields = value?.trim()?.split(Regex("\\s+")) ?: return null
     if (fields.size < 2) return null
-    val uptime = fields[0].toDoubleOrNull()?.takeIf { it >= 0.0 }?.toLong() ?: return null
-    val idle = fields[1].toDoubleOrNull()?.takeIf { it >= 0.0 }?.toLong() ?: return null
+    val uptime = fields[0].toDoubleOrNull()?.takeIf { it >= 0.0 } ?: return null
+    val idle = fields[1].toDoubleOrNull()?.takeIf { it >= 0.0 } ?: return null
     return com.fioiu8.devinfo.core.cpu.CpuUptimeTimes(totalSeconds = uptime, idleSeconds = idle)
 }
 

@@ -133,10 +133,7 @@ abstract class BasePreferences<T : CharSequence>(
             get() = mutableValue.value
 
         fun set(value: V) {
-            runCatching {
-                preferences.edit().putString(key.toString(), serialize(value)).apply()
-                mutableValue.value = value
-            }
+            preferences.edit().putString(key.toString(), serialize(value)).commit()
         }
     }
 
