@@ -101,6 +101,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -212,17 +213,17 @@ fun MainScreen(
     val isRootModeEnabled by viewModel.isRootModeEnabled.collectAsStateWithLifecycle()
 
     var selectedIndex by rememberSaveable { mutableIntStateOf(INFO_TAB_INDEX) }
-    var showDetailsPage by remember { mutableStateOf(false) }
-    var detailCategory by remember { mutableStateOf(InfoCategory.DEVICE) }
-    var showAboutPage by remember { mutableStateOf(false) }
-    var isAboutVisible by remember { mutableStateOf(false) }
-    var showThemeSettingsPage by remember { mutableStateOf(false) }
-    var isThemeSettingsVisible by remember { mutableStateOf(false) }
-    var showExportDialog by remember { mutableStateOf(false) }
-    var showExportSuccessDialog by remember { mutableStateOf(false) }
-    var exportedFileUri by remember { mutableStateOf<Uri?>(null) }
-    var showUpdateDialog by remember { mutableStateOf(false) }
-    var showRootRequiredDialog by remember { mutableStateOf(false) }
+    var showDetailsPage by rememberSaveable { mutableStateOf(false) }
+    var detailCategory by rememberSaveable { mutableStateOf(InfoCategory.DEVICE) }
+    var showAboutPage by rememberSaveable { mutableStateOf(false) }
+    var isAboutVisible by rememberSaveable { mutableStateOf(false) }
+    var showThemeSettingsPage by rememberSaveable { mutableStateOf(false) }
+    var isThemeSettingsVisible by rememberSaveable { mutableStateOf(false) }
+    var showExportDialog by rememberSaveable { mutableStateOf(false) }
+    var showExportSuccessDialog by rememberSaveable { mutableStateOf(false) }
+    var exportedFileUri by rememberSaveable(stateSaver = UriSaver) { mutableStateOf<Uri?>(null) }
+    var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
+    var showRootRequiredDialog by rememberSaveable { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
     val useNavigationRail = configuration.screenWidthDp >= TABLET_NAVIGATION_RAIL_MIN_WIDTH_DP
@@ -509,7 +510,7 @@ fun MainScreen(
                                                 isLoading = isDeviceInfoLoading,
                                                 isOverviewLoading = isOverviewLoading,
                                                 snapshot = overviewSnapshot,
-                                                onRefresh = viewModel::refreshAndAwait,
+                                                onRefresh = { viewModel.refreshAndAwait() },
                                                 onOpenDetails = { category ->
                                                     detailCategory = category
                                                     showDetailsPage = true
@@ -523,7 +524,7 @@ fun MainScreen(
                                                 itemsState = deviceInfoItems,
                                                 isLoading = isDeviceInfoLoading,
                                                 overviewSnapshot = overviewSnapshot,
-                                                onRefresh = viewModel::refreshAndAwait,
+                                                onRefresh = { viewModel.refreshAndAwait() },
                                                 initialCategory = detailCategory,
                                             )
                                         }
@@ -1357,7 +1358,10 @@ private fun openUrl(
     onFailure: (String) -> Unit,
 ) {
     try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+        val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
     } catch (_: Exception) {
         onFailure(context.getString(R.string.cannot_open_link))
     }
@@ -1375,6 +1379,11 @@ private const val RELEASES_URL = "https://github.com/FIOIU8/DevInfo/releases"
 
 private enum class MainContentPage(val navigationOrder: Int) {
     INFO(navigationOrder = 0),
-    DETAILS(navigationOrder = 0),
+    DETAILS(navigationOrder = 1),
     SETTINGS(navigationOrder = 1),
 }
+
+private val UriSaver = Saver<Uri?, String>(
+    save = { it?.toString() },
+    restore = { it?.let { uri -> android.net.Uri.parse(uri) } }
+)
