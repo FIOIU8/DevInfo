@@ -724,7 +724,11 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     private fun getGooglePlayServicesVersion(): String = safeGet(statusUnknown) {
-        context.packageManager.getPackageInfo("com.google.android.gms", 0).versionName ?: statusUnknown
+        try {
+            context.packageManager.getPackageInfo("com.google.android.gms", 0).versionName ?: statusUnknown
+        } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
+            "not installed"
+        }
     }
 
     private fun getTrebleSupport(): String = safeGet(statusUnknown) {
