@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2026 FIOIU8
  *
  * This program is free software: you can redistribute it and/or modify
@@ -60,6 +60,7 @@ import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 
 private inline fun safeGet(default: String, block: () -> String): String {
     return try {
@@ -73,6 +74,8 @@ class DeviceInfoCollector(private val context: Context) {
 
     private var cachedVersionName: String? = null
     private var cachedVersionCode: Long? = null
+    @Volatile
+    private var cachedRootAvailable: Boolean? = null
 
     fun getAppVersionName(): String {
         if (cachedVersionName == null) cachePackageInfo()
@@ -361,20 +364,26 @@ class DeviceInfoCollector(private val context: Context) {
         }
     }.getOrElse { getCpuCoreTopologyMetrics() }
 
-    /** 检测设备是否已 Root（su 命令是否可用） */
-    fun isRootAvailable(): Boolean = runCatching {
-        val process = ProcessBuilder("su", "-c", "echo", "test")
-            .redirectErrorStream(true)
-            .start()
-            val exited = process.waitFor(ROOT_COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-        if (!exited) {
-            process.destroyForcibly()
-            return@runCatching false
-        }
-        val output = process.inputStream.bufferedReader().readText().trim()
-        process.destroy()
-        output == "test"
-    }.getOrDefault(false)
+    /**
+     * 检测设备是否已 Root（su 命令是否可用）。
+     * 结果会被缓存，避免重复执行 su 命令。
+     * 使用 withTimeoutOrNull 包裹阻塞调用，支持协程取消。
+     */
+    suspend fun isRootAvailable(): Boolean {
+        cachedRootAvailable?.let { return it }
+        val result = withTimeoutOrNull(ROOT_COMMAND_TIMEOUT_MS) {
+            runCatching {
+                val process = ProcessBuilder("su", "-c", "echo", "test")
+                    .redirectErrorStream(true)
+                    .start()
+                val output = process.inputStream.bufferedReader().readText().trim()
+                process.destroy()
+                output == "test"
+            }.getOrDefault(false)
+        } ?: false
+        cachedRootAvailable = result
+        return result
+    }
 
     /** 通过 Root 权限读取 /proc/stat 并计算每核心占用率 */
     suspend fun getCpuCoreMetricsWithRoot(): List<CpuCoreMetric> = runCatching {
