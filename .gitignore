@@ -33,3 +33,4 @@ local/
 build/
 .mimosa/
 .zcode/
+*.tar.gz
