@@ -272,7 +272,7 @@ fun MainScreen(
                     )
                 } ?: run {
                     removeFailedExport()
-                    showMessage("$exportFailedLabel: ${context.getString(R.string.cannot_open_file)}")
+                    showMessage("$exportFailedLabel: ${stringResource(R.string.cannot_open_file)}")
                 }
             } catch (e: Exception) {
                 removeFailedExport()
