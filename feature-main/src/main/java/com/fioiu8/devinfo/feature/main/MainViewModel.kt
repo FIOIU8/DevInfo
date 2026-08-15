@@ -81,6 +81,7 @@ class MainViewModel(
 ) : ViewModel() {
 
     private val reloadMutex = Mutex()
+    private val refreshMutex = Mutex()
     private val overviewLock = Any()
 
     private val _deviceInfoItems = MutableStateFlow<List<ItemWithVisibility>>(emptyList())
@@ -171,8 +172,6 @@ class MainViewModel(
     fun resetUpdateState() {
         updateChecker.reset()
     }
-
-    private val refreshMutex = Mutex()
 
     private suspend fun startRefreshIfNeeded(): Job = refreshMutex.withLock {
         refreshJob?.takeIf { it.isActive }?.let { return it }
