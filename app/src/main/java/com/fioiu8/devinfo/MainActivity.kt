@@ -51,16 +51,19 @@ class MainActivity : ComponentActivity() {
 
     private var themePrefs: ThemePreferences? = null
     private var languagePrefs: LanguagePreferences? = null
+    private var attachLanguagePrefs: LanguagePreferences? = null
 
     override fun onDestroy() {
         super.onDestroy()
         themePrefs?.close()
         languagePrefs?.close()
+        attachLanguagePrefs?.close()
     }
 
     override fun attachBaseContext(base: Context) {
-        val languagePrefs = LanguagePreferences(base)
-        val tag = languagePrefs.getEffectiveLocaleTag()
+        val prefs = LanguagePreferences(base)
+        attachLanguagePrefs = prefs
+        val tag = prefs.getEffectiveLocaleTag()
         val newBase = if (tag != null) {
             // Recreate the base context so Android resolves resources in the selected locale.
             val locale = Locale.forLanguageTag(tag)
