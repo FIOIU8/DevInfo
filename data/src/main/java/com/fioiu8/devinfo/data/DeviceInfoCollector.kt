@@ -38,6 +38,8 @@ import android.os.Environment
 import android.os.SystemClock
 import android.provider.Settings
 import android.telephony.TelephonyManager
+import android.util.Log
+import com.fioiu8.devinfo.data.BuildConfig
 import com.fioiu8.devinfo.core.cpu.CPU_USAGE_SAMPLE_DELAY_MS
 import com.fioiu8.devinfo.core.cpu.calculateCpuUsageFromUptime
 import com.fioiu8.devinfo.core.cpu.CpuTimes
@@ -62,10 +64,17 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
-private inline fun safeGet(default: String, block: () -> String): String {
+private inline fun safeGet(
+    default: String,
+    key: String = "unknown",
+    block: () -> String,
+): String {
     return try {
         block()
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        if (BuildConfig.DEBUG) {
+            android.util.Log.w("DeviceInfoCollector", "Failed to collect $key", e)
+        }
         default
     }
 }
