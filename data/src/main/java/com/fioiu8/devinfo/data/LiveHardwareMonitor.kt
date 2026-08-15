@@ -40,7 +40,6 @@ class LiveHardwareMonitor(context: Context) : SensorEventListener {
     )
     private val wifiManager = appContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
 
-    @Volatile
     private var movingUntil = 0L
     private val registeredMotionSensors = mutableSetOf<Sensor>()
     private var motionRegistrationAttempted = false
