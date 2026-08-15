@@ -1,6 +1,7 @@
 package com.fioiu8.devinfo.core.cpu
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -52,8 +53,9 @@ class CpuTopologyParserTest {
     @Test
     fun parsesProcUptimeValues() {
         val result = parseCpuUptime("1833.70 10432.17")
-        assertEquals(1833L, result?.totalSeconds)
-        assertEquals(10432L, result?.idleSeconds)
+        assertNotNull(result)
+        assertEquals(1833.70, result!!.totalSeconds, 0.001)
+        assertEquals(10432.17, result!!.idleSeconds, 0.001)
         assertNull(parseCpuUptime("invalid"))
     }
 
@@ -63,8 +65,8 @@ class CpuTopologyParserTest {
         // idleDelta = 150 - 100 = 50
         // usage = (100 - 50) / 100 * 100 = 50%
         val usage = calculateCpuUsageFromUptime(
-            first = CpuUptimeTimes(100L, 100L),
-            second = CpuUptimeTimes(200L, 150L)
+            first = CpuUptimeTimes(100.0, 100.0),
+            second = CpuUptimeTimes(200.0, 150.0)
         )
         assertEquals(50f, usage, 0.001f)
     }
@@ -72,8 +74,8 @@ class CpuTopologyParserTest {
     @Test
     fun calculatesCpuUsageHandlesZeroDelta() {
         val usage = calculateCpuUsageFromUptime(
-            first = CpuUptimeTimes(100L, 100L),
-            second = CpuUptimeTimes(100L, 100L)
+            first = CpuUptimeTimes(100.0, 100.0),
+            second = CpuUptimeTimes(100.0, 100.0)
         )
         assertEquals(0f, usage, 0.001f)
     }

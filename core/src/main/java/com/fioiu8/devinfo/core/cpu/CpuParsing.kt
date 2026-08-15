@@ -17,6 +17,8 @@
 
 package com.fioiu8.devinfo.core.cpu
 
+import java.util.Locale
+
 /**
  * Pure CPU parsing utilities — no Android dependencies.
  */
@@ -39,8 +41,8 @@ const val CPU_USAGE_SAMPLE_DELAY_MS = 180L
 
 /** Represents parsed uptime values from /proc/uptime */
  data class CpuUptimeTimes(
-    val totalSeconds: Long,
-    val idleSeconds: Long
+    val totalSeconds: Double,
+    val idleSeconds: Double
 )
 
 /** Parse a comma-separated list of CPU indexes (e.g., "0-3,5,7-9") */
@@ -79,8 +81,8 @@ const val CPU_USAGE_SAMPLE_DELAY_MS = 180L
     val parts = line.trim().split(Regex("\\s+"))
     if (parts.size < 2) return null
     return CpuUptimeTimes(
-        totalSeconds = parts[0].toDoubleOrNull()?.toLong() ?: return null,
-        idleSeconds = parts[1].toDoubleOrNull()?.toLong() ?: return null
+        totalSeconds = parts[0].toDoubleOrNull() ?: return null,
+        idleSeconds = parts[1].toDoubleOrNull() ?: return null
     )
 }
 
@@ -91,8 +93,8 @@ const val CPU_USAGE_SAMPLE_DELAY_MS = 180L
 ): Float {
     val totalDelta = second.totalSeconds - first.totalSeconds
     val idleDelta = second.idleSeconds - first.idleSeconds
-    if (totalDelta <= 0) return 0f
-    return ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
+    if (totalDelta <= 0.0) return 0f
+    return ((totalDelta - idleDelta) / totalDelta * 100.0).toFloat().coerceIn(0f, 100f)
 }
 
 /** Parse CPU usage from `top` command output */
@@ -112,9 +114,9 @@ const val CPU_USAGE_SAMPLE_DELAY_MS = 180L
 /** Format CPU frequency from raw value (Hz) to human-readable string */
 fun formatCpuFrequency(rawHz: Long): String {
     return when {
-        rawHz >= 1_000_000_000 -> "%.2f GHz".format(rawHz / 1_000_000_000.0)
-        rawHz >= 1_000_000 -> "%.0f MHz".format(rawHz / 1_000_000.0)
-        rawHz >= 1_000 -> "%.0f kHz".format(rawHz / 1_000.0)
+        rawHz >= 1_000_000_000 -> "%.2f GHz".format(Locale.US, rawHz / 1_000_000_000.0)
+        rawHz >= 1_000_000 -> "%.0f MHz".format(Locale.US, rawHz / 1_000_000.0)
+        rawHz >= 1_000 -> "%.0f kHz".format(Locale.US, rawHz / 1_000.0)
         else -> "$rawHz Hz"
     }
 }

@@ -120,7 +120,7 @@ data class DeviceInfoItem(
  */
 data class ItemWithVisibility(
     val item: DeviceInfoItem,
-    var visible: Boolean = false
+    val visible: Boolean = false
 )
 
 /**
