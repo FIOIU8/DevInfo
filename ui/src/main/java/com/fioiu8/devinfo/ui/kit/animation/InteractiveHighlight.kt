@@ -58,6 +58,9 @@ class InteractiveHighlight(
         )
     } else null
 
+    // 画刷仅是 shader 的包装，复用同一实例避免按压动画期间每帧分配
+    private val shaderBrush = shader?.let { ShaderBrush(it) }
+
     val modifier: Modifier =
         Modifier.drawWithContent {
             val progress = pressProgressAnimation.value
@@ -82,7 +85,7 @@ class InteractiveHighlight(
                         )
                     }
                     drawRect(
-                        ShaderBrush(shader),
+                        shaderBrush!!,
                         blendMode = BlendMode.Plus
                     )
                 }
