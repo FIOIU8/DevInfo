@@ -26,6 +26,11 @@ import java.util.Locale
 /** Delay between two CPU time samples for usage calculation (milliseconds). */
 const val CPU_USAGE_SAMPLE_DELAY_MS = 180L
 
+// 解析函数位于每 2 秒执行一次的采样热路径，正则提为顶层常量避免重复编译
+private val WHITESPACE_SPLIT_REGEX = Regex("\\s+")
+private val TOP_CPU_PERCENT_REGEX = Regex("(\\d+(?:\\.\\d+)?)%\\s*cpu", RegexOption.IGNORE_CASE)
+private val TOP_USR_PERCENT_REGEX = Regex("(\\d+(?:\\.\\d+)?)%\\s*usr", RegexOption.IGNORE_CASE)
+
 /** Represents parsed CPU time values from /proc/stat */
  data class CpuTimes(
     val user: Long,
@@ -78,7 +83,7 @@ const val CPU_USAGE_SAMPLE_DELAY_MS = 180L
 
 /** Parse /proc/uptime values */
  fun parseCpuUptime(line: String): CpuUptimeTimes? {
-    val parts = line.trim().split(Regex("\\s+"))
+    val parts = line.trim().split(WHITESPACE_SPLIT_REGEX)
     if (parts.size < 2) return null
     return CpuUptimeTimes(
         totalSeconds = parts[0].toDoubleOrNull() ?: return null,
@@ -99,15 +104,13 @@ const val CPU_USAGE_SAMPLE_DELAY_MS = 180L
 
 /** Parse CPU usage from `top` command output */
  fun parseTopCpuUsage(output: String): Float? {
-    val regex = Regex("(\\d+(?:\\.\\d+)?)%\\s*cpu", RegexOption.IGNORE_CASE)
-    val match = regex.find(output) ?: return null
+    val match = TOP_CPU_PERCENT_REGEX.find(output) ?: return null
     return match.groupValues[1].toFloatOrNull()?.coerceIn(0f, 100f)
 }
 
 /** Parse usable CPU usage from `top` command output */
  fun parseUsableTopCpuUsage(output: String): Float? {
-    val regex = Regex("(\\d+(?:\\.\\d+)?)%\\s*usr", RegexOption.IGNORE_CASE)
-    val match = regex.find(output) ?: return null
+    val match = TOP_USR_PERCENT_REGEX.find(output) ?: return null
     return match.groupValues[1].toFloatOrNull()?.coerceIn(0f, 100f)
 }
 

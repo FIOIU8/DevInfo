@@ -391,18 +391,22 @@ fun MainScreen(
         }
     }
 
-    val navigationItems = listOf(
-        MainNavigationItem(
-            label = stringResource(R.string.nav_info),
-            selectedIcon = Icons.Filled.Description,
-            unselectedIcon = Icons.Outlined.Description
-        ),
-        MainNavigationItem(
-            label = stringResource(R.string.nav_settings),
-            selectedIcon = Icons.Filled.Settings,
-            unselectedIcon = Icons.Outlined.Settings
+    val navInfoLabel = stringResource(R.string.nav_info)
+    val navSettingsLabel = stringResource(R.string.nav_settings)
+    val navigationItems = remember(navInfoLabel, navSettingsLabel) {
+        listOf(
+            MainNavigationItem(
+                label = navInfoLabel,
+                selectedIcon = Icons.Filled.Description,
+                unselectedIcon = Icons.Outlined.Description
+            ),
+            MainNavigationItem(
+                label = navSettingsLabel,
+                selectedIcon = Icons.Filled.Settings,
+                unselectedIcon = Icons.Outlined.Settings
+            )
         )
-    )
+    }
 
     fun selectNavigationItem(index: Int) {
         selectedIndex = index
