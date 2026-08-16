@@ -25,10 +25,10 @@
 # ---------------------------------------------------------------------------
 
 # DeviceInfoCollector reads android.os.SystemProperties via reflection
-# (getMethod("get", String)). Keep it so R8 doesn't strip/rename it.
--keep class android.os.SystemProperties {
-    java.lang.String get(java.lang.String);
-}
+# (getMethod("get", String)). The class lives in the framework, not the APK,
+# so R8 can neither strip nor rename it; only the missing-reference warning
+# needs suppressing.
+-dontwarn android.os.SystemProperties
 
 # Preserve line numbers for readable crash stack traces, and keep the
 # source-file attribute so traces still map back to files after minify.
