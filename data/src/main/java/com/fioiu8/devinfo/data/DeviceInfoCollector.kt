@@ -953,6 +953,8 @@ class DeviceInfoCollector(private val context: Context) {
         tm.simCountryIso?.takeIf { it.isNotBlank() }?.uppercase(Locale.US) ?: statusUnknown
     }
 
+    // PHONE_TYPE_CDMA 为稳定常量，框架标记弃用但无替代值
+    @Suppress("DEPRECATION")
     private fun getPhoneType(): String = safeGet(statusUnknown) {
         val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
         when (tm.phoneType) {
