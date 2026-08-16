@@ -93,10 +93,6 @@ fun SettingsPage(
     onAboutClick: () -> Unit,
     checkUpdate: Boolean,
     onCheckUpdateChange: (Boolean) -> Unit,
-
-
-
-
     appLanguage: AppLanguage = AppLanguage.SYSTEM,
     languageOptions: List<String> = emptyList(),
     onLanguageChange: (Int) -> Unit = {},
@@ -375,10 +371,6 @@ private fun MiuixSettingsPage(
     onAboutClick: () -> Unit,
     checkUpdate: Boolean,
     onCheckUpdateChange: (Boolean) -> Unit,
-
-
-
-
     appLanguage: AppLanguage,
     languageOptions: List<String>,
     onLanguageChange: (Int) -> Unit,

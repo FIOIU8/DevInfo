@@ -16,6 +16,7 @@
  */
 
 package com.fioiu8.devinfo.feature.main
+import android.content.ClipData
 import com.fioiu8.devinfo.ui.DevInfoNavigationBar
 import com.fioiu8.devinfo.ui.DevInfoLoadingIndicator
 import com.fioiu8.devinfo.ui.MarkdownText
@@ -88,9 +89,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalResources
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -149,7 +150,7 @@ fun DeviceInfoPage(
     }
 
     val resources = LocalResources.current
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val showMessage = rememberDevInfoMessageHandler()
     val scope = rememberCoroutineScope()
     val categories = InfoCategory.entries
@@ -161,7 +162,7 @@ fun DeviceInfoPage(
     }
     val onItemCopy: (ItemWithVisibility) -> Unit = remember(clipboard, resources, showMessage) {
         { item ->
-            scope.launch { clipboard.setText(AnnotatedString(item.item.value)) }
+            scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(null, item.item.value))) }
             val itemLabel = resources.getString(item.item.keyResId)
             showMessage(
                 resources.getString(
@@ -278,7 +279,7 @@ private fun MiuixDeviceInfoPage(
     initialCategory: InfoCategory,
 ) {
     val resources = LocalResources.current
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val showMessage = rememberDevInfoMessageHandler()
     val scope = rememberCoroutineScope()
     val categories = InfoCategory.entries
@@ -334,7 +335,7 @@ private fun MiuixDeviceInfoPage(
                     category = selectedCategory,
                     items = selectedItems,
                     onItemClick = { item ->
-                        scope.launch { clipboard.setText(AnnotatedString(item.item.value)) }
+                        scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(null, item.item.value))) }
                         showMessage(
                             resources.getString(
                                 R.string.copied_to_clipboard,
@@ -730,107 +731,6 @@ private fun MiuixCpuCoreItem(metric: CpuCoreMetric, modifier: Modifier) {
         }
     }
 }
-
-@Composable
-private fun OverviewCard(
-    items: List<ItemWithVisibility>,
-    storagePercent: Float,
-    memoryPercent: Float,
-    batteryLevel: Int,
-    batteryCharging: Boolean,
-    isLoading: Boolean
-) {
-    val manufacturer = items.valueFor(R.string.device_manufacturer)
-    val model = items.valueFor(R.string.device_model)
-    val deviceName = listOfNotNull(manufacturer, model).joinToString(" ")
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f))
-    ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = categoryIcon(InfoCategory.DEVICE),
-                    contentDescription = null,
-                    modifier = Modifier.size(30.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.overview_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = deviceName.ifBlank { stringResource(R.string.overview_loading) },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            OverviewMetric(stringResource(R.string.overview_storage), storagePercent, progressColor(storagePercent))
-            Spacer(modifier = Modifier.height(10.dp))
-            OverviewMetric(stringResource(R.string.overview_memory), memoryPercent, progressColor(memoryPercent))
-            Spacer(modifier = Modifier.height(10.dp))
-            OverviewMetric(stringResource(R.string.overview_battery), batteryLevel.toFloat(), batteryColor(batteryLevel), batteryCharging)
-        }
-    }
-}
-
-@Composable
-private fun OverviewMetric(
-    label: String,
-    percent: Float,
-    color: Color,
-    charging: Boolean = false
-) {
-    val animatedPercent by animateFloatAsState(
-        targetValue = percent.coerceIn(0f, 100f),
-        animationSpec = tween(700),
-        label = "overviewProgress"
-    )
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.width(76.dp)
-        )
-        LinearProgressIndicator(
-            progress = { animatedPercent / 100f },
-            modifier = Modifier
-                .weight(1f)
-                .height(7.dp),
-            color = color,
-            trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.16f)
-        )
-        Text(
-            text = if (charging) "${animatedPercent.toInt()}%" else "${animatedPercent.toInt()}%",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.width(48.dp),
-            textAlign = TextAlign.End
-        )
-    }
-}
-
-private fun List<ItemWithVisibility>.valueFor(keyResId: Int): String? =
-    firstOrNull { it.item.keyResId == keyResId }?.item?.value
 
 // ── Category Tab Row ──
 /** Official Material 3 tabs keep each detail category separate and scannable. */

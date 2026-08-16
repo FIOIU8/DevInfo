@@ -75,7 +75,6 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -89,6 +88,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -216,12 +216,8 @@ fun DeviceInfoOverviewPage(
         }
     }
 
-    val metrics by remember(snapshot) {
-        derivedStateOf { buildOverviewMetrics(snapshot) }
-    }
-    val staticCards by remember(itemsState) {
-        derivedStateOf { buildStaticInfoCards(itemsState) }
-    }
+    val metrics = remember(snapshot) { buildOverviewMetrics(snapshot) }
+    val staticCards = remember(itemsState) { buildStaticInfoCards(itemsState) }
 
     if ((isLoading && itemsState.isEmpty()) || (isOverviewLoading && metrics.isEmpty())) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -306,12 +302,8 @@ private fun MiuixDeviceInfoOverviewPage(
     onOpenDetails: (InfoCategory) -> Unit,
 ) {
     var isRefreshing by remember { mutableStateOf(false) }
-    val metrics by remember(snapshot) {
-        derivedStateOf { buildOverviewMetrics(snapshot) }
-    }
-    val staticCards by remember(itemsState) {
-        derivedStateOf { buildStaticInfoCards(itemsState) }
-    }
+    val metrics = remember(snapshot) { buildOverviewMetrics(snapshot) }
+    val staticCards = remember(itemsState) { buildStaticInfoCards(itemsState) }
 
     LaunchedEffect(isRefreshing) {
         if (isRefreshing) {
@@ -1104,6 +1096,8 @@ private fun CpuTrendChart(
         modifier = modifier
             .fillMaxWidth()
             .height(chartHeight)
+            // 波形是纯装饰绘制，具体数值由下方图例文本（C0 xx% 等）提供给读屏软件
+            .clearAndSetSemantics { }
             .drawWithCache {
                 // 缓存路径：仅在 size 或 history 变化时重建
                 val left = 8.dp.toPx()

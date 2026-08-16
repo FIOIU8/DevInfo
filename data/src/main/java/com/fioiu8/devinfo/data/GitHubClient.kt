@@ -22,13 +22,12 @@ import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * GitHub API 客户端 — 获取 release、contributors、languages。
+ * GitHub API 客户端 — 获取最新 Release 信息。
  * 所有网络请求均在 IO 线程进行。
  */
 object GitHubClient {
@@ -40,22 +39,16 @@ object GitHubClient {
 
     /** Resolved error messages from string resources. Populated lazily on first use. */
     @Volatile private var errorMessageRelease: String? = null
-    @Volatile private var errorMessageContributors: String? = null
-    @Volatile private var errorMessageLanguages: String? = null
     @Volatile private var errorMessageNetwork: String? = null
 
     private fun ensureMessages(context: Context) {
         if (errorMessageRelease == null) {
             val res = context.applicationContext.resources
             val release = res.getString(R.string.error_fetch_release)
-            val contributors = res.getString(R.string.error_fetch_contributors)
-            val languages = res.getString(R.string.error_fetch_languages)
             val network = res.getString(R.string.error_network)
             errorMessageNetwork = network
-            errorMessageContributors = contributors
-            errorMessageLanguages = languages
             // errorMessageRelease 是并发方的判断哨兵，必须最后写入：
-            // 其他线程一旦观察到它非空就会直接读取其余三个字段
+            // 其他线程一旦观察到它非空就会直接读取 errorMessageNetwork
             errorMessageRelease = release
         }
     }
@@ -68,14 +61,6 @@ object GitHubClient {
         val htmlUrl: String,
         /** 首个 .apk 资源的下载链接，若没有则为 null */
         val downloadUrl: String?
-    )
-
-    /** GitHub 仓库贡献者 */
-    data class Contributor(
-        val login: String,
-        val avatarUrl: String,
-        val htmlUrl: String,
-        val contributions: Int
     )
 
     sealed class ApiResult<out T> {
@@ -134,50 +119,9 @@ object GitHubClient {
         }
     }
 
-    suspend fun getContributors(context: Context): ApiResult<List<Contributor>> = withContext(Dispatchers.IO) {
-        try {
-            ensureMessages(context)
-            val arr = getJsonArray("/repos/$OWNER/$REPO/contributors?per_page=10") ?: run {
-                return@withContext ApiResult.Error(errorMessageContributors!!)
-            }
-            val list = (0 until arr.length()).map { i ->
-                val obj = arr.getJSONObject(i)
-                Contributor(
-                    login = obj.optString("login", ""),
-                    avatarUrl = obj.optString("avatar_url", ""),
-                    htmlUrl = obj.optString("html_url", ""),
-                    contributions = obj.optInt("contributions", 0)
-                )
-            }
-            ApiResult.Success(list)
-        } catch (e: Exception) {
-            Log.e(TAG, "getContributors failed", e)
-            ApiResult.Error(e.message ?: errorMessageNetwork!!)
-        }
-    }
-
-    suspend fun getLanguages(context: Context): ApiResult<Map<String, Int>> = withContext(Dispatchers.IO) {
-        try {
-            ensureMessages(context)
-            val json = getJson("/repos/$OWNER/$REPO/languages") ?: run {
-                return@withContext ApiResult.Error(errorMessageLanguages!!)
-            }
-            val map = mutableMapOf<String, Int>()
-            val keys = json.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                map[key] = json.optInt(key, 0)
-            }
-            ApiResult.Success(map)
-        } catch (e: Exception) {
-            Log.e(TAG, "getLanguages failed", e)
-            ApiResult.Error(e.message ?: errorMessageNetwork!!)
-        }
-    }
-
     // ── HTTP ──
 
-    /** 通用 GET + 解析方法，抽取 getJson/getJsonArray 的公共错误处理逻辑 */
+    /** 通用 GET + 解析方法，抽取 getJson 的公共错误处理逻辑 */
     private inline fun <T> fetchAndParse(path: String, parse: (String) -> T): T? {
         val (code, body) = httpGet(path)
         if (code != HttpURLConnection.HTTP_OK) {
@@ -189,8 +133,6 @@ object GitHubClient {
     }
 
     private fun getJson(path: String): JSONObject? = fetchAndParse(path) { JSONObject(it) }
-
-    private fun getJsonArray(path: String): JSONArray? = fetchAndParse(path) { JSONArray(it) }
 
     /** 返回 (responseCode, body) */
     private fun httpGet(path: String): Pair<Int, String?> {

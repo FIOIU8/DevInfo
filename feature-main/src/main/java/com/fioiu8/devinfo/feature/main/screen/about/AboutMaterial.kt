@@ -1,5 +1,6 @@
 package com.fioiu8.devinfo.feature.main.screen.about
 import com.fioiu8.devinfo.feature.main.R
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -55,7 +56,7 @@ fun AboutScreenMaterial(
                     IconButton(onClick = actions.onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
                 },

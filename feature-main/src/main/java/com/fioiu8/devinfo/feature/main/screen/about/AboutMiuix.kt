@@ -1,5 +1,6 @@
 package com.fioiu8.devinfo.feature.main.screen.about
 import com.fioiu8.devinfo.feature.main.R
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -100,7 +101,7 @@ fun AboutScreenMiuix(
                                 if (layoutDirection == LayoutDirection.Rtl) scaleX = -1f
                             },
                             imageVector = CustomMiuixIcons.Back,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.back),
                             tint = colorScheme.onBackground,
                         )
                     }
