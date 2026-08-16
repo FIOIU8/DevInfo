@@ -41,14 +41,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBarItem as MaterialNavigationBarItem
-import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.SwitchDefaults
@@ -433,7 +429,6 @@ fun DevInfoNavigationBar(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MaterialNavigationBar(
     items: List<DevInfoNavigationItem>,
@@ -441,21 +436,18 @@ private fun MaterialNavigationBar(
     onItemSelected: (Int) -> Unit,
     modifier: Modifier,
 ) {
-    NavigationBar(
+    // 使用 Miuix NavigationBar 替代 Expressive FlexibleBottomAppBar
+    MiuixNavigationBar(
         modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        color = MiuixTheme.colorScheme.surface,
     ) {
         items.forEachIndexed { index, item ->
-            MaterialNavigationBarItem(
+            MiuixNavigationBarItem(
+                modifier = Modifier.weight(1f),
+                icon = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
+                label = item.label,
                 selected = selectedIndex == index,
                 onClick = { onItemSelected(index) },
-                icon = {
-                    Icon(
-                        imageVector = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
-                        contentDescription = item.label,
-                    )
-                },
-                label = { Text(text = item.label) },
             )
         }
     }
@@ -593,32 +585,30 @@ fun DevInfoSegmentedDropdownItem(
                     .align(Alignment.BottomEnd)
                     .size(1.dp),
             ) {
-                DropdownMenuPopup(
+                DropdownMenu(
                     expanded = true,
                     onDismissRequest = { expanded = false },
                 ) {
-                    DropdownMenuGroup(shapes = MenuDefaults.groupShapes()) {
-                        items.forEachIndexed { index, item ->
-                            DropdownMenuItem(
-                                text = { Text(item) },
-                                selected = index == safeIndex,
-                                shapes = MenuDefaults.itemShape(index = index, count = items.size),
-                                leadingIcon = {
-                                    if (index == safeIndex) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(MenuDefaults.LeadingIconSize),
-                                        )
-                                    }
-                                },
-                                onClick = {
-                                    onItemSelected(index)
-                                    expanded = false
-                                },
-                            )
-                        }
+                    items.forEachIndexed { index, item ->
+                        DropdownMenuItem(
+                            text = { Text(item) },
+                            selected = index == safeIndex,
+                            leadingIcon = {
+                                if (index == safeIndex) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                }
+                            },
+                            onClick = {
+                                onItemSelected(index)
+                                expanded = false
+                            },
+                        )
                     }
+                }
                 }
             }
         }
