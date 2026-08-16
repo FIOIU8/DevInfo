@@ -41,9 +41,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchColors
@@ -592,23 +594,21 @@ fun DevInfoSegmentedDropdownItem(
                     items.forEachIndexed { index, item ->
                         DropdownMenuItem(
                             text = { Text(item) },
-                            selected = index == safeIndex,
-                            leadingIcon = {
-                                if (index == safeIndex) {
+                            leadingIcon = if (index == safeIndex) {
+                                {
                                     Icon(
                                         imageVector = Icons.Filled.Check,
                                         contentDescription = null,
                                         modifier = Modifier.size(24.dp),
                                     )
                                 }
-                            },
+                            } else null,
                             onClick = {
                                 onItemSelected(index)
                                 expanded = false
                             },
                         )
                     }
-                }
                 }
             }
         }
