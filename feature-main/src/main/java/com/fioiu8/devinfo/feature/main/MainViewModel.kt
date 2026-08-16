@@ -204,7 +204,8 @@ class MainViewModel(
 
             try {
                 coroutineScope {
-                    val overviewJob = async(Dispatchers.Default) { loadOverviewSnapshot() }
+                    // 概览采集读取 /proc、/sys 并可能派生 top 子进程，走 IO 调度器
+                    val overviewJob = async(Dispatchers.IO) { loadOverviewSnapshot() }
                     val deviceInfoJob = async { loadDeviceInfo(publishBatches = isInitialLoad) }
                     overviewJob.await()
                     deviceInfoJob.await()
@@ -218,7 +219,7 @@ class MainViewModel(
     }
 
     private suspend fun loadDeviceInfo(publishBatches: Boolean) {
-        withContext(Dispatchers.Default) {
+        withContext(Dispatchers.IO) {
             // Accumulate into a single buffer and publish in batches. This avoids
             // the previous per-item `delay` (which pushed full-load time to ~3s) and
             // the O(n^2) `list + item` copy that reallocated the whole list each item.
@@ -273,7 +274,7 @@ class MainViewModel(
         }
     }
 
-    private suspend fun readDynamicMetrics(): DynamicMetrics = withContext(Dispatchers.Default) {
+    private suspend fun readDynamicMetrics(): DynamicMetrics = withContext(Dispatchers.IO) {
         val security = runCatching { collector.getSecuritySnapshot() }.getOrDefault(SecuritySnapshot(null, null, null))
         DynamicMetrics(
             gpuFrequency = runCatching { collector.getGpuFrequency() }.getOrNull(),
@@ -369,7 +370,7 @@ class MainViewModel(
         hardwareMonitoringJob = viewModelScope.launch {
             while (isActive) {
                 val hardware = try {
-                    withContext(Dispatchers.Default) {
+                    withContext(Dispatchers.IO) {
                         liveHardwareMonitor.snapshot(includeStorageReadSpeed = mode == MonitorMode.ACTIVE)
                     }
                 } catch (error: CancellationException) {

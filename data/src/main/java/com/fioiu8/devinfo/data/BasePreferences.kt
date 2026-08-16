@@ -133,7 +133,8 @@ abstract class BasePreferences<T : CharSequence>(
             get() = mutableValue.value
 
         fun set(value: V) {
-            preferences.edit().putString(key.toString(), serialize(value)).commit()
+            // apply() 异步写盘；同步 commit() 会在 UI 回调（开关/滑条）中阻塞主线程
+            preferences.edit().putString(key.toString(), serialize(value)).apply()
         }
     }
 
