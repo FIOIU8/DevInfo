@@ -51,7 +51,7 @@ fun BlurredBar(
             Modifier.textureBlur(
                 backdrop = backdrop,
                 shape = RectangleShape,
-                blurRadius = 25f,
+                blurRadius = 15f,
                 colors = BlurColors(
                     blendColors = listOf(
                         BlendColorEntry(color = surfaceColor.copy(alpha = 0.87f)),
