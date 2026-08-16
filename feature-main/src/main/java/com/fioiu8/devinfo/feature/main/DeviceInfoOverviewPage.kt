@@ -64,7 +64,6 @@ import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -184,7 +183,6 @@ private fun buildStaticInfoCards(items: List<ItemWithVisibility>): List<StaticIn
         StaticInfoCardData(resId, item.value, item.category, itemIconByKey(item.key))
     }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DeviceInfoOverviewPage(
     itemsState: List<ItemWithVisibility>,

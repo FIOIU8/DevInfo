@@ -46,12 +46,9 @@ import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FlexibleBottomAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.SwitchDefaults
@@ -436,7 +433,7 @@ fun DevInfoNavigationBar(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MaterialNavigationBar(
     items: List<DevInfoNavigationItem>,
@@ -444,7 +441,7 @@ private fun MaterialNavigationBar(
     onItemSelected: (Int) -> Unit,
     modifier: Modifier,
 ) {
-    FlexibleBottomAppBar(
+    NavigationBar(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
     ) {
@@ -488,11 +485,10 @@ private fun MiuixNavigationBar(
 }
 
 /** Uses the component system selected by the user for initial data loading. */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DevInfoLoadingIndicator(modifier: Modifier = Modifier) {
     when (LocalUiStyle.current) {
-        UiStyle.MATERIAL3 -> androidx.compose.material3.LoadingIndicator(
+        UiStyle.MATERIAL3 -> androidx.compose.material3.CircularProgressIndicator(
             modifier = modifier,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -541,7 +537,6 @@ fun DevInfoExpressiveSwitch(
 }
 
 /** Material settings row adapted from KernelSU-Style-UI-Kit's segmented dropdown item. */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DevInfoSegmentedDropdownItem(
     icon: ImageVector,
@@ -555,20 +550,16 @@ fun DevInfoSegmentedDropdownItem(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val safeIndex = selectedIndex.coerceIn(0, items.lastIndex.coerceAtLeast(0))
-    val colors = ListItemDefaults.segmentedColors().copy(
+    val colors = ListItemDefaults.colors(
         containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
-        disabledContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
-        supportingContentColor = MaterialTheme.colorScheme.outline,
     )
 
     Box(modifier = modifier) {
-        SegmentedListItem(
-            onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth(),
-            shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1).copy(
-                shape = MaterialTheme.shapes.large,
-            ),
-            colors = colors,
+        ListItem(
+            headlineContent = { Text(title) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true },
             leadingContent = {
                 Icon(
                     imageVector = icon,
@@ -590,7 +581,8 @@ fun DevInfoSegmentedDropdownItem(
                     modifier = Modifier.fillMaxWidth(0.3f),
                 )
             },
-            content = { Text(title) },
+            colors = colors,
+            shape = MaterialTheme.shapes.large,
         )
         if (expanded) {
             // A compact anchor at the card's lower end makes the standard M3 menu expand
