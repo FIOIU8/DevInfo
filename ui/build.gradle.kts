@@ -45,9 +45,7 @@ dependencies {
 
     // Miuix
     implementation(libs.miuix.ui)
-    implementation(libs.miuix.icons)
     implementation(libs.miuix.preference)
-    implementation(libs.miuix.shader)
     implementation(libs.miuix.blur)
 
     // Lifecycle

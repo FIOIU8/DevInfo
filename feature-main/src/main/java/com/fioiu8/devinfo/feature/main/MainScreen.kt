@@ -154,9 +154,7 @@ import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Back
-import top.yukonga.miuix.kmp.icon.extended.Settings
+import com.fioiu8.devinfo.ui.CustomMiuixIcons
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.math.roundToInt
 
@@ -1169,7 +1167,7 @@ private fun MiuixMainTopBar(
             if (showBackButton) {
                 MiuixIconButton(onClick = onBack) {
                     MiuixIcon(
-                        imageVector = MiuixIcons.Back,
+                        imageVector = CustomMiuixIcons.Back,
                         contentDescription = stringResource(R.string.back),
                         tint = MiuixTheme.colorScheme.onBackground
                     )
@@ -1277,7 +1275,7 @@ private fun BoxScope.RootModeFab(
             },
         ) {
             MiuixIcon(
-                imageVector = MiuixIcons.Settings,
+                imageVector = CustomMiuixIcons.Settings,
                 contentDescription = stringResource(R.string.root_fab_desc),
             )
         }
