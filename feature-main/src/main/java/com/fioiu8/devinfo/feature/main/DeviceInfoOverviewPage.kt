@@ -17,6 +17,7 @@
 
 package com.fioiu8.devinfo.feature.main
 import com.fioiu8.devinfo.ui.DevInfoFeedbackScope
+import com.fioiu8.devinfo.ui.theme.isInDarkTheme
 import com.fioiu8.devinfo.ui.DevInfoNavigationBar
 import com.fioiu8.devinfo.ui.DevInfoLoadingIndicator
 import com.fioiu8.devinfo.ui.MarkdownText
@@ -1013,7 +1014,11 @@ private fun CpuCoreSelectionSlot(
         contentAlignment = Alignment.CenterStart
     ) {
         selectedCore?.let { coreIndex ->
-            val coreColor = if (coreIndex < 0) MaterialTheme.colorScheme.primary else cpuLineColor(coreIndex)
+            val coreColor = if (coreIndex < 0) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                cpuLineColor(coreIndex, isInDarkTheme())
+            }
             val selectedMetric = metric.coreMetrics.firstOrNull { it.index == coreIndex }
             CpuCoreSelectionDetails(
                 coreIndex = coreIndex,
@@ -1070,16 +1075,19 @@ private fun StaticInfoCard(card: StaticInfoCardData, onClick: () -> Unit) {
     }
 }
 
-private fun cpuLineColor(index: Int): Color = when (index % 8) {
-    0 -> Color(0xFF2196F3)
-    1 -> Color(0xFF009688)
-    2 -> Color(0xFFFFA000)
-    3 -> Color(0xFFEF5350)
-    4 -> Color(0xFFAB47BC)
-    5 -> Color(0xFF7CB342)
-    6 -> Color(0xFF00838F)
-    else -> Color(0xFFFF7043)
-}
+// 明/暗两套核心曲线色板：暗色用更亮的 Material 色阶保证对比度
+private val CPU_LINE_COLORS_LIGHT = listOf(
+    0xFF2196F3, 0xFF009688, 0xFFFFA000, 0xFFEF5350,
+    0xFFAB47BC, 0xFF7CB342, 0xFF00838F, 0xFFFF7043
+)
+
+private val CPU_LINE_COLORS_DARK = listOf(
+    0xFF64B5F6, 0xFF4DB6AC, 0xFFFFD54F, 0xFFE57373,
+    0xFFBA68C8, 0xFFAED581, 0xFF4DD0E1, 0xFFFF8A65
+)
+
+private fun cpuLineColor(index: Int, darkTheme: Boolean): Color =
+    Color((if (darkTheme) CPU_LINE_COLORS_DARK else CPU_LINE_COLORS_LIGHT)[index % 8])
 
 @Composable
 private fun CpuTrendChart(
@@ -1089,6 +1097,7 @@ private fun CpuTrendChart(
     chartHeight: Dp = 104.dp
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
+    val darkTheme = isInDarkTheme()
     val coreIndexes = remember(history) {
         history.flatMap { it.valuesByCore.keys }.distinct().sorted()
     }
@@ -1153,7 +1162,7 @@ private fun CpuTrendChart(
                     // 使用缓存路径绘制
                     cachedPaths.forEach { (coreIndex, path, areaPath) ->
                         if (path != null && areaPath != null) {
-                            val lineColor = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex)
+                            val lineColor = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex, darkTheme)
                             val isMuted = selectedCore != null && selectedCore != coreIndex
                             drawPath(
                                 path = areaPath,
@@ -1183,7 +1192,7 @@ private fun CpuTrendChart(
                                 androidx.compose.ui.geometry.Offset(x, bottom - plotHeight * value / 100f)
                             }
                             if (points.isNotEmpty()) {
-                                val lineColor = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex)
+                                val lineColor = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex, darkTheme)
                                 drawCircle(
                                     color = lineColor.copy(alpha = if (selectedCore != null && selectedCore != coreIndex) 0.3f else 1f),
                                     radius = 3.5.dp.toPx(),
@@ -1204,6 +1213,7 @@ private fun CpuTrendLegend(
     onCoreSelected: (Int) -> Unit
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
+    val darkTheme = isInDarkTheme()
     val currentByCore = remember(metric.coreMetrics) {
         metric.coreMetrics.associate { it.index to it.usagePercent }
     }
@@ -1228,7 +1238,7 @@ private fun CpuTrendLegend(
             ) {
                 Box(Modifier.size(7.dp), contentAlignment = Alignment.Center) {
                     androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                        drawCircle(if (core < 0) primaryColor else cpuLineColor(core))
+                        drawCircle(if (core < 0) primaryColor else cpuLineColor(core, darkTheme))
                     }
                 }
                 Text(

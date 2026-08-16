@@ -18,6 +18,7 @@
 package com.fioiu8.devinfo.feature.main
 import android.content.ClipData
 import com.fioiu8.devinfo.ui.DevInfoNavigationBar
+import com.fioiu8.devinfo.ui.theme.isInDarkTheme
 import com.fioiu8.devinfo.ui.DevInfoLoadingIndicator
 import com.fioiu8.devinfo.ui.MarkdownText
 import com.fioiu8.devinfo.ui.TestVersionWarningCard
@@ -965,10 +966,15 @@ private fun CpuCoreDetailItem(metric: CpuCoreMetric, modifier: Modifier) {
     }
 }
 
-private fun coreUsageColor(usage: Float): Color = when {
-    usage < 50f -> Color(0xFF4CAF50)
-    usage < 80f -> Color(0xFFFFA726)
-    else -> Color(0xFFEF5350)
+// ── 状态阈值色：暗色模式换用更亮的 Material 色阶保证对比度 ──
+@Composable
+private fun coreUsageColor(usage: Float): Color {
+    val dark = isInDarkTheme()
+    return when {
+        usage < 50f -> if (dark) Color(0xFF81C784) else Color(0xFF4CAF50) // 绿 — 低占用
+        usage < 80f -> if (dark) Color(0xFFFFB74D) else Color(0xFFFFA726) // 橙 — 中占用
+        else -> if (dark) Color(0xFFE57373) else Color(0xFFEF5350)        // 红 — 高占用
+    }
 }
 
 // ── Page Navigation Row ──
@@ -1138,10 +1144,11 @@ private fun BatteryProgressSection(level: Int, isCharging: Boolean) {
 /** 根据使用百分比返回进度条颜色 */
 @Composable
 private fun progressColor(percent: Float): Color {
+    val dark = isInDarkTheme()
     return when {
-        percent < 50f -> Color(0xFF4CAF50) // 绿 — 充足
-        percent < 80f -> Color(0xFFFFA726) // 橙 — 中度
-        else -> Color(0xFFEF5350)            // 红 — 高使用率
+        percent < 50f -> if (dark) Color(0xFF81C784) else Color(0xFF4CAF50) // 绿 — 充足
+        percent < 80f -> if (dark) Color(0xFFFFB74D) else Color(0xFFFFA726) // 橙 — 中度
+        else -> if (dark) Color(0xFFE57373) else Color(0xFFEF5350)          // 红 — 高使用率
     }
 }
 
@@ -1149,9 +1156,10 @@ private fun progressColor(percent: Float): Color {
 /** 根据电池电量返回进度条颜色 */
 @Composable
 private fun batteryColor(level: Int): Color {
+    val dark = isInDarkTheme()
     return when {
-        level > 50 -> Color(0xFF4CAF50) // 绿 — 充足
-        level > 20 -> Color(0xFFFFA726) // 橙 — 中等
-        else -> Color(0xFFEF5350)        // 红 — 低电量
+        level > 50 -> if (dark) Color(0xFF81C784) else Color(0xFF4CAF50) // 绿 — 充足
+        level > 20 -> if (dark) Color(0xFFFFB74D) else Color(0xFFFFA726) // 橙 — 中等
+        else -> if (dark) Color(0xFFE57373) else Color(0xFFEF5350)       // 红 — 低电量
     }
 }
