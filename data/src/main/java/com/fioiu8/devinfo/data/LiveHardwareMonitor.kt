@@ -143,7 +143,7 @@ class LiveHardwareMonitor(context: Context) : SensorEventListener {
     private fun readSectors(): Long? = runCatching {
         File("/proc/diskstats").useLines { lines ->
             val stats = lines.mapNotNull { line ->
-                val fields = line.trim().split(Regex("\\s+"))
+                val fields = line.trim().split(WHITESPACE_SPLIT_REGEX)
                 val device = fields.getOrNull(2) ?: return@mapNotNull null
                 val sectors = fields.getOrNull(5)?.toLongOrNull() ?: return@mapNotNull null
                 device to sectors
@@ -159,6 +159,7 @@ class LiveHardwareMonitor(context: Context) : SensorEventListener {
 
     private companion object {
         const val MOTION_HOLD_MS = 1_500L
+        val WHITESPACE_SPLIT_REGEX = Regex("\\s+")
         val LOGICAL_DEVICE_PATTERN = Regex("^dm-\\d+$")
         val PHYSICAL_DEVICE_PATTERN = Regex("^(mmcblk\\d+|nvme\\d+n\\d+|sd[a-z]+)$")
     }

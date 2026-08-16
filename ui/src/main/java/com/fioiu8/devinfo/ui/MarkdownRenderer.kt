@@ -33,6 +33,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
@@ -57,8 +58,9 @@ fun MarkdownText(
     markdown: String,
     modifier: Modifier = Modifier
 ) {
-    val lines = markdown.lines()
-    val parsed = parseBlocks(lines)
+    // 解析结果仅依赖 markdown 文本本身；不记忆的话对话框每次重组都会
+    // 重新分词整个正文（parseBlocks 每行还要新建多个正则）
+    val parsed = remember(markdown) { parseBlocks(markdown.lines()) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         parsed.forEachIndexed { index, block ->

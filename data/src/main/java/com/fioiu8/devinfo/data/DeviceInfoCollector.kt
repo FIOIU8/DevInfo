@@ -56,6 +56,10 @@ import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.delay
 
+// 热路径（每 2 秒采样）中逐行解析 /proc 使用，提为顶层常量避免每行重复分配
+private val WHITESPACE_SPLIT_REGEX = Regex("\\s+")
+private val CPU_POLICY_DIR_PATTERN = Regex("policy\\d+")
+
 private inline fun safeGet(
     default: String,
     key: String = "unknown",
@@ -417,7 +421,7 @@ class DeviceInfoCollector(private val context: Context) {
     private fun readCpuTimesByCoreWithRoot(): Map<Int, CpuTimes> {
         val result = mutableMapOf<Int, CpuTimes>()
         readLinesWithRoot("/proc/stat").forEach { line ->
-            val parts = line.trim().split(Regex("\\s+"))
+            val parts = line.trim().split(WHITESPACE_SPLIT_REGEX)
             val index = parts.firstOrNull()?.removePrefix("cpu")?.toIntOrNull() ?: return@forEach
             parseCpuTimes(parts.drop(1))?.let { result[index] = it }
         }
@@ -484,13 +488,21 @@ class DeviceInfoCollector(private val context: Context) {
     private fun getCpuCoreFrequency(index: Int): String? = readFrequency(*cpuFrequencyPaths(index).toTypedArray())
 
     /** Vendors expose frequency through either per-core nodes or policy nodes. */
-    private fun cpuFrequencyPaths(index: Int): List<String> = buildList {
+    private val cpuFrequencyPathsCache = HashMap<Int, List<String>>()
+
+    // CPU 拓扑在运行期不变；该函数原被每核每 2 秒调用一次，每次全量扫描
+    // /sys/devices/system/cpu/cpufreq 并逐 policy 读 related_cpus，代价过高
+    private fun cpuFrequencyPaths(index: Int): List<String> = synchronized(cpuFrequencyPathsCache) {
+        cpuFrequencyPathsCache.getOrPut(index) { buildCpuFrequencyPaths(index) }
+    }
+
+    private fun buildCpuFrequencyPaths(index: Int): List<String> = buildList {
         add("/sys/devices/system/cpu/cpu${index}/cpufreq/scaling_cur_freq")
         add("/sys/devices/system/cpu/cpu${index}/cpufreq/cpuinfo_cur_freq")
 
         val policyRoot = File("/sys/devices/system/cpu/cpufreq")
         policyRoot.listFiles()
-            ?.filter { it.name.matches(Regex("policy\\d+")) }
+            ?.filter { it.name.matches(CPU_POLICY_DIR_PATTERN) }
             ?.sortedBy { it.name }
             ?.forEach { policy ->
                 val related = readFirstLine(
@@ -554,7 +566,7 @@ class DeviceInfoCollector(private val context: Context) {
     private fun readCpuTimesByCore(): Map<Int, CpuTimes> {
         val result = mutableMapOf<Int, CpuTimes>()
         readLines("/proc/stat").forEach { line ->
-            val parts = line.trim().split(Regex("\\s+"))
+            val parts = line.trim().split(WHITESPACE_SPLIT_REGEX)
             val index = parts.firstOrNull()?.removePrefix("cpu")?.toIntOrNull() ?: return@forEach
             parseCpuTimes(parts.drop(1))?.let { result[index] = it }
         }
@@ -562,7 +574,7 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     private fun readCpuTimes(): CpuTimes? {
-        val parts = readFirstLine("/proc/stat")?.split(Regex("\\s+")) ?: return null
+        val parts = readFirstLine("/proc/stat")?.split(WHITESPACE_SPLIT_REGEX) ?: return null
         if (parts.firstOrNull() != "cpu") return null
         return parseCpuTimes(parts.drop(1))
     }
@@ -1088,7 +1100,7 @@ internal fun parseCpuTimes(fields: List<String>): com.fioiu8.devinfo.core.cpu.Cp
 }
 
 internal fun parseCpuUptime(value: String?): com.fioiu8.devinfo.core.cpu.CpuUptimeTimes? {
-    val fields = value?.trim()?.split(Regex("\\s+")) ?: return null
+    val fields = value?.trim()?.split(WHITESPACE_SPLIT_REGEX) ?: return null
     if (fields.size < 2) return null
     val uptime = fields[0].toDoubleOrNull()?.takeIf { it >= 0.0 } ?: return null
     val idle = fields[1].toDoubleOrNull()?.takeIf { it >= 0.0 } ?: return null
