@@ -70,7 +70,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -202,14 +201,6 @@ fun DeviceInfoPage(
             isRefreshing = isRefreshing,
             onRefresh = { isRefreshing = true },
             state = pullToRefreshState,
-            indicator = {
-                Box(
-                    modifier = Modifier.align(Alignment.TopCenter),
-                    contentAlignment = Alignment.Center
-                ) {
-                    DevInfoLoadingIndicator()
-                }
-            },
             modifier = Modifier.fillMaxSize()
         ) {
             LazyColumn(
