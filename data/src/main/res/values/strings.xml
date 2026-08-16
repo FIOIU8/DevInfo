@@ -11,6 +11,7 @@
     <string name="error_fetch_contributors">无法获取贡献者</string>
     <string name="error_fetch_languages">无法获取语言信息</string>
     <string name="error_network">网络异常</string>
+    <string name="error_unknown">未知错误</string>
 
     <!-- Device info labels -->
     <string name="device_android_id">Android ID</string>
