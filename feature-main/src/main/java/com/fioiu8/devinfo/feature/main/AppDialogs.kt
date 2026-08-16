@@ -388,6 +388,9 @@ fun UpdateAvailableDialog(
                 info?.let { "${it.name} (${it.tagName})" },
                 info?.body?.takeIf { it.isNotBlank() },
             ).joinToString("\n\n")
+                // info 缺失（如旧缓存数据）时避免渲染完全空白的正文
+                .takeIf { it.isNotBlank() }
+                ?: stringResource(R.string.update_found)
         }
         MiuixActionDialog(
             title = title,
@@ -571,7 +574,8 @@ private fun MiuixExportSuccessDialog(
                                 setDataAndType(uri, "application/zip")
                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }
-                            context.startActivity(intent)
+                            // 无 zip 查看器的设备会抛 ActivityNotFoundException
+                            runCatching { context.startActivity(intent) }
                         }
                     },
                 )
@@ -585,7 +589,7 @@ private fun MiuixExportSuccessDialog(
                                 putExtra(Intent.EXTRA_STREAM, uri)
                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }
-                            context.startActivity(Intent.createChooser(intent, null))
+                            runCatching { context.startActivity(Intent.createChooser(intent, null)) }
                         }
                     },
                 )

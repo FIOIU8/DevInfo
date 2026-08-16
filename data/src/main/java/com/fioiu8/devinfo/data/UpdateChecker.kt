@@ -64,6 +64,14 @@ class UpdateChecker(
                 _state.value = UpdateState.UP_TO_DATE
                 return
             }
+            // 缓存窗口内且缓存 tag 已是更新版本：直接用缓存的发布信息离线复现
+            // 更新对话框。原实现会在这种最常见场景下每次启动都请求网络，
+            // 与缓存设计初衷相悖
+            readCachedReleaseInfo(cachedTag)?.let { info ->
+                _releaseInfo.value = info
+                _state.value = UpdateState.NEW_VERSION_AVAILABLE
+                return
+            }
         }
 
         when (val result = GitHubClient.getLatestRelease(context)) {
@@ -72,6 +80,10 @@ class UpdateChecker(
                 _releaseInfo.value = info
                 cacheRepository.writeLong(KEY_LAST_CHECK, now)
                 cacheRepository.writeString(KEY_CACHED_TAG, info.tagName)
+                cacheRepository.writeString(KEY_RELEASE_NAME, info.name)
+                cacheRepository.writeString(KEY_RELEASE_BODY, info.body)
+                cacheRepository.writeString(KEY_RELEASE_URL, info.htmlUrl)
+                cacheRepository.writeString(KEY_RELEASE_DOWNLOAD_URL, info.downloadUrl.orEmpty())
                 _state.value = if (info.tagName.isNotBlank() &&
                     GitHubClient.isNewerVersion(info.tagName, currentVersion)
                 ) {
@@ -86,6 +98,20 @@ class UpdateChecker(
         }
     }
 
+    private suspend fun readCachedReleaseInfo(
+        cachedTag: String
+    ): GitHubClient.ReleaseInfo? {
+        val name = cacheRepository.readString(KEY_RELEASE_NAME) ?: return null
+        val htmlUrl = cacheRepository.readString(KEY_RELEASE_URL)?.takeIf { it.isNotBlank() } ?: return null
+        return GitHubClient.ReleaseInfo(
+            tagName = cachedTag,
+            name = name,
+            body = cacheRepository.readString(KEY_RELEASE_BODY).orEmpty(),
+            htmlUrl = htmlUrl,
+            downloadUrl = cacheRepository.readString(KEY_RELEASE_DOWNLOAD_URL)?.takeIf { it.isNotBlank() }
+        )
+    }
+
     /** 重置状态 */
     fun reset() { _state.value = UpdateState.IDLE }
 
@@ -95,6 +121,10 @@ class UpdateChecker(
         private const val LEGACY_PREFERENCE_NAME = "devinfo_update"
         private const val KEY_LAST_CHECK = "last_check_time"
         private const val KEY_CACHED_TAG = "cached_tag"
+        private const val KEY_RELEASE_NAME = "release_name"
+        private const val KEY_RELEASE_BODY = "release_body"
+        private const val KEY_RELEASE_URL = "release_url"
+        private const val KEY_RELEASE_DOWNLOAD_URL = "release_download_url"
         private const val CACHE_DURATION_MS = 12 * 60 * 60 * 1000L // 12 小时
     }
 }
