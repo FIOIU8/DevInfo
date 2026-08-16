@@ -191,18 +191,22 @@ class MainViewModel(
 
     private suspend fun reloadDeviceInfo() {
         reloadMutex.withLock {
-            _uiState.update {
-                it.copy(
-                    isDeviceInfoLoading = true,
-                    isOverviewLoading = true,
-                    deviceInfoItems = emptyList()
-                )
+            // 仅首次加载显示全屏加载态；下拉刷新时保留旧内容，避免列表清空、
+            // 滚动位置与选中状态丢失
+            val isInitialLoad = _uiState.value.deviceInfoItems.isEmpty()
+            if (isInitialLoad) {
+                _uiState.update {
+                    it.copy(
+                        isDeviceInfoLoading = true,
+                        isOverviewLoading = true,
+                    )
+                }
             }
 
             try {
                 coroutineScope {
                     val overviewJob = async(Dispatchers.Default) { loadOverviewSnapshot() }
-                    val deviceInfoJob = async { loadDeviceInfo() }
+                    val deviceInfoJob = async { loadDeviceInfo(publishBatches = isInitialLoad) }
                     overviewJob.await()
                     deviceInfoJob.await()
                 }
@@ -214,7 +218,7 @@ class MainViewModel(
         }
     }
 
-    private suspend fun loadDeviceInfo() {
+    private suspend fun loadDeviceInfo(publishBatches: Boolean) {
         withContext(Dispatchers.Default) {
             // Accumulate into a single buffer and publish in batches. This avoids
             // the previous per-item `delay` (which pushed full-load time to ~3s) and
@@ -224,7 +228,7 @@ class MainViewModel(
             val buffer = ArrayList<ItemWithVisibility>(EXPECTED_ITEM_COUNT)
             collector.collectDeviceInfo { item ->
                 buffer.add(ItemWithVisibility(item = item, visible = true))
-                if (buffer.size % ITEM_BATCH_SIZE == 0) {
+                if (publishBatches && buffer.size % ITEM_BATCH_SIZE == 0) {
                     val snapshot = buffer.toList()
                     withContext(Dispatchers.Main.immediate) {
                         _uiState.update { it.copy(deviceInfoItems = snapshot) }
@@ -250,9 +254,9 @@ class MainViewModel(
         val cpuReading = CpuUsageReading(coreMetrics, overallUsage)
         val dynamicMetrics = readDynamicMetrics()
         updateOverview { snapshot ->
-            OverviewSnapshot(
-                batteryLevel = snapshot.batteryLevel,
-                batteryCharging = snapshot.batteryCharging,
+            // 基于旧快照 copy 而非新建，保住 cpuUsageHistory 等字段——
+            // 否则每次刷新 CPU 趋势图都会塌缩为单点
+            snapshot.copy(
                 hardware = hardware,
                 cpuFrequency = cpuFrequency,
                 cpuCoreMetrics = coreMetrics,
