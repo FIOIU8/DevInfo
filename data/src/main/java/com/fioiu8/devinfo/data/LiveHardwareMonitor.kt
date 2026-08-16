@@ -74,7 +74,9 @@ class LiveHardwareMonitor(context: Context) : SensorEventListener {
             null to null
         }
         return LiveHardwareSnapshot(
-            motionAvailable = registeredMotionSensors.isNotEmpty(),
+            // 语义是“设备是否具备运动传感器”而非“当前是否已注册监听”——
+            // LOW_FREQUENCY 模式不注册监听，但不代表设备没有传感器
+            motionAvailable = motionSensors.isNotEmpty(),
             moving = SystemClock.elapsedRealtime() < movingUntil,
             brightnessPercent = readBrightnessPercent(),
             storageReadSpeedMbps = instantSpeed,

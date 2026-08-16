@@ -41,15 +41,8 @@ import android.telephony.TelephonyManager
 import android.util.Log
 import com.fioiu8.devinfo.data.BuildConfig
 import com.fioiu8.devinfo.core.cpu.CPU_USAGE_SAMPLE_DELAY_MS
-import com.fioiu8.devinfo.core.cpu.calculateCpuUsageFromUptime
 import com.fioiu8.devinfo.core.cpu.CpuTimes
 import com.fioiu8.devinfo.core.cpu.CpuUptimeTimes
-import com.fioiu8.devinfo.core.cpu.formatCpuFrequency
-import com.fioiu8.devinfo.core.cpu.parseCpuIndexes
-import com.fioiu8.devinfo.core.cpu.parseCpuTimes
-import com.fioiu8.devinfo.core.cpu.parseCpuUptime
-import com.fioiu8.devinfo.core.cpu.parseTopCpuUsage
-import com.fioiu8.devinfo.core.cpu.parseUsableTopCpuUsage
 import com.fioiu8.devinfo.core.model.CpuCoreMetric
 import com.fioiu8.devinfo.core.model.SecuritySnapshot
 import com.fioiu8.devinfo.core.model.DeviceInfoItem
@@ -80,8 +73,9 @@ private inline fun safeGet(
 
 class DeviceInfoCollector(private val context: Context) {
 
-    private var cachedVersionName: String? = null
-    private var cachedVersionCode: Long? = null
+    // 写于 Default/IO 线程（loadDeviceInfo），读于主线程（appVersionName 懒加载）
+    @Volatile private var cachedVersionName: String? = null
+    @Volatile private var cachedVersionCode: Long? = null
     @Volatile
     private var cachedRootAvailable: Boolean? = null
 
@@ -503,7 +497,7 @@ class DeviceInfoCollector(private val context: Context) {
                     File(policy, "related_cpus").path,
                     File(policy, "affected_cpus").path
                 )
-                if (index == 0 || parseCpuIndexes(related).contains(index)) {
+                if (parseCpuIndexes(related).contains(index)) {
                     add(File(policy, "scaling_cur_freq").path)
                     add(File(policy, "cpuinfo_cur_freq").path)
                 }
@@ -1055,6 +1049,9 @@ class DeviceInfoCollector(private val context: Context) {
     }
 }
 
+// 文件内这些解析函数是 core 模块同名函数的本地特化实现（参数与语义不同，
+// 如 calculateCpuUsageFromUptime 需要核数参数），同文件声明会遮蔽同名导入，
+// 因此不要从这里 import core 的同名函数。
 internal fun parseCpuIndexes(value: String?): List<Int> {
     return value
         ?.split(',')
@@ -1085,7 +1082,8 @@ internal fun parseCpuTimes(fields: List<String>): com.fioiu8.devinfo.core.cpu.Cp
     return com.fioiu8.devinfo.core.cpu.CpuTimes(
         user = values[0], nice = values[1], system = values[2],
         idle = values[3], iowait = values.getOrElse(4) { 0L },
-        irq = 0L, softirq = 0L
+        irq = values.getOrElse(5) { 0L },
+        softirq = values.getOrElse(6) { 0L }
     )
 }
 
