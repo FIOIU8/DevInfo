@@ -79,7 +79,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
@@ -1149,7 +1149,7 @@ private fun MaterialMainTopBar(
         titleContentColor = MaterialTheme.colorScheme.onSurface,
     )
 
-    LargeFlexibleTopAppBar(
+    TopAppBar(
         navigationIcon = navigationIcon,
         title = titleContent,
         colors = colors,
