@@ -114,7 +114,16 @@ class MainViewModel(
     private val _isRootModeEnabled = MutableStateFlow(false)
     val isRootModeEnabled: StateFlow<Boolean> = _isRootModeEnabled.asStateFlow()
 
+    private var hasStarted = false
+
     init {
+        // 延迟到首帧渲染后再启动数据加载
+    }
+
+    /** 由 UI 层在首次组合后调用，触发数据加载和更新检查 */
+    fun onFirstComposition() {
+        if (hasStarted) return
+        hasStarted = true
         refresh()
         checkForUpdates()
     }
