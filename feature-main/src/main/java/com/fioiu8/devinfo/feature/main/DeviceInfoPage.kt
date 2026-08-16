@@ -40,8 +40,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -128,7 +127,6 @@ private fun List<ItemWithVisibility>.pageCount(): Int =
  * @param isLoading 是否正在首次加载
  * @param onRefresh 下拉刷新回调
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DeviceInfoPage(
     deviceId: String,
@@ -350,7 +348,6 @@ private fun MiuixDeviceInfoPage(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MiuixCategoryCard(
     category: InfoCategory,
@@ -462,18 +459,15 @@ private fun MiuixCategoryCard(
             ) {
                 pagedItems.forEach { item ->
                     key(item.item.key) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .combinedClickable(
-                                    onLongClick = { onItemClick(item) },
-                                    onClick = { onItemClick(item) }
-                                )
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            InfoRow(
-                                label = resources.getString(item.item.keyResId) + ":",
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(onClick = { onItemClick(item) })
+                                    .padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                InfoRow(
+                                    label = resources.getString(item.item.keyResId) + ":",
                                 value = item.item.value,
                                 icon = itemIconByKey(item.item.key)
                             )
@@ -756,8 +750,7 @@ private fun CategoryTabRow(
 }
 
 // ── Category Hero Card ──
-/** 分类信息卡片，包含 Header + 进度条（存储/电池）+ 分页数据项列表，长按复制 */
-@OptIn(ExperimentalFoundationApi::class)
+/** 分类信息卡片，包含 Header + 进度条（存储/电池）+ 分页数据项列表，点击复制 */
 @Composable
 private fun CategoryCard(
     category: InfoCategory,
@@ -889,10 +882,7 @@ private fun CategoryCard(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = { onItemCopy(item) },
-                                        onLongClick = { onItemCopy(item) }
-                                    )
+                                    .clickable(onClick = { onItemCopy(item) })
                                     .padding(vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
