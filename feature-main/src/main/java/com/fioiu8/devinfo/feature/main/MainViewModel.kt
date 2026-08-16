@@ -172,9 +172,16 @@ class MainViewModel(
         updateMonitoring()
     }
 
+    @Volatile private var isUserInitiatedUpdateCheck = false
+
     fun retryUpdateCheck() {
+        isUserInitiatedUpdateCheck = true
         checkForUpdates()
     }
+
+    /** 读取并清除“本次更新检查是否由用户手动触发”的标记 */
+    fun consumeUserInitiatedUpdateCheck(): Boolean =
+        isUserInitiatedUpdateCheck.also { isUserInitiatedUpdateCheck = false }
 
     fun resetUpdateState() {
         updateChecker.reset()

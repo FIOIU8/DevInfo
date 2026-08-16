@@ -345,7 +345,11 @@ fun MainScreen(
     LaunchedEffect(updateState) {
         when (updateState) {
             UpdateState.UP_TO_DATE -> {
-                showMessage(alreadyLatestMessage)
+                // “已是最新版本”提示仅在用户手动触发检查时弹出，
+                // 避免每次冷启动自动检查都打扰
+                if (viewModel.consumeUserInitiatedUpdateCheck()) {
+                    showMessage(alreadyLatestMessage)
+                }
                 viewModel.resetUpdateState()
             }
 

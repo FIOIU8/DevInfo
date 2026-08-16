@@ -47,10 +47,16 @@ object GitHubClient {
     private fun ensureMessages(context: Context) {
         if (errorMessageRelease == null) {
             val res = context.applicationContext.resources
-            errorMessageRelease = res.getString(R.string.error_fetch_release)
-            errorMessageContributors = res.getString(R.string.error_fetch_contributors)
-            errorMessageLanguages = res.getString(R.string.error_fetch_languages)
-            errorMessageNetwork = res.getString(R.string.error_network)
+            val release = res.getString(R.string.error_fetch_release)
+            val contributors = res.getString(R.string.error_fetch_contributors)
+            val languages = res.getString(R.string.error_fetch_languages)
+            val network = res.getString(R.string.error_network)
+            errorMessageNetwork = network
+            errorMessageContributors = contributors
+            errorMessageLanguages = languages
+            // errorMessageRelease 是并发方的判断哨兵，必须最后写入：
+            // 其他线程一旦观察到它非空就会直接读取其余三个字段
+            errorMessageRelease = release
         }
     }
 
@@ -90,7 +96,10 @@ object GitHubClient {
 
     /** 解析 semver 字符串为三元组，缺失部分默认为 0 */
     private fun parseVersion(tag: String): IntArray {
+        // 先剥离预发布/构建后缀（如 -beta.1、+build.2），否则 "3-beta" 解析为 0
         val cleaned = tag.removePrefix("v").removePrefix("V")
+            .substringBefore('-')
+            .substringBefore('+')
         val parts = cleaned.split(".").map { it.toIntOrNull() ?: 0 }
         return intArrayOf(
             parts.getOrElse(0) { 0 },
