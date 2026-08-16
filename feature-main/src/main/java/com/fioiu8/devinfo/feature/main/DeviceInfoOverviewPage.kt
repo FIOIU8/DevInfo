@@ -28,6 +28,7 @@ import android.provider.Settings
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -1130,87 +1131,107 @@ private fun CpuTrendChart(
     val coreIndexes = remember(history) {
         history.flatMap { it.valuesByCore.keys }.distinct().sorted()
     }
-    Canvas(modifier = modifier.fillMaxWidth().height(chartHeight)) {
-        val left = 8.dp.toPx()
-        val right = size.width - 8.dp.toPx()
-        val top = 8.dp.toPx()
-        val bottom = size.height - 8.dp.toPx()
-        val plotWidth = (right - left).coerceAtLeast(1f)
-        val plotHeight = (bottom - top).coerceAtLeast(1f)
-        listOf(0f, 0.5f, 1f).forEach { fraction ->
-            val y = bottom - plotHeight * fraction
-            drawLine(
-                color = Color.Gray.copy(alpha = 0.18f),
-                start = androidx.compose.ui.geometry.Offset(left, y),
-                end = androidx.compose.ui.geometry.Offset(right, y),
-                strokeWidth = 1.dp.toPx()
-            )
-        }
-        coreIndexes.forEach { coreIndex ->
-            val points = history.mapIndexedNotNull { pointIndex, sample ->
-                val x = if (history.size == 1) left + plotWidth / 2 else left + plotWidth * pointIndex / (history.size - 1)
-                val value = sample.valuesByCore[coreIndex]?.coerceIn(0f, 100f) ?: return@mapIndexedNotNull null
-                androidx.compose.ui.geometry.Offset(x, bottom - plotHeight * value / 100f)
-            }
-            if (points.isNotEmpty()) {
-                val path = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(points.first().x, points.first().y)
-                    points.drop(1).forEachIndexed { index, point ->
-                        val previous = points[index]
-                        val middleX = (previous.x + point.x) / 2f
-                        cubicTo(middleX, previous.y, middleX, point.y, point.x, point.y)
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(chartHeight)
+            .drawWithCache {
+                // 缓存路径：仅在 size 或 history 变化时重建
+                val left = 8.dp.toPx()
+                val right = size.width - 8.dp.toPx()
+                val top = 8.dp.toPx()
+                val bottom = size.height - 8.dp.toPx()
+                val plotWidth = (right - left).coerceAtLeast(1f)
+                val plotHeight = (bottom - top).coerceAtLeast(1f)
+
+                val cachedPaths = coreIndexes.map { coreIndex ->
+                    val points = history.mapIndexedNotNull { pointIndex, sample ->
+                        val x = if (history.size == 1) left + plotWidth / 2 else left + plotWidth * pointIndex / (history.size - 1)
+                        val value = sample.valuesByCore[coreIndex]?.coerceIn(0f, 100f) ?: return@mapIndexedNotNull null
+                        androidx.compose.ui.geometry.Offset(x, bottom - plotHeight * value / 100f)
+                    }
+                    val path = if (points.size > 1) {
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(points.first().x, points.first().y)
+                            points.drop(1).forEachIndexed { index, point ->
+                                val previous = points[index]
+                                val middleX = (previous.x + point.x) / 2f
+                                cubicTo(middleX, previous.y, middleX, point.y, point.x, point.y)
+                            }
+                        }
+                    } else null
+                    val areaPath = if (points.size > 1) {
+                        androidx.compose.ui.graphics.Path().apply {
+                            moveTo(points.first().x, bottom)
+                            lineTo(points.first().x, points.first().y)
+                            points.drop(1).forEachIndexed { index, point ->
+                                val previous = points[index]
+                                val middleX = (previous.x + point.x) / 2f
+                                cubicTo(middleX, previous.y, middleX, point.y, point.x, point.y)
+                            }
+                            lineTo(points.last().x, bottom)
+                            close()
+                        }
+                    } else null
+                    Triple(coreIndex, path, areaPath)
+                }
+
+                onDrawWithContent {
+                    // 绘制网格线
+                    listOf(0f, 0.5f, 1f).forEach { fraction ->
+                        val y = bottom - plotHeight * fraction
+                        drawLine(
+                            color = Color.Gray.copy(alpha = 0.18f),
+                            start = androidx.compose.ui.geometry.Offset(left, y),
+                            end = androidx.compose.ui.geometry.Offset(right, y),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
+                    // 使用缓存路径绘制
+                    cachedPaths.forEach { (coreIndex, path, areaPath) ->
+                        if (path != null && areaPath != null) {
+                            val lineColor = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex)
+                            val isMuted = selectedCore != null && selectedCore != coreIndex
+                            drawPath(
+                                path = areaPath,
+                                color = lineColor.copy(
+                                    alpha = when {
+                                        isMuted -> 0.03f
+                                        selectedCore == coreIndex -> 0.22f
+                                        else -> 0.1f
+                                    }
+                                )
+                            )
+                            drawPath(
+                                path = path,
+                                color = lineColor.copy(alpha = if (isMuted) 0.3f else 1f),
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                    width = if (selectedCore == coreIndex) 3.dp.toPx() else 2.25.dp.toPx(),
+                                    pathEffect = if (coreIndex >= 0 && coreIndex % 2 == 1) {
+                                        androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 5.dp.toPx()))
+                                    } else null
+                                )
+                            )
+                        } else if (coreIndex == cachedPaths.firstOrNull()?.first) {
+                            // points.size == 1 的情况
+                            val points = history.mapIndexedNotNull { pointIndex, sample ->
+                                val x = if (history.size == 1) left + plotWidth / 2 else left + plotWidth * pointIndex / (history.size - 1)
+                                val value = sample.valuesByCore[coreIndex]?.coerceIn(0f, 100f) ?: return@mapIndexedNotNull null
+                                androidx.compose.ui.geometry.Offset(x, bottom - plotHeight * value / 100f)
+                            }
+                            if (points.isNotEmpty()) {
+                                val lineColor = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex)
+                                drawCircle(
+                                    color = lineColor.copy(alpha = if (selectedCore != null && selectedCore != coreIndex) 0.3f else 1f),
+                                    radius = 3.5.dp.toPx(),
+                                    center = points.single()
+                                )
+                            }
+                        }
                     }
                 }
-                val areaPath = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(points.first().x, bottom)
-                    lineTo(points.first().x, points.first().y)
-                    points.drop(1).forEachIndexed { index, point ->
-                        val previous = points[index]
-                        val middleX = (previous.x + point.x) / 2f
-                        cubicTo(middleX, previous.y, middleX, point.y, point.x, point.y)
-                    }
-                    lineTo(points.last().x, bottom)
-                    close()
-                }
-                val lineColor = if (coreIndex < 0) {
-                    primaryColor
-                } else {
-                    cpuLineColor(coreIndex)
-                }
-                val isMuted = selectedCore != null && selectedCore != coreIndex
-                if (points.size == 1) {
-                    drawCircle(
-                        color = lineColor.copy(alpha = if (isMuted) 0.3f else 1f),
-                        radius = 3.5.dp.toPx(),
-                        center = points.single()
-                    )
-                } else {
-                    drawPath(
-                        path = areaPath,
-                        color = lineColor.copy(
-                            alpha = when {
-                                isMuted -> 0.03f
-                                selectedCore == coreIndex -> 0.22f
-                                else -> 0.1f
-                            }
-                        )
-                    )
-                    drawPath(
-                        path = path,
-                        color = lineColor.copy(alpha = if (isMuted) 0.3f else 1f),
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(
-                            width = if (selectedCore == coreIndex) 3.dp.toPx() else 2.25.dp.toPx(),
-                            pathEffect = if (coreIndex >= 0 && coreIndex % 2 == 1) {
-                                androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 5.dp.toPx()))
-                            } else {
-                                null
-                            }
-                        )
-                    )
-                }
             }
-        }
-    }
+    ) {}
 }
 
 @Composable
