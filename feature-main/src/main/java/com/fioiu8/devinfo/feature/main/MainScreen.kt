@@ -210,6 +210,11 @@ fun MainScreen(
     val releaseInfo by viewModel.releaseInfo.collectAsStateWithLifecycle()
     val isRootModeEnabled by viewModel.isRootModeEnabled.collectAsStateWithLifecycle()
 
+    // 首帧渲染后再启动数据加载，避免阻塞首屏
+    LaunchedEffect(Unit) {
+        viewModel.onFirstComposition()
+    }
+
     var selectedIndex by rememberSaveable { mutableIntStateOf(INFO_TAB_INDEX) }
     var showDetailsPage by rememberSaveable { mutableStateOf(false) }
     var detailCategory by rememberSaveable { mutableStateOf(InfoCategory.DEVICE) }
