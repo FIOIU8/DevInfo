@@ -1381,5 +1381,5 @@ private enum class MainContentPage(val navigationOrder: Int) {
 
 private val UriSaver = Saver<Uri?, String>(
     save = { it?.toString() },
-    restore = { it?.let { uri -> android.net.Uri.parse(uri) } }
+    restore = { uri -> android.net.Uri.parse(uri) }
 )
