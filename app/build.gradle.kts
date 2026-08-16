@@ -32,6 +32,13 @@ android {
 
         buildConfigField("boolean", "IS_OFFICIAL", "false")
         buildConfigField("String", "BUILD_TYPE_NAME", "\"dev\"")
+
+        // D1: 仅保留主流 ABI，减少 APK 体积
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+        // D2: 仅保留项目支持的语言资源
+        resourceConfigurations += listOf("en", "zh", "ja")
     }
 
     buildTypes {
