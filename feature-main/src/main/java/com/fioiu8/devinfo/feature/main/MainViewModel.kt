@@ -397,8 +397,8 @@ class MainViewModel(
     }
 
     companion object {
-        private const val ACTIVE_REFRESH_INTERVAL_MS = 2_000L
-        private const val LOW_FREQUENCY_REFRESH_INTERVAL_MS = 10_000L
+        private const val ACTIVE_REFRESH_INTERVAL_MS = 3_000L
+        private const val LOW_FREQUENCY_REFRESH_INTERVAL_MS = 15_000L
         private const val BATTERY_RETRY_INTERVAL_MS = 10_000L
 
         /** Publish loaded items in batches so the UI updates a few times, not once per item. */

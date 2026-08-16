@@ -24,7 +24,7 @@ import java.lang.ref.WeakReference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -34,7 +34,7 @@ fun cpuSamplingIntervalMs(consecutiveFailures: Int): Long =
 /** Handler-driven sampler whose scheduled task cannot retain a disposed screen. */
 class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     private val handler = Handler(Looper.getMainLooper())
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val selfReference = WeakReference(this)
     private var onSample: ((CpuUsageReading) -> Unit)? = null
     @Volatile private var running = false
@@ -71,6 +71,7 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
         consecutiveFailures = 0
         lastDeliveredReading = null
         onSample = callback
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         handler.post(task)
     }
 
@@ -78,8 +79,8 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
         running = false
         onSample = null
         lastDeliveredReading = null
-        handler.removeCallbacks(task)
-        scope.coroutineContext.cancelChildren()
+        handler.removeCallbacksAndMessages(null)
+        scope.cancel()
     }
 
     private suspend fun read(): CpuUsageReading {
