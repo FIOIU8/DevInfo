@@ -577,7 +577,6 @@ fun DevInfoSegmentedDropdownItem(
                 )
             },
             colors = colors,
-            shape = MaterialTheme.shapes.large,
         )
         if (expanded) {
             // A compact anchor at the card's lower end makes the standard M3 menu expand

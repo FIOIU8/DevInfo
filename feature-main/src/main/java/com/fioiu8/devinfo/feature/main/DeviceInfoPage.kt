@@ -203,11 +203,12 @@ fun DeviceInfoPage(
             onRefresh = { isRefreshing = true },
             state = pullToRefreshState,
             indicator = {
-                PullToRefreshDefaults.LoadingIndicator(
-                    state = pullToRefreshState,
-                    isRefreshing = isRefreshing,
-                    modifier = Modifier.align(Alignment.TopCenter)
-                )
+                Box(
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    contentAlignment = Alignment.Center
+                ) {
+                    DevInfoLoadingIndicator()
+                }
             },
             modifier = Modifier.fillMaxSize()
         ) {
