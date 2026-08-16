@@ -10,6 +10,7 @@
 package com.fioiu8.devinfo.data
 
 import android.content.Context
+import androidx.datastore.core.DataStore
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
@@ -74,11 +75,7 @@ class DataStorePreferenceRepository(
 
     private val legacyRepository = SharedPreferencesPreferenceRepository(context, legacyPreferenceName)
 
-    private val dataStore = PreferenceDataStoreFactory.create(
-        corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-        produceFile = { context.preferencesDataStoreFile(dataStoreFileName) },
-    )
+    private val dataStore = getOrCreateDataStore(context.applicationContext, dataStoreFileName)
 
     override suspend fun readLong(key: String): Long? =
         readDataStoreValue { preferences -> preferences[longPreferencesKey(key)] }
@@ -153,6 +150,22 @@ class DataStorePreferenceRepository(
         const val DATASTORE_FILE_NAME = "devinfo_update.preferences_pb"
         const val KEY_LAST_CHECK = "last_check_time"
         const val KEY_CACHED_TAG = "cached_tag"
+
+        // 同一文件的 DataStore 必须全局唯一。仓库实例随 Activity 重建而反复创建，
+        // 若每次都新建 DataStore 会连带泄漏一个永不取消的 IO 协程作用域，
+        // 并违反 DataStore 单例契约，故按文件名缓存于 companion。
+        private val dataStoresByFile = mutableMapOf<String, DataStore<Preferences>>()
+
+        private fun getOrCreateDataStore(appContext: Context, fileName: String): DataStore<Preferences> =
+            synchronized(dataStoresByFile) {
+                dataStoresByFile.getOrPut(fileName) {
+                    PreferenceDataStoreFactory.create(
+                        corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+                        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+                        produceFile = { appContext.preferencesDataStoreFile(fileName) },
+                    )
+                }
+            }
     }
 }
 

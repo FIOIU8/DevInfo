@@ -62,7 +62,6 @@ import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeoutOrNull
 
 private inline fun safeGet(
     default: String,
@@ -375,22 +374,27 @@ class DeviceInfoCollector(private val context: Context) {
 
     /**
      * 检测设备是否已 Root（su 命令是否可用）。
-     * 结果会被缓存，避免重复执行 su 命令。
-     * 使用 withTimeoutOrNull 包裹阻塞调用，支持协程取消。
+     * 仅阳性结果会被缓存；阴性结果不缓存，用户授予 Root 后可重新检测。
      */
     suspend fun isRootAvailable(): Boolean {
         cachedRootAvailable?.let { return it }
-        val result = withTimeoutOrNull(ROOT_COMMAND_TIMEOUT_MS) {
-            runCatching {
-                val process = ProcessBuilder("su", "-c", "echo", "test")
-                    .redirectErrorStream(true)
-                    .start()
+        val result = runCatching {
+            val process = ProcessBuilder("su", "-c", "echo", "test")
+                .redirectErrorStream(true)
+                .start()
+            try {
+                // 先限时等待进程退出再读输出：readText() 是纯阻塞调用，
+                // 协程超时无法将其中断，su 挂起时会无限占用线程
+                if (!process.waitFor(ROOT_COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                    return@runCatching false
+                }
                 val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
-                process.destroy()
                 output == "test"
-            }.getOrDefault(false)
-        } ?: false
-        cachedRootAvailable = result
+            } finally {
+                process.destroy()
+            }
+        }.getOrDefault(false)
+        if (result) cachedRootAvailable = result
         return result
     }
 
