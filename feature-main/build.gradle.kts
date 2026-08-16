@@ -10,9 +10,25 @@ android {
 
     defaultConfig {
         minSdk = 33
+        // IS_OFFICIAL / BUILD_TYPE_NAME 的最终值由 buildTypes 覆盖，
+        // 逻辑必须与 app/build.gradle.kts 保持同步（读取相同的环境变量），
+        // 否则更新检查会依据过期的硬编码值提前返回。
         buildConfigField("boolean", "IS_OFFICIAL", "false")
-        buildConfigField("String", "VERSION_NAME", "\"1.0.0\"")
+        buildConfigField("String", "VERSION_NAME", "\"${System.getenv("VERSION_NAME") ?: "1.0.0"}\"")
         buildConfigField("String", "BUILD_TYPE_NAME", "\"debug\"")
+    }
+
+    buildTypes {
+        release {
+            // 与 app 模块一致：CI 通过 SIGNATURE_TYPE 环境变量区分官方构建与本地构建
+            val isOfficial = System.getenv("SIGNATURE_TYPE") == "release"
+            buildConfigField("boolean", "IS_OFFICIAL", isOfficial.toString())
+            buildConfigField("String", "BUILD_TYPE_NAME", "\"${if (isOfficial) "official" else "dev"}\"")
+        }
+        debug {
+            buildConfigField("boolean", "IS_OFFICIAL", "false")
+            buildConfigField("String", "BUILD_TYPE_NAME", "\"debug\"")
+        }
     }
 
     compileOptions {
