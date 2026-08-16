@@ -21,6 +21,7 @@ import com.fioiu8.devinfo.core.model.CpuUsageSample
 import com.fioiu8.devinfo.core.model.OverviewSnapshot
 
 import androidx.annotation.MainThread
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -84,17 +85,17 @@ class MainViewModel(
     private val refreshMutex = Mutex()
     private val overviewLock = Any()
 
-    private val _deviceInfoItems = MutableStateFlow<List<ItemWithVisibility>>(emptyList())
-    val deviceInfoItems: StateFlow<List<ItemWithVisibility>> = _deviceInfoItems.asStateFlow()
+    @Immutable
+    data class MainUiState(
+        val deviceInfoItems: List<ItemWithVisibility> = emptyList(),
+        val isDeviceInfoLoading: Boolean = true,
+        val overviewSnapshot: OverviewSnapshot = OverviewSnapshot(),
+        val isOverviewLoading: Boolean = true,
+        val isRootModeEnabled: Boolean = false,
+    )
 
-    private val _isDeviceInfoLoading = MutableStateFlow(true)
-    val isDeviceInfoLoading: StateFlow<Boolean> = _isDeviceInfoLoading.asStateFlow()
-
-    private val _overviewSnapshot = MutableStateFlow(OverviewSnapshot())
-    val overviewSnapshot: StateFlow<OverviewSnapshot> = _overviewSnapshot.asStateFlow()
-
-    private val _isOverviewLoading = MutableStateFlow(true)
-    val isOverviewLoading: StateFlow<Boolean> = _isOverviewLoading.asStateFlow()
+    private val _uiState = MutableStateFlow(MainUiState())
+    val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     val updateState: StateFlow<UpdateState> = updateChecker.state
     val releaseInfo: StateFlow<GitHubClient.ReleaseInfo?> = updateChecker.releaseInfo
@@ -110,9 +111,6 @@ class MainViewModel(
     private var isInfoTabSelected = true
     private val _monitorMode = MutableStateFlow(MonitorMode.STOPPED)
     val monitorMode: StateFlow<MonitorMode> = _monitorMode.asStateFlow()
-
-    private val _isRootModeEnabled = MutableStateFlow(false)
-    val isRootModeEnabled: StateFlow<Boolean> = _isRootModeEnabled.asStateFlow()
 
     private var hasStarted = false
 
@@ -158,7 +156,7 @@ class MainViewModel(
             withContext(Dispatchers.IO) { collector.getCpuCoreMetricsWithRoot() }
         }.getOrDefault(emptyList())
         if (metrics.isEmpty()) return false
-        _isRootModeEnabled.value = true
+        _uiState.update { it.copy(isRootModeEnabled = true) }
         val overallUsage = metrics.mapNotNull { it.usagePercent }
             .average()
             .toFloat()
@@ -192,9 +190,13 @@ class MainViewModel(
 
     private suspend fun reloadDeviceInfo() {
         reloadMutex.withLock {
-            _isDeviceInfoLoading.value = true
-            _isOverviewLoading.value = true
-            _deviceInfoItems.value = emptyList()
+            _uiState.update {
+                it.copy(
+                    isDeviceInfoLoading = true,
+                    isOverviewLoading = true,
+                    deviceInfoItems = emptyList()
+                )
+            }
 
             try {
                 coroutineScope {
@@ -204,8 +206,9 @@ class MainViewModel(
                     deviceInfoJob.await()
                 }
             } finally {
-                _isDeviceInfoLoading.value = false
-                _isOverviewLoading.value = false
+                _uiState.update {
+                    it.copy(isDeviceInfoLoading = false, isOverviewLoading = false)
+                }
             }
         }
     }
@@ -223,13 +226,13 @@ class MainViewModel(
                 if (buffer.size % ITEM_BATCH_SIZE == 0) {
                     val snapshot = buffer.toList()
                     withContext(Dispatchers.Main.immediate) {
-                        _deviceInfoItems.value = snapshot
+                        _uiState.update { it.copy(deviceInfoItems = snapshot) }
                     }
                 }
             }
             val finalSnapshot = buffer.toList()
             withContext(Dispatchers.Main.immediate) {
-                _deviceInfoItems.value = finalSnapshot
+                _uiState.update { it.copy(deviceInfoItems = finalSnapshot) }
             }
         }
     }
@@ -395,7 +398,9 @@ class MainViewModel(
 
     private fun updateOverview(transform: (OverviewSnapshot) -> OverviewSnapshot) {
         synchronized(overviewLock) {
-            _overviewSnapshot.value = transform(_overviewSnapshot.value)
+            _uiState.update {
+                it.copy(overviewSnapshot = transform(it.overviewSnapshot))
+            }
         }
     }
 
