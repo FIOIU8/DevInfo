@@ -25,7 +25,10 @@ android {
         minSdk = 33
         targetSdk = 37
 
-        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+        // 无 CI 环境变量时用秒级时间戳（上限 21 亿内）作本地默认，
+        // 保证本地构建可直接覆盖安装历史正式版而不被判为降级
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull()
+            ?: (System.currentTimeMillis() / 1000L).toInt()
         versionName = System.getenv("VERSION_NAME") ?: "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
