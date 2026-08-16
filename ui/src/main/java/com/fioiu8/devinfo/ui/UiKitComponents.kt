@@ -537,6 +537,7 @@ fun DevInfoExpressiveSwitch(
 }
 
 /** Material settings row adapted from KernelSU-Style-UI-Kit's segmented dropdown item. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DevInfoSegmentedDropdownItem(
     icon: ImageVector,
