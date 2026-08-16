@@ -34,7 +34,10 @@ fun cpuSamplingIntervalMs(consecutiveFailures: Int): Long =
 /** Handler-driven sampler whose scheduled task cannot retain a disposed screen. */
 class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     private val handler = Handler(Looper.getMainLooper())
-    private var scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    // 采样会派生 top 子进程并阻塞读取 /proc，必须使用 IO 调度器，
+    // 避免饿死线程数有限的 Default 调度器
+    private var scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val selfReference = WeakReference(this)
     private var onSample: ((CpuUsageReading) -> Unit)? = null
     @Volatile private var running = false
@@ -71,7 +74,7 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
         consecutiveFailures = 0
         lastDeliveredReading = null
         onSample = callback
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         handler.post(task)
     }
 

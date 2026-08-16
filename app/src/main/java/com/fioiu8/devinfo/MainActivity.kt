@@ -24,15 +24,21 @@ import java.util.Locale
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fioiu8.devinfo.data.BatteryObserver
+import com.fioiu8.devinfo.data.DeviceIdManager
 import com.fioiu8.devinfo.data.DeviceInfoCollector
 import com.fioiu8.devinfo.data.LanguagePreferences
 import com.fioiu8.devinfo.data.LiveHardwareMonitor
@@ -94,13 +100,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // 设备唯一标识
-        val deviceId = try {
-            com.fioiu8.devinfo.data.DeviceIdManager(this).getOrCreateDeviceId()
-        } catch (e: Exception) {
-            getString(R.string.device_id_fetch_failed, e.message.orEmpty())
-        }
-
         // 模块导出助手
         val exportHelper = ModuleExportHelper(this)
         val themePrefs = ThemePreferences(this).also { this.themePrefs = it }
@@ -117,20 +116,32 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
-            val themeMode by themePrefs.themeMode.collectAsState()
-            val themeColor by themePrefs.themeColor.collectAsState()
-            val uiStyle by themePrefs.uiStyle.collectAsState()
-            val appLanguage by languagePrefs.appLanguage.collectAsState(initial = AppLanguage.SYSTEM)
-            val customLocaleTag by languagePrefs.customLocaleTag.collectAsState(initial = "")
+            // 设备 ID 首次读取涉及 SharedPreferences 磁盘加载与 ANDROID_ID binder
+            // 调用，移出主线程 onCreate，在组合后异步加载
+            var deviceId by remember { mutableStateOf("") }
+            LaunchedEffect(Unit) {
+                deviceId = withContext(Dispatchers.IO) {
+                    try {
+                        DeviceIdManager(this@MainActivity).getOrCreateDeviceId()
+                    } catch (e: Exception) {
+                        getString(R.string.device_id_fetch_failed, e.message.orEmpty())
+                    }
+                }
+            }
+            val themeMode by themePrefs.themeMode.collectAsStateWithLifecycle()
+            val themeColor by themePrefs.themeColor.collectAsStateWithLifecycle()
+            val uiStyle by themePrefs.uiStyle.collectAsStateWithLifecycle()
+            val appLanguage by languagePrefs.appLanguage.collectAsStateWithLifecycle(initialValue = AppLanguage.SYSTEM)
+            val customLocaleTag by languagePrefs.customLocaleTag.collectAsStateWithLifecycle(initialValue = "")
             val mainViewModel: MainViewModel = viewModel(factory = mainViewModelFactory)
-            val checkUpdate by themePrefs.checkUpdate.collectAsState(initial = true)
-            val paletteStyle by themePrefs.paletteStyle.collectAsState(initial = PaletteStyle.DEFAULT)
-            val colorSpec by themePrefs.colorSpec.collectAsState(initial = com.fioiu8.devinfo.core.model.ColorSpec.DEFAULT)
-            val enableBlur by themePrefs.enableBlur.collectAsState(initial = false)
-            val enableFloatingBottomBar by themePrefs.enableFloatingBottomBar.collectAsState(initial = true)
-            val enableFloatingBottomBarBlur by themePrefs.enableFloatingBottomBarBlur.collectAsState(initial = true)
-            val pageScale by themePrefs.pageScale.collectAsState(initial = 1f)
-            val enablePredictiveBack by themePrefs.enablePredictiveBack.collectAsState(initial = true)
+            val checkUpdate by themePrefs.checkUpdate.collectAsStateWithLifecycle(initialValue = true)
+            val paletteStyle by themePrefs.paletteStyle.collectAsStateWithLifecycle(initialValue = PaletteStyle.DEFAULT)
+            val colorSpec by themePrefs.colorSpec.collectAsStateWithLifecycle(initialValue = com.fioiu8.devinfo.core.model.ColorSpec.DEFAULT)
+            val enableBlur by themePrefs.enableBlur.collectAsStateWithLifecycle(initialValue = false)
+            val enableFloatingBottomBar by themePrefs.enableFloatingBottomBar.collectAsStateWithLifecycle(initialValue = true)
+            val enableFloatingBottomBarBlur by themePrefs.enableFloatingBottomBarBlur.collectAsStateWithLifecycle(initialValue = true)
+            val pageScale by themePrefs.pageScale.collectAsStateWithLifecycle(initialValue = 1f)
+            val enablePredictiveBack by themePrefs.enablePredictiveBack.collectAsStateWithLifecycle(initialValue = true)
             val systemDensity = LocalDensity.current
             val scaledDensity = remember(systemDensity, pageScale) {
                 Density(
