@@ -93,7 +93,7 @@ class ModuleExportHelper(private val context: Context) {
             val zipFile = createModuleArchive(directories.root, buildInfo.model)
             onSuccess(zipFile.absolutePath)
         } catch (e: Exception) {
-            onError(e.message ?: "未知错误")
+            onError(e.message ?: context.getString(R.string.error_unknown))
         } finally {
             directories?.root?.deleteRecursively()
         }
@@ -128,7 +128,7 @@ class ModuleExportHelper(private val context: Context) {
             writeZipArchive(directories.root, outputStream)
             onSuccess()
         } catch (e: Exception) {
-            onError(e.message ?: "未知错误")
+            onError(e.message ?: context.getString(R.string.error_unknown))
         } finally {
             directories?.root?.deleteRecursively()
         }
