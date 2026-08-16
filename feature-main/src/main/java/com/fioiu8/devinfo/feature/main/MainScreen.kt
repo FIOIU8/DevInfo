@@ -202,13 +202,9 @@ fun MainScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
-    val deviceInfoItems by viewModel.deviceInfoItems.collectAsStateWithLifecycle()
-    val isDeviceInfoLoading by viewModel.isDeviceInfoLoading.collectAsStateWithLifecycle()
-    val overviewSnapshot by viewModel.overviewSnapshot.collectAsStateWithLifecycle()
-    val isOverviewLoading by viewModel.isOverviewLoading.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val releaseInfo by viewModel.releaseInfo.collectAsStateWithLifecycle()
-    val isRootModeEnabled by viewModel.isRootModeEnabled.collectAsStateWithLifecycle()
 
     // 首帧渲染后再启动数据加载，避免阻塞首屏
     LaunchedEffect(Unit) {
@@ -261,7 +257,7 @@ fun MainScreen(
                 context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                     exportHelper.exportModuleToStream(
                         deviceId = settings.deviceId,
-                        itemsState = deviceInfoItems,
+                        itemsState = uiState.deviceInfoItems,
                         outputStream = outputStream,
                         policy = com.fioiu8.devinfo.core.model.ModuleExportPolicy.MINIMAL,
                         onSuccess = {
@@ -383,7 +379,7 @@ fun MainScreen(
         rootEnabledMsg: String,
         rootFailedMsg: String,
     ) {
-        if (isRootModeEnabled) return
+        if (uiState.isRootModeEnabled) return
         scope.launch {
             val hasRoot = withContext(Dispatchers.IO) { viewModel.checkRootAvailable() }
             if (!hasRoot) {
@@ -509,10 +505,10 @@ fun MainScreen(
                                     when (pageState) {
                                         MainContentPage.INFO -> {
                                             DeviceInfoOverviewPage(
-                                                itemsState = deviceInfoItems,
-                                                isLoading = isDeviceInfoLoading,
-                                                isOverviewLoading = isOverviewLoading,
-                                                snapshot = overviewSnapshot,
+                                                itemsState = uiState.deviceInfoItems,
+                                                isLoading = uiState.isDeviceInfoLoading,
+                                                isOverviewLoading = uiState.isOverviewLoading,
+                                                snapshot = uiState.overviewSnapshot,
                                                 onRefresh = { viewModel.refreshAndAwait() },
                                                 onOpenDetails = { category ->
                                                     detailCategory = category
@@ -524,9 +520,9 @@ fun MainScreen(
                                         MainContentPage.DETAILS -> {
                                             DeviceInfoPage(
                                                 deviceId = settings.deviceId,
-                                                itemsState = deviceInfoItems,
-                                                isLoading = isDeviceInfoLoading,
-                                                overviewSnapshot = overviewSnapshot,
+                                                itemsState = uiState.deviceInfoItems,
+                                                isLoading = uiState.isDeviceInfoLoading,
+                                                overviewSnapshot = uiState.overviewSnapshot,
                                                 onRefresh = { viewModel.refreshAndAwait() },
                                                 initialCategory = detailCategory,
                                             )
@@ -617,7 +613,7 @@ fun MainScreen(
             )
 
             RootModeFab(
-                isRootModeEnabled = isRootModeEnabled,
+                isRootModeEnabled = uiState.isRootModeEnabled,
                 onClick = { onRootFabClick(rootEnabledMsg, rootFailedMsg) },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
