@@ -82,6 +82,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -107,6 +108,7 @@ import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator as MiuixLinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.PullToRefresh as MiuixPullToRefresh
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -171,11 +173,11 @@ fun DeviceInfoPage(
     }
 
     var isRefreshing by remember { mutableStateOf(false) }
-    var selectedCategoryIndex by remember(initialCategory) {
+    var selectedCategoryIndex by rememberSaveable(initialCategory) {
         mutableIntStateOf(categories.indexOf(initialCategory).coerceAtLeast(0))
     }
     var previousCategoryIndex by remember { mutableIntStateOf(0) }
-    var currentPage by remember(selectedCategoryIndex) { mutableIntStateOf(0) }
+    var currentPage by rememberSaveable(selectedCategoryIndex) { mutableIntStateOf(0) }
     val pullToRefreshState = rememberPullToRefreshState()
 
     val storagePercent = overviewSnapshot.storagePercent
@@ -280,7 +282,7 @@ private fun MiuixDeviceInfoPage(
     val showMessage = rememberDevInfoMessageHandler()
     val scope = rememberCoroutineScope()
     val categories = InfoCategory.entries
-    var selectedCategoryIndex by remember(initialCategory) {
+    var selectedCategoryIndex by rememberSaveable(initialCategory) {
         mutableIntStateOf(categories.indexOf(initialCategory).coerceAtLeast(0))
     }
     var isRefreshing by remember { mutableStateOf(false) }
@@ -290,6 +292,13 @@ private fun MiuixDeviceInfoPage(
     val selectedCategory = categories[selectedCategoryIndex]
     val selectedItems = itemsByCategory[selectedCategory].orEmpty()
 
+    LaunchedEffect(isRefreshing) {
+        if (isRefreshing) {
+            onRefresh()
+            isRefreshing = false
+        }
+    }
+
     if (isLoading && itemsState.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             InfiniteProgressIndicator(color = MiuixTheme.colorScheme.primary)
@@ -297,45 +306,45 @@ private fun MiuixDeviceInfoPage(
         return
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = 12.dp,
-            top = 12.dp,
-            end = 12.dp,
-            bottom = 12.dp + LocalFloatingNavigationContentPadding.current,
-        ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    // 参数依次为 isRefreshing / onRefresh / modifier，其余取默认值
+    MiuixPullToRefresh(
+        isRefreshing,
+        { isRefreshing = true },
+        Modifier.fillMaxSize()
     ) {
-        item {
-            MiuixTabRow(
-                tabs = categories.map { stringResource(it.displayNameResId()) },
-                selectedTabIndex = selectedCategoryIndex,
-                onTabSelected = { selectedCategoryIndex = it },
-            )
-        }
-        item {
-            MiuixCategoryCard(
-                category = selectedCategory,
-                items = selectedItems,
-                isRefreshing = isRefreshing,
-                onRefresh = {
-                    scope.launch {
-                        isRefreshing = true
-                        try { onRefresh() } finally { isRefreshing = false }
-                    }
-                },
-                onItemClick = { item ->
-                    scope.launch { clipboard.setText(AnnotatedString(item.item.value)) }
-                    showMessage(
-                        resources.getString(
-                            R.string.copied_to_clipboard,
-                            resources.getString(item.item.keyResId),
-                        ),
-                    )
-                },
-                overviewSnapshot = overviewSnapshot,
-            )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 12.dp,
+                top = 12.dp,
+                end = 12.dp,
+                bottom = 12.dp + LocalFloatingNavigationContentPadding.current,
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                MiuixTabRow(
+                    tabs = categories.map { stringResource(it.displayNameResId()) },
+                    selectedTabIndex = selectedCategoryIndex,
+                    onTabSelected = { selectedCategoryIndex = it },
+                )
+            }
+            item {
+                MiuixCategoryCard(
+                    category = selectedCategory,
+                    items = selectedItems,
+                    onItemClick = { item ->
+                        scope.launch { clipboard.setText(AnnotatedString(item.item.value)) }
+                        showMessage(
+                            resources.getString(
+                                R.string.copied_to_clipboard,
+                                resources.getString(item.item.keyResId),
+                            ),
+                        )
+                    },
+                    overviewSnapshot = overviewSnapshot,
+                )
+            }
         }
     }
 }
@@ -345,14 +354,12 @@ private fun MiuixDeviceInfoPage(
 private fun MiuixCategoryCard(
     category: InfoCategory,
     items: List<ItemWithVisibility>,
-    isRefreshing: Boolean,
-    onRefresh: () -> Unit,
     onItemClick: (ItemWithVisibility) -> Unit,
     overviewSnapshot: OverviewSnapshot,
 ) {
     val resources = LocalResources.current
     val totalPages = ((items.size + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE).coerceAtLeast(1)
-    var currentPage by remember(category) { mutableIntStateOf(0) }
+    var currentPage by rememberSaveable(category) { mutableIntStateOf(0) }
 
     LaunchedEffect(category, totalPages) {
         if (currentPage >= totalPages) currentPage = 0
@@ -390,11 +397,7 @@ private fun MiuixCategoryCard(
                         color = MiuixTheme.colorScheme.onSurface
                     )
                     MiuixText(
-                        text = if (isRefreshing) {
-                            stringResource(R.string.overview_loading)
-                        } else {
-                            stringResource(category.descriptionResId())
-                        },
+                        text = stringResource(category.descriptionResId()),
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceSecondary
                     )
