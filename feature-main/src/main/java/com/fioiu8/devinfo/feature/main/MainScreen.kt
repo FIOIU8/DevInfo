@@ -994,15 +994,10 @@ private fun BoxScope.MaterialKitFloatingNavigationBar(
     val selectedIndexState = rememberUpdatedState(selectedIndex)
     val selectedIndexProvider = remember { { selectedIndexState.value } }
 
+    // 底部定位与安全区留白由外层 FloatingMainNavigationBar 统一处理，
+    // 此处再补一次会导致浮动栏悬浮过高（双重 12.dp + 双重导航栏 inset）
     FloatingBottomBar(
-        modifier = Modifier
-            .align(Alignment.BottomCenter)
-            .padding(
-                bottom = 12.dp +
-                    WindowInsets.navigationBars
-                        .asPaddingValues()
-                        .calculateBottomPadding(),
-            ),
+        modifier = Modifier.align(Alignment.BottomCenter),
         selectedIndex = selectedIndexProvider,
         onSelected = onItemSelected,
         backdrop = backdrop,
@@ -1047,15 +1042,9 @@ private fun BoxScope.MiuixKitFloatingNavigationBar(
     val selectedIndexState = rememberUpdatedState(selectedIndex)
     val selectedIndexProvider = remember { { selectedIndexState.value } }
 
+    // 同 MaterialKitFloatingNavigationBar：底部留白由外层统一处理
     FloatingBottomBar(
-        modifier = Modifier
-            .align(Alignment.BottomCenter)
-            .padding(
-                bottom = 12.dp +
-                    WindowInsets.navigationBars
-                        .asPaddingValues()
-                        .calculateBottomPadding(),
-            ),
+        modifier = Modifier.align(Alignment.BottomCenter),
         selectedIndex = selectedIndexProvider,
         onSelected = onItemSelected,
         backdrop = backdrop,

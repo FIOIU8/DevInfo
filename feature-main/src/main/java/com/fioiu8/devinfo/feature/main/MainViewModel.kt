@@ -16,7 +16,6 @@
  */
 
 package com.fioiu8.devinfo.feature.main
-import com.fioiu8.devinfo.ui.DevInfoFeedbackScope
 import com.fioiu8.devinfo.core.model.CpuUsageSample
 import com.fioiu8.devinfo.core.model.OverviewSnapshot
 
