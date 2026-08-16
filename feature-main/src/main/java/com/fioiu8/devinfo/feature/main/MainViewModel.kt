@@ -479,4 +479,4 @@ private fun OverviewSnapshot.withCpuUsageReading(reading: CpuUsageReading): Over
 }
 
 private const val OVERALL_CPU_KEY = -1
-private const val MAX_CPU_HISTORY_SIZE = 30
+private const val MAX_CPU_HISTORY_SIZE = 20
