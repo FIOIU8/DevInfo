@@ -55,12 +55,6 @@ abstract class BasePreferences<T : CharSequence>(
             serialize = { it.name },
         )
 
-    /** Reads an enum without allowing malformed persisted data to escape to callers. */
-    private inline fun <reified V : Enum<V>> readEnumOrDefault(
-        key: String,
-        defaultValue: V,
-    ): V = enumValueOrDefault(readStringSafely(key), defaultValue)
-
     protected fun stringPreference(
         key: T,
         defaultValue: String,

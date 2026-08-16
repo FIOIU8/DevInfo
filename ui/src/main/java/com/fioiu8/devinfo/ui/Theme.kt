@@ -223,20 +223,3 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is ContextWrapper -> baseContext.findActivity()
     else -> null
 }
-
-// 保留兼容旧调用方，并将传入的明暗值映射为显式主题模式。
-@Composable
-@Suppress("unused")
-fun DevInfoTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    val mode = when {
-        dynamicColor && darkTheme -> ThemeMode.DYNAMIC_DARK
-        dynamicColor -> ThemeMode.DYNAMIC_LIGHT
-        darkTheme -> ThemeMode.DARK
-        else -> ThemeMode.LIGHT
-    }
-    DevInfoTheme(themeMode = mode, content = content)
-}
