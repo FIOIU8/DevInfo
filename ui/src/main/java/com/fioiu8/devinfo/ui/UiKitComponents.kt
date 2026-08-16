@@ -17,29 +17,15 @@
 
 package com.fioiu8.devinfo.ui
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -47,6 +33,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.SwitchDefaults
@@ -70,36 +58,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.fioiu8.devinfo.core.model.UiStyle
 import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem as MiuixNavigationBarItem
 import top.yukonga.miuix.kmp.basic.SnackbarHost as MiuixSnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState as MiuixSnackbarHostState
-import top.yukonga.miuix.kmp.basic.Text as MiuixText
-import top.yukonga.miuix.kmp.blur.BlendColorEntry
-import top.yukonga.miuix.kmp.blur.BlurColors
-import top.yukonga.miuix.kmp.blur.LayerBackdrop
-import top.yukonga.miuix.kmp.blur.blur
-import top.yukonga.miuix.kmp.blur.drawBackdrop
-import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-
-/** Shared navigation bar geometry constants. */
-private val NAV_BAR_HEIGHT = 64.dp
-private val NAV_BAR_ITEM_PADDING = 4.dp
 
 private val LocalMaterialSnackbarHostState = staticCompositionLocalOf<SnackbarHostState?> { null }
 private val LocalMiuixSnackbarHostState = staticCompositionLocalOf<MiuixSnackbarHostState?> { null }
@@ -195,218 +167,6 @@ private fun MaterialDevInfoSnackbar(data: SnackbarData) = Snackbar(
     contentColor = MaterialTheme.colorScheme.inverseOnSurface,
 )
 
-/** Material 3 floating navigation pill. */
-@Composable
-fun DevInfoMaterialFloatingNavigationBar(
-    items: List<DevInfoNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit,
-    glassEffect: Boolean,
-    blurBackdrop: LayerBackdrop? = null,
-    modifier: Modifier = Modifier,
-) {
-    MaterialFloatingNavigationBar(
-        items = items,
-        selectedIndex = selectedIndex,
-        onItemSelected = onItemSelected,
-        glassEffect = glassEffect,
-        blurBackdrop = blurBackdrop,
-        modifier = modifier,
-    )
-}
-
-@Composable
-private fun MaterialFloatingNavigationBar(
-    items: List<DevInfoNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit,
-    glassEffect: Boolean,
-    blurBackdrop: LayerBackdrop?,
-    modifier: Modifier = Modifier,
-) {
-    val shape = CircleShape
-    val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
-
-    Row(
-        modifier = modifier
-            .width(IntrinsicSize.Min)
-            .height(NAV_BAR_HEIGHT)
-            .shadow(elevation = 14.dp, shape = shape, clip = false)
-            .then(
-                if (glassEffect && blurBackdrop != null) {
-                    Modifier.textureBlur(
-                        backdrop = blurBackdrop,
-                        shape = shape,
-                        blurRadius = 25f,
-                        colors = BlurColors(
-                            blendColors = listOf(BlendColorEntry(surfaceColor.copy(alpha = 0.72f))),
-                        ),
-                    )
-                } else {
-                    Modifier.background(surfaceColor, shape)
-                },
-            )
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                shape = shape,
-            )
-            .clip(shape)
-            .padding(NAV_BAR_ITEM_PADDING),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        items.forEachIndexed { index, item ->
-            MaterialFloatingNavigationItem(
-                item = item,
-                selected = selectedIndex == index,
-                onClick = { onItemSelected(index) },
-                modifier = Modifier
-                    .defaultMinSize(minWidth = 76.dp)
-                    .weight(1f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun MaterialFloatingNavigationItem(
-    item: DevInfoNavigationItem,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val iconTint by animateColorAsState(
-        targetValue = if (selected) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        },
-        label = "floatingNavigationIconColor",
-    )
-    val labelTint by animateColorAsState(
-        targetValue = if (selected) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        },
-        label = "floatingNavigationLabelColor",
-    )
-    val indicatorColor by animateColorAsState(
-        targetValue = if (selected) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-        } else {
-            Color.Transparent
-        },
-        label = "floatingNavigationIndicatorColor",
-    )
-
-    Column(
-        modifier = modifier
-            .fillMaxHeight()
-            .clip(CircleShape)
-            .background(indicatorColor, CircleShape)
-            .selectable(
-                selected = selected,
-                role = Role.Tab,
-                onClick = onClick,
-            )
-            .padding(horizontal = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(
-            imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-            contentDescription = item.label,
-            tint = iconTint,
-        )
-        Text(
-            text = item.label,
-            style = MaterialTheme.typography.labelSmall,
-            color = labelTint,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-/** Miuix floating navigation pill matching KernelSU-Style-UI-Kit's Miuix component. */
-@Composable
-fun DevInfoMiuixFloatingNavigationBar(
-    items: List<DevInfoNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit,
-    glassEffect: Boolean,
-    blurBackdrop: LayerBackdrop?,
-    modifier: Modifier = Modifier,
-) {
-    val shape = CircleShape
-    val surfaceColor = MiuixTheme.colorScheme.surfaceContainer
-
-    Row(
-        modifier = modifier
-            .width(IntrinsicSize.Min)
-            .height(NAV_BAR_HEIGHT)
-            .shadow(elevation = 10.dp, shape = shape, clip = false)
-            .then(
-                if (glassEffect && blurBackdrop != null) {
-                    Modifier.drawBackdrop(
-                        backdrop = blurBackdrop,
-                        shape = { shape },
-                        effects = { blur(4.dp.toPx(), 4.dp.toPx()) },
-                        onDrawSurface = { drawRect(surfaceColor.copy(alpha = 0.4f)) },
-                    )
-                } else {
-                    Modifier.background(surfaceColor, shape)
-                },
-            )
-            .border(
-                width = 1.dp,
-                color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                shape = shape,
-            )
-            .clip(shape)
-            .padding(NAV_BAR_ITEM_PADDING),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        items.forEachIndexed { index, item ->
-            val selected = selectedIndex == index
-            Column(
-                modifier = Modifier
-                    .defaultMinSize(minWidth = 76.dp)
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(CircleShape)
-                    .background(
-                        color = if (selected) {
-                            MiuixTheme.colorScheme.primary.copy(alpha = 0.15f)
-                        } else {
-                            Color.Transparent
-                        },
-                        shape = CircleShape,
-                    )
-                    .clickable(onClick = { onItemSelected(index) }),
-                verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                MiuixIcon(
-                    imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                    contentDescription = item.label,
-                    tint = MiuixTheme.colorScheme.onSurface,
-                )
-                MiuixText(
-                    text = item.label,
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp,
-                    color = MiuixTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Visible,
-                )
-            }
-        }
-    }
-}
-
 @Composable
 fun DevInfoNavigationBar(
     items: List<DevInfoNavigationItem>,
@@ -438,16 +198,19 @@ private fun MaterialNavigationBar(
     onItemSelected: (Int) -> Unit,
     modifier: Modifier,
 ) {
-    // 使用 Miuix NavigationBar 替代 Expressive FlexibleBottomAppBar
-    MiuixNavigationBar(
+    NavigationBar(
         modifier = modifier,
-        color = MiuixTheme.colorScheme.surface,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         items.forEachIndexed { index, item ->
-            MiuixNavigationBarItem(
-                modifier = Modifier.weight(1f),
-                icon = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
-                label = item.label,
+            NavigationBarItem(
+                icon = {
+                    Icon(
+                        imageVector = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
+                        contentDescription = null,
+                    )
+                },
+                label = { Text(item.label) },
                 selected = selectedIndex == index,
                 onClick = { onItemSelected(index) },
             )
@@ -482,7 +245,7 @@ private fun MiuixNavigationBar(
 @Composable
 fun DevInfoLoadingIndicator(modifier: Modifier = Modifier) {
     when (LocalUiStyle.current) {
-        UiStyle.MATERIAL3 -> androidx.compose.material3.CircularProgressIndicator(
+        UiStyle.MATERIAL3 -> CircularProgressIndicator(
             modifier = modifier,
             color = MaterialTheme.colorScheme.primary,
         )
