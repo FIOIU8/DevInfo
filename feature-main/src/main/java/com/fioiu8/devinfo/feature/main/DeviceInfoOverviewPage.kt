@@ -122,8 +122,6 @@ private enum class OverviewCardSize(val span: Int) {
 
 private enum class OverviewMetricId {
     REALTIME_CPU,
-    CPU_FREQUENCY,
-    CPU_USAGE,
     GPU_FREQUENCY,
     GPU_USAGE,
     MEMORY,
@@ -688,58 +686,31 @@ private fun buildOverviewMetrics(
     snapshot: OverviewSnapshot
 ): List<OverviewMetric> = buildList {
     val availableCoreMetrics = snapshot.cpuCoreMetrics
-    if (availableCoreMetrics.isNotEmpty() || snapshot.cpuUsageHistory.isNotEmpty() || snapshot.cpuUsage != null) {
-        val currentUsage = snapshot.cpuUsage
-            ?: availableCoreMetrics.mapNotNull { it.usagePercent }.average().toFloat().takeIf { !it.isNaN() }
-        add(
-            OverviewMetric(
-                id = OverviewMetricId.REALTIME_CPU,
-                titleResId = R.string.overview_realtime_title,
-                value = currentUsage?.let(::formatPercent),
-                category = InfoCategory.SYSTEM,
-                icon = itemIconByKey("system_cpu_arch"),
-                size = OverviewCardSize.LARGE,
-                supportingTextResId = if (currentUsage == null) {
-                    R.string.overview_cpu_frequency_monitor
-                } else {
-                    R.string.overview_realtime_cpu
-                },
-                supportingTextSuffix = snapshot.cpuFrequency.takeIf { currentUsage != null },
-                coreCount = availableCoreMetrics.size.takeIf { it > 0 },
-                progress = currentUsage?.div(100f),
-                coreMetrics = availableCoreMetrics,
-                showFrequencySummary = currentUsage == null && availableCoreMetrics.any { it.frequency != null },
-                history = snapshot.cpuUsageHistory
-            )
+    val currentUsage = snapshot.cpuUsage
+        ?: availableCoreMetrics.mapNotNull { it.usagePercent }.average().toFloat().takeIf { !it.isNaN() }
+    // 该卡必须无条件添加：若等 CPU 数据到达后再插入 index 0，
+    // LazyGrid 会按 key 锚定滚动位置，把新卡排版到视口上方导致不可见
+    add(
+        OverviewMetric(
+            id = OverviewMetricId.REALTIME_CPU,
+            titleResId = R.string.overview_realtime_title,
+            value = currentUsage?.let(::formatPercent),
+            category = InfoCategory.SYSTEM,
+            icon = itemIconByKey("system_cpu_arch"),
+            size = OverviewCardSize.LARGE,
+            supportingTextResId = when {
+                currentUsage != null -> R.string.overview_realtime_cpu
+                availableCoreMetrics.isNotEmpty() -> R.string.overview_cpu_frequency_monitor
+                else -> R.string.overview_loading
+            },
+            supportingTextSuffix = snapshot.cpuFrequency.takeIf { currentUsage != null },
+            coreCount = availableCoreMetrics.size.takeIf { it > 0 },
+            progress = currentUsage?.div(100f),
+            coreMetrics = availableCoreMetrics,
+            showFrequencySummary = currentUsage == null && availableCoreMetrics.any { it.frequency != null },
+            history = snapshot.cpuUsageHistory
         )
-    } else {
-        snapshot.cpuFrequency?.let {
-            add(
-                OverviewMetric(
-                    id = OverviewMetricId.CPU_FREQUENCY,
-                    title = "CPU",
-                    value = it,
-                    category = InfoCategory.SYSTEM,
-                    icon = itemIconByKey("system_cpu_arch"),
-                    size = OverviewCardSize.LARGE,
-                    supportingTextResId = R.string.overview_cpu_frequency
-                )
-            )
-        }
-        snapshot.cpuUsage?.let {
-            add(
-                OverviewMetric(
-                    id = OverviewMetricId.CPU_USAGE,
-                    titleResId = R.string.overview_cpu_usage,
-                    value = formatPercent(it),
-                    category = InfoCategory.SYSTEM,
-                    icon = itemIconByKey("system_cpu_cores"),
-                    size = OverviewCardSize.SMALL,
-                    progress = it / 100f
-                )
-            )
-        }
-    }
+    )
     snapshot.gpuFrequency?.let {
         add(
             OverviewMetric(
