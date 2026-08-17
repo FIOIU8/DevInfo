@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** SharedPreferences implementation retained as a rollback and compatibility path. */
 class SharedPreferencesPreferenceRepository(
@@ -49,17 +50,13 @@ class SharedPreferencesPreferenceRepository(
     }
 
     override suspend fun writeLong(key: String, value: Long): Boolean = withContext(Dispatchers.IO) {
-        runCatching {
-            preferences.edit().putLong(key, value).apply()
-            true
-        }.getOrDefault(false)
+        runCatching { preferences.edit().putLong(key, value).commit() }
+            .getOrDefault(false)
     }
 
     override suspend fun writeString(key: String, value: String): Boolean = withContext(Dispatchers.IO) {
-        runCatching {
-            preferences.edit().putString(key, value).apply()
-            true
-        }.getOrDefault(false)
+        runCatching { preferences.edit().putString(key, value).commit() }
+            .getOrDefault(false)
     }
 }
 
@@ -102,23 +99,21 @@ class DataStorePreferenceRepository(
     }
 
     private val migrationMutex = Mutex()
+    private val migrationDone = AtomicBoolean(false)
 
     private suspend fun <T> readDataStoreValue(selector: (Preferences) -> T): T? {
-        migrateLegacyValues()
+        // 迁移只执行一次（首次读取时触发），避免每次读取都重复快照 + 读旧 SP
+        if (!migrationDone.get()) migrateLegacyValues()
         return readDataStoreSnapshot()?.let(selector)
     }
 
     private suspend fun migrateLegacyValues() {
+        if (migrationDone.get()) return
         migrationMutex.withLock {
+            if (migrationDone.get()) return
             val currentData = readDataStoreSnapshot() ?: return
             val legacyLastCheck = legacyRepository.readLong(KEY_LAST_CHECK)
             val legacyCachedTag = legacyRepository.readString(KEY_CACHED_TAG)
-            if (currentData[longPreferencesKey(KEY_LAST_CHECK)] != null &&
-                currentData[stringPreferencesKey(KEY_CACHED_TAG)] != null
-            ) {
-                return
-            }
-
             runCatching {
                 dataStore.edit { preferences ->
                     if (preferences[longPreferencesKey(KEY_LAST_CHECK)] == null) {
@@ -129,6 +124,7 @@ class DataStorePreferenceRepository(
                     }
                 }
             }
+            migrationDone.set(true)
         }
     }
 
@@ -167,15 +163,4 @@ class DataStorePreferenceRepository(
                 }
             }
     }
-}
-
-internal fun readLegacyValue(values: Map<String, *>, key: String): Any? = when (key) {
-    "last_check_time" -> when (val value = values[key]) {
-        is Long -> value
-        is String -> value.toLongOrNull()
-        else -> null
-    }
-
-    "cached_tag" -> values[key] as? String
-    else -> null
 }

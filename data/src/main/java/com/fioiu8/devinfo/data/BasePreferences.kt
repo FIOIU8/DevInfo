@@ -98,8 +98,12 @@ abstract class BasePreferences<T : CharSequence>(
             serialize = serialize,
         )
 
+    // 构造期一次性读取全部键值；后续每个 PersistentValue 从这份快照派生，
+    // 避免为每个偏好各发起一次 SharedPreferences 读取（13 个偏好→1 次 getAll）。
+    private val allValues: Map<String, *> by lazy { runCatching { preferences.all }.getOrDefault(emptyMap()) }
+
     private fun readStringSafely(key: String): String? =
-        runCatching { preferences.getString(key, null) }.getOrNull()
+        (allValues[key] as? String) ?: runCatching { preferences.getString(key, null) }.getOrNull()
 
     protected inner class PersistentValue<V : Any> internal constructor(
         private val key: T,
