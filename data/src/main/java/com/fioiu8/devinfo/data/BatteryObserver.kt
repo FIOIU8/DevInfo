@@ -23,6 +23,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import androidx.core.content.ContextCompat
+import android.util.Log
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -41,32 +42,40 @@ class BatteryObserver(context: Context) {
 
     private val appContext = context.applicationContext
 
+    companion object {
+        private const val TAG = "BatteryObserver"
+    }
+
     val batteryState: Flow<BatteryState> = callbackFlow {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context?, intent: Intent?) {
                 if (intent?.action != Intent.ACTION_BATTERY_CHANGED) return
-                val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-                val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-                val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN)
-                if (scale <= 0 || level !in 0..scale) return
-                val pct = (level * 100) / scale
-                val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                               status == BatteryManager.BATTERY_STATUS_FULL
-                trySend(BatteryState(pct.coerceIn(0, 100), charging))
+                try {
+                    val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                    val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                    val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN)
+                    if (scale <= 0 || level !in 0..scale) return
+                    val pct = (level * 100) / scale
+                    val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                                   status == BatteryManager.BATTERY_STATUS_FULL
+                    trySend(BatteryState(pct.coerceIn(0, 100), charging))
+                } catch (e: Exception) {
+                    // 防御：畸形广播不应让 flow 关闭，仅忽略本次
+                    Log.w(TAG, "parse battery broadcast failed", e)
+                }
             }
         }
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        // ACTION_BATTERY_CHANGED is a system-only sticky broadcast.
-        // RECEIVER_NOT_EXPORTED is sufficient and reduces attack surface.
-        // NOTE: If real-device testing shows the broadcast is not received
-        // (some OEM or older system may not support NOT_EXPORTED for system
-        // sticky broadcasts), revert to RECEIVER_EXPORTED and document why.
+        // ACTION_BATTERY_CHANGED is a system-only sticky broadcast with no
+        // untrusted external sender, and many OEMs/older systems do not deliver
+        // it to receivers registered with RECEIVER_NOT_EXPORTED. Use
+        // RECEIVER_EXPORTED so the sticky intent is reliably received.
         val registered = runCatching {
             ContextCompat.registerReceiver(
                 appContext,
                 receiver,
                 filter,
-                ContextCompat.RECEIVER_NOT_EXPORTED
+                ContextCompat.RECEIVER_EXPORTED
             )
         }.isSuccess
         if (!registered) {
