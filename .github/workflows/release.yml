@@ -1,0 +1,139 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # -------------------------------
+  # Job 1: Verify (quality gate, reused from build.yml)
+  # -------------------------------
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant execute permission
+        run: chmod +x gradlew
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Run ktlint check
+        run: ./gradlew ktlintCheck --stacktrace
+
+      - name: Run lint
+        run: ./gradlew lintDebug --stacktrace
+
+  # -------------------------------
+  # Job 2: Build signed release APK and create draft release
+  # -------------------------------
+  release:
+    name: Build Release
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant execute permission
+        run: chmod +x gradlew
+
+      - name: Derive version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION_NAME="${TAG#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NAME"
+          VERSION_CODE=$(( MAJOR * 10000 + MINOR * 100 + PATCH ))
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+
+      - name: Decode release keystore
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+            echo "Release keystore decoded"
+          else
+            echo "Error: KEYSTORE_BASE64 secret not found - cannot sign release build"
+            exit 1
+          fi
+
+      - name: Build signed release APK
+        run: ./gradlew assembleRelease --stacktrace
+        env:
+          SIGNATURE_TYPE: release
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Rename APK
+        id: apk
+        run: |
+          APK_FILE=$(find app/build/outputs/apk/release -name "*.apk" -type f | head -1)
+          if [ -z "$APK_FILE" ]; then
+            echo "Error: release APK not found"
+            exit 1
+          fi
+          NEW_NAME="DevInfo-${{ steps.version.outputs.version_name }}.apk"
+          cp "$APK_FILE" "$NEW_NAME"
+          echo "apk_name=$NEW_NAME" >> $GITHUB_OUTPUT
+          ls -lh "$NEW_NAME"
+
+      - name: Generate release notes
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          {
+            echo "### What's Changed"
+            echo ""
+            if [ -z "$PREV_TAG" ]; then
+              git log --no-merges --format='- %s'
+            else
+              git log --no-merges --format='- %s' "$PREV_TAG..HEAD"
+            fi
+            echo ""
+            echo "### Contributor"
+            echo "[![Contributors](https://contrib.rocks/image?repo=FIOIU8/DevInfo)](https://github.com/FIOIU8/DevInfo/graphs/contributors)"
+          } > notes.md
+          cat notes.md
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --draft \
+            --title "${{ steps.version.outputs.tag }}" \
+            --notes-file notes.md \
+            "${{ steps.apk.outputs.apk_name }}"
