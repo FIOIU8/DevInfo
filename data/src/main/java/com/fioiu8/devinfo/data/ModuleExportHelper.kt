@@ -33,6 +33,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * 模块导出助手类，负责生成 Magisk/KernelSU 模块的 ZIP 包
@@ -76,26 +78,28 @@ class ModuleExportHelper(private val context: Context) {
      * @param onSuccess 成功回调，返回生成的 ZIP 文件路径
      * @param onError 失败回调，返回错误信息
      */
-    fun exportModule(
+    suspend fun exportModule(
         deviceId: String,
         itemsState: List<ItemWithVisibility>,
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit,
         policy: ModuleExportPolicy = ModuleExportPolicy.MINIMAL
     ) {
-        var directories: ModuleDirectories? = null
-        try {
-            val buildInfo = readDeviceBuildInfo()
-            val metadata = createModuleMetadata(itemsState, buildInfo)
-            directories = createModuleDirectories()
+        withContext(Dispatchers.IO) {
+            var directories: ModuleDirectories? = null
+            try {
+                val buildInfo = readDeviceBuildInfo()
+                val metadata = createModuleMetadata(itemsState, buildInfo)
+                directories = createModuleDirectories()
 
-            writeModuleFiles(directories, metadata, buildInfo, deviceId, policy)
-            val zipFile = createModuleArchive(directories.root, buildInfo.model)
-            onSuccess(zipFile.absolutePath)
-        } catch (e: Exception) {
-            onError(e.message ?: context.getString(R.string.error_unknown))
-        } finally {
-            directories?.root?.deleteRecursively()
+                writeModuleFiles(directories, metadata, buildInfo, deviceId, policy)
+                val zipFile = createModuleArchive(directories.root, buildInfo.model)
+                onSuccess(zipFile.absolutePath)
+            } catch (e: Exception) {
+                onError(e.message ?: context.getString(R.string.error_unknown))
+            } finally {
+                directories?.root?.deleteRecursively()
+            }
         }
     }
 
@@ -110,7 +114,7 @@ class ModuleExportHelper(private val context: Context) {
      * @param onSuccess 成功回调
      * @param onError 失败回调，返回错误信息
      */
-    fun exportModuleToStream(
+    suspend fun exportModuleToStream(
         deviceId: String,
         itemsState: List<ItemWithVisibility>,
         outputStream: OutputStream,
@@ -118,19 +122,21 @@ class ModuleExportHelper(private val context: Context) {
         onError: (String) -> Unit,
         policy: ModuleExportPolicy = ModuleExportPolicy.MINIMAL
     ) {
-        var directories: ModuleDirectories? = null
-        try {
-            val buildInfo = readDeviceBuildInfo()
-            val metadata = createModuleMetadata(itemsState, buildInfo)
-            directories = createModuleDirectories()
+        withContext(Dispatchers.IO) {
+            var directories: ModuleDirectories? = null
+            try {
+                val buildInfo = readDeviceBuildInfo()
+                val metadata = createModuleMetadata(itemsState, buildInfo)
+                directories = createModuleDirectories()
 
-            writeModuleFiles(directories, metadata, buildInfo, deviceId, policy)
-            writeZipArchive(directories.root, outputStream)
-            onSuccess()
-        } catch (e: Exception) {
-            onError(e.message ?: context.getString(R.string.error_unknown))
-        } finally {
-            directories?.root?.deleteRecursively()
+                writeModuleFiles(directories, metadata, buildInfo, deviceId, policy)
+                writeZipArchive(directories.root, outputStream)
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.message ?: context.getString(R.string.error_unknown))
+            } finally {
+                directories?.root?.deleteRecursively()
+            }
         }
     }
 
@@ -332,21 +338,18 @@ class ModuleExportHelper(private val context: Context) {
      */
     private fun getDeviceDisplayName(itemsState: List<ItemWithVisibility>): String {
         // DeviceInfoItem.key stores the resource entry name, not its localized text.
-        val manufacturer = itemsState
-            .find { it.item.key == "device_manufacturer" }
-            ?.item
-            ?.value
-            ?: Build.MANUFACTURER
-        val model = itemsState
-            .find { it.item.key == "device_model" }
-            ?.item
-            ?.value
-            ?: Build.MODEL
+        // 一次 associateBy 构建查找表，避免对列表两次线性扫描。
+        val byKey = itemsState.associateBy({ it.item.key }, { it.item.value })
+        val manufacturer = byKey["device_manufacturer"] ?: Build.MANUFACTURER
+        val model = byKey["device_model"] ?: Build.MODEL
         return sanitizeDisplayValue("$manufacturer $model")
     }
 
     companion object {
         private const val FALLBACK_FILE_NAME = "module-export"
+        // 文件名为热路径（每次导出多次调用），正则提为常量避免每行/每次重新编译
+        private val FILENAME_SANITIZE_REGEX = Regex("[^a-zA-Z0-9_.-]")
+        private val WINDOWS_DRIVE_REGEX = Regex("^[A-Za-z]:.*")
         private val REQUIRED_ZIP_ENTRIES = setOf(
             "module.prop",
             "system.prop",
@@ -398,13 +401,15 @@ class ModuleExportHelper(private val context: Context) {
          * place a dynamic value in a script.
          */
         internal fun quoteShellValue(value: String): String {
-            val normalized = value.map { character ->
-                when (character) {
-                    '\n', '\r', '\t' -> ' '
-                    in '\u0000'..'\u001F', '\u007F' -> ' '
-                    else -> character
+            val normalized = buildString(value.length) {
+                value.forEach { character ->
+                    when (character) {
+                        '\n', '\r', '\t' -> append(' ')
+                        in '\u0000'..'\u001F', '\u007F' -> append(' ')
+                        else -> append(character)
+                    }
                 }
-            }.joinToString("")
+            }
             return "'${normalized.replace("'", "'\\''")}'"
         }
 
@@ -413,7 +418,7 @@ class ModuleExportHelper(private val context: Context) {
          */
         internal fun sanitizeFileName(name: String): String {
             if (name == "." || name == "..") return FALLBACK_FILE_NAME
-            var sanitized = name.replace(Regex("[^a-zA-Z0-9_.-]"), "_")
+            var sanitized = name.replace(FILENAME_SANITIZE_REGEX, "_")
             sanitized = sanitized.replace("..", "_")
             return sanitized.ifBlank { FALLBACK_FILE_NAME }
                 .takeUnless { it == "." || it == ".." }
@@ -427,7 +432,7 @@ class ModuleExportHelper(private val context: Context) {
         internal fun isSafeZipEntryName(entryName: String): Boolean {
             if (entryName.isEmpty() || entryName.any(::isUnsafeEntryCharacter)) return false
             if (entryName.startsWith('/') || entryName.startsWith('\\')) return false
-            if (entryName.matches(Regex("^[A-Za-z]:.*"))) return false
+            if (entryName.matches(WINDOWS_DRIVE_REGEX)) return false
             if (entryName.contains('\\')) return false
             val path = entryName.removeSuffix("/")
             if (path.isEmpty()) return false
@@ -445,13 +450,15 @@ class ModuleExportHelper(private val context: Context) {
         }
 
         private fun sanitizeDisplayValue(value: String): String {
-            return value.map { character ->
-                when (character) {
-                    '\n', '\r', '\t' -> ' '
-                    in '\u0000'..'\u001F', '\u007F' -> ' '
-                    else -> character
+            return buildString(value.length) {
+                value.forEach { character ->
+                    when (character) {
+                        '\n', '\r', '\t' -> append(' ')
+                        in '\u0000'..'\u001F', '\u007F' -> append(' ')
+                        else -> append(character)
+                    }
                 }
-            }.joinToString("").trim().ifBlank { "Device" }
+            }.trim().ifBlank { "Device" }
         }
 
         private fun isUnsafeEntryCharacter(character: Char): Boolean {
@@ -937,29 +944,19 @@ exit 0
     }
 
     private fun writeZipArchive(root: File, outputStream: OutputStream) {
-        val entryNames = collectZipEntryNames(root, "")
-        validateZipEntries(entryNames)
+        // 单次目录遍历：边写 ZIP 边收集条目名，避免先 collectZipEntryNames 再
+        // zipDirectory 的两次 listFiles 全量扫描。
+        val entryNames = mutableListOf<String>()
         ZipOutputStream(outputStream).use { zipOut ->
-            zipDirectory(root, "", zipOut)
+            zipDirectory(root, "", zipOut, entryNames)
             zipOut.finish()
         }
-    }
-
-    private fun collectZipEntryNames(dir: File, parentPath: String): List<String> {
-        val children = dir.listFiles()?.sortedBy(File::getName)
-            ?: throw IOException(context.getString(R.string.error_read_export_dir))
-        return children.flatMap { file ->
-            val entryPath = if (parentPath.isEmpty()) file.name else "$parentPath/${file.name}"
-            if (file.isDirectory) {
-                listOf("$entryPath/") + collectZipEntryNames(file, entryPath)
-            } else {
-                listOf(entryPath)
-            }
-        }
+        validateZipEntries(entryNames)
     }
 
     /**
-     * 递归地将目录及其所有子文件和子文件夹添加到 ZIP 输出流中
+     * 递归地将目录及其所有子文件和子文件夹添加到 ZIP 输出流中，同时把条目名收集到
+     * [entryNames]（单次遍历）。每个条目写入前都会校验名称安全。
      *
      * ZIP 文件结构示例：
      * module.zip
@@ -982,8 +979,9 @@ exit 0
      * @param dir 要打包的目录
      * @param parentPath ZIP 中的父路径
      * @param zipOut ZIP 输出流
+     * @param entryNames 收集到的 ZIP 条目名（用于事后校验必要文件）
      */
-    private fun zipDirectory(dir: File, parentPath: String, zipOut: ZipOutputStream) {
+    private fun zipDirectory(dir: File, parentPath: String, zipOut: ZipOutputStream, entryNames: MutableList<String>) {
         val children = dir.listFiles()?.sortedBy(File::getName)
             ?: throw IOException(context.getString(R.string.error_read_export_dir))
         children.forEach { file ->
@@ -994,12 +992,14 @@ exit 0
 
             if (file.isDirectory) {
                 // 如果是目录，在 ZIP 中添加目录条目（以 / 结尾）
+                entryNames.add("$entryPath/")
                 zipOut.putNextEntry(ZipEntry("$entryPath/"))
                 zipOut.closeEntry()
                 // 递归处理子目录
-                zipDirectory(file, entryPath, zipOut)
+                zipDirectory(file, entryPath, zipOut, entryNames)
             } else {
                 // 如果是文件，添加到 ZIP 中
+                entryNames.add(entryPath)
                 zipOut.putNextEntry(ZipEntry(entryPath))
                 file.inputStream().use { input ->
                     input.copyTo(zipOut)  // 将文件内容复制到 ZIP 流
