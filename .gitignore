@@ -30,6 +30,14 @@ debug.keystore
 logs/
 local/
 
+# Local runtime/environment artifacts (emulator, gradle home, JBR, debug dumps)
+.android-home/
+.gradle-home/
+.gradle-user-home/
+jbr/
+screenshot.png
+ui_dump.xml
+
 build/
 .mimosa/
 .zcode/
