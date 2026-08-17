@@ -36,8 +36,6 @@ class DampedDragAnimation(
 
     private val valueAnimationSpec =
         spring(1f, 1000f, visibilityThreshold)
-    private val velocityAnimationSpec =
-        spring(0.5f, 300f, visibilityThreshold * 10f)
     private val pressProgressAnimationSpec =
         spring(1f, 1000f, 0.001f)
     private val scaleXAnimationSpec =
@@ -47,8 +45,6 @@ class DampedDragAnimation(
 
     private val valueAnimation =
         Animatable(initialValue, visibilityThreshold)
-    private val velocityAnimation =
-        Animatable(0f, 5f)
     private val pressProgressAnimation =
         Animatable(0f, 0.001f)
     private val scaleXAnimation =
@@ -64,7 +60,8 @@ class DampedDragAnimation(
     val pressProgress: Float get() = pressProgressAnimation.value
     val scaleX: Float get() = scaleXAnimation.value
     val scaleY: Float get() = scaleYAnimation.value
-    val velocity: Float get() = velocityAnimation.value
+    var velocity: Float = 0f
+        private set
 
     val modifier: Modifier = Modifier.pointerInput(Unit) {
         inspectDragGestures(
@@ -132,8 +129,9 @@ class DampedDragAnimation(
                     Offset(valueAnimation.value, 0f)
                 )
                 val targetVelocity = velocityTracker.calculateVelocity().x / (valueRange.endInclusive - valueRange.start)
-                // 同步更新，不启动新协程
-                animationScope.launch { velocityAnimation.animateTo(targetVelocity, velocityAnimationSpec) }
+                // 帧回调非挂起上下文：直接同步更新 velocity 属性，
+                // 避免每帧新启动协程以及多个 animateTo 在 velocity 上相互打断
+                this@DampedDragAnimation.velocity = targetVelocity
             }
         }
     }
@@ -145,7 +143,7 @@ class DampedDragAnimation(
                 val targetValue = value.coerceIn(valueRange)
                 valueAnimation.animateTo(targetValue, valueAnimationSpec)
                 if (velocity != 0f) {
-                    velocityAnimation.animateTo(0f, velocityAnimationSpec)
+                    velocity = 0f
                 }
                 release()
             }
