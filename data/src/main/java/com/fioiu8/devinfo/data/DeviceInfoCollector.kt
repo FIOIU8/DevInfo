@@ -23,6 +23,7 @@ import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.hardware.Sensor
@@ -54,7 +55,9 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 // 热路径（每 2 秒采样）中逐行解析 /proc 使用，提为顶层常量避免每行重复分配
 private val WHITESPACE_SPLIT_REGEX = Regex("\\s+")
@@ -104,8 +107,34 @@ class DeviceInfoCollector(private val context: Context) {
         }
     }
 
-    fun collectDeviceInfo(): List<DeviceInfoItem> {
-        return infoItemSuppliers().mapNotNull { supplier ->
+    /**
+     * 一次采集内的共享资源。电池广播、内存信息、网络能力、包信息这些 binder/IPC
+     * 调用代价较高，整次采集只获取一次，既避免重复开销，也保证同一时间点的快照一致性。
+     */
+    private class CollectContext(
+        val batteryIntent: Intent?,
+        val memoryInfo: ActivityManager.MemoryInfo,
+        val connectivityManager: ConnectivityManager?,
+        val networkCapabilities: NetworkCapabilities?,
+        val packageInfo: PackageInfo?,
+    )
+
+    private fun newCollectContext(): CollectContext {
+        // 粘性广播：registerReceiver(null, filter) 返回最近一次系统广播，本次采集内的
+        // 所有电池字段都从这份快照读取，后续广播更新不影响本次采集（符合预期）。
+        val batteryIntent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val memoryInfo = ActivityManager.MemoryInfo().also {
+            (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(it)
+        }
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val networkCapabilities = connectivityManager?.activeNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
+        val packageInfo = runCatching { context.packageManager.getPackageInfo(context.packageName, 0) }.getOrNull()
+        return CollectContext(batteryIntent, memoryInfo, connectivityManager, networkCapabilities, packageInfo)
+    }
+
+    suspend fun collectDeviceInfo(): List<DeviceInfoItem> = withContext(Dispatchers.IO) {
+        val ctx = newCollectContext()
+        infoItemSuppliers(ctx).mapNotNull { supplier ->
             try {
                 supplier()
             } catch (_: Exception) {
@@ -115,8 +144,9 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     /** Reads one item at a time so the UI can publish successful results in source order. */
-    suspend fun collectDeviceInfo(onItem: suspend (DeviceInfoItem) -> Unit) {
-        infoItemSuppliers().forEach { supplier ->
+    suspend fun collectDeviceInfo(onItem: suspend (DeviceInfoItem) -> Unit) = withContext(Dispatchers.IO) {
+        val ctx = newCollectContext()
+        infoItemSuppliers(ctx).forEach { supplier ->
             val item = try {
                 supplier()
             } catch (_: Exception) {
@@ -126,16 +156,16 @@ class DeviceInfoCollector(private val context: Context) {
         }
     }
 
-    private fun infoItemSuppliers(): List<() -> DeviceInfoItem?> = buildList {
+    private fun infoItemSuppliers(ctx: CollectContext): List<() -> DeviceInfoItem?> = buildList {
         addAll(identifierInfoItemSuppliers())
         addAll(deviceInfoItemSuppliers())
         addAll(systemInfoItemSuppliers())
         addAll(localeInfoItemSuppliers())
         addAll(displayInfoItemSuppliers())
-        addAll(storageInfoItemSuppliers())
-        addAll(batteryInfoItemSuppliers())
-        addAll(networkInfoItemSuppliers())
-        addAll(appInfoItemSuppliers())
+        addAll(storageInfoItemSuppliers(ctx))
+        addAll(batteryInfoItemSuppliers(ctx))
+        addAll(networkInfoItemSuppliers(ctx))
+        addAll(appInfoItemSuppliers(ctx))
     }
 
     private fun identifierInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
@@ -216,11 +246,11 @@ class DeviceInfoCollector(private val context: Context) {
         { infoItem(R.string.display_supported_refresh_rates, getSupportedRefreshRates(), InfoCategory.DISPLAY) }
     )
 
-    private fun storageInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
-        { infoItem(R.string.storage_total_ram, getTotalMemory(), InfoCategory.STORAGE) },
-        { infoItem(R.string.storage_available_ram, getAvailMemory(), InfoCategory.STORAGE) },
-        { infoItem(R.string.storage_low_memory, getLowMemoryState(), InfoCategory.STORAGE) },
-        { infoItem(R.string.storage_memory_threshold, getMemoryThreshold(), InfoCategory.STORAGE) },
+    private fun storageInfoItemSuppliers(ctx: CollectContext): List<() -> DeviceInfoItem?> = listOf(
+        { infoItem(R.string.storage_total_ram, getTotalMemory(ctx.memoryInfo), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_available_ram, getAvailMemory(ctx.memoryInfo), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_low_memory, getLowMemoryState(ctx.memoryInfo), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_memory_threshold, getMemoryThreshold(ctx.memoryInfo), InfoCategory.STORAGE) },
         { infoItem(R.string.storage_total, getTotalStorage(), InfoCategory.STORAGE) },
         { infoItem(R.string.storage_available, getFreeStorage(), InfoCategory.STORAGE) },
         { infoItem(R.string.storage_internal_total, getInternalTotalStorage(), InfoCategory.STORAGE) },
@@ -230,53 +260,52 @@ class DeviceInfoCollector(private val context: Context) {
         { infoItem(R.string.storage_removable, getStorageRemovable(), InfoCategory.STORAGE) }
     )
 
-    private fun batteryInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
+    private fun batteryInfoItemSuppliers(ctx: CollectContext): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.battery_level_label, getBatteryLevel(), InfoCategory.BATTERY) },
         { infoItem(R.string.battery_charging_state, getBatteryCharging(), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_temperature, getBatteryProperty(BatteryManager.EXTRA_TEMPERATURE), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_health, getBatteryHealth(), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_voltage, getBatteryProperty(BatteryManager.EXTRA_VOLTAGE), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_technology, getBatteryTechnology(), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_plug_type, getBatteryPlugType(), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_temperature, getBatteryProperty(ctx.batteryIntent, BatteryManager.EXTRA_TEMPERATURE), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_health, getBatteryHealth(ctx.batteryIntent), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_voltage, getBatteryProperty(ctx.batteryIntent, BatteryManager.EXTRA_VOLTAGE), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_technology, getBatteryTechnology(ctx.batteryIntent), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_plug_type, getBatteryPlugType(ctx.batteryIntent), InfoCategory.BATTERY) },
         { infoItem(R.string.battery_current_now, getBatteryCurrentNow(), InfoCategory.BATTERY) },
         { infoItem(R.string.battery_charge_counter, getBatteryChargeCounter(), InfoCategory.BATTERY) },
         { infoItem(R.string.battery_capacity_design, getBatteryDesignCapacity(), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_cycle_count, getBatteryCycleCount(), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_cycle_count, getBatteryCycleCount(ctx.batteryIntent), InfoCategory.BATTERY) },
         { infoItem(R.string.battery_power_save, getPowerSaveMode(), InfoCategory.BATTERY) }
     )
 
-    private fun networkInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
+    private fun networkInfoItemSuppliers(ctx: CollectContext): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.network_nfc, if (NfcAdapter.getDefaultAdapter(context) != null) context.getString(R.string.status_supported) else context.getString(R.string.status_not_supported), InfoCategory.NETWORK) },
         { infoItem(R.string.network_camera_count, getCameraCount(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_bluetooth_state, getBluetoothState(), InfoCategory.NETWORK) },
-        { infoItem(R.string.network_type, getNetworkType(), InfoCategory.NETWORK) },
+        { infoItem(R.string.network_type, getNetworkType(ctx.networkCapabilities), InfoCategory.NETWORK) },
         { infoItem(R.string.network_operator, getNetworkOperator(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_sim_state, getSimState(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_sim_operator, getSimOperator(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_sim_country, getSimCountry(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_phone_type, getPhoneType(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_wifi_enabled, getWifiEnabledState(), InfoCategory.NETWORK) },
-        { infoItem(R.string.network_metered, getNetworkMetered(), InfoCategory.NETWORK) },
-        { infoItem(R.string.network_vpn, getVpnState(), InfoCategory.NETWORK) },
+        { infoItem(R.string.network_metered, getNetworkMetered(ctx.connectivityManager), InfoCategory.NETWORK) },
+        { infoItem(R.string.network_vpn, getVpnState(ctx.networkCapabilities), InfoCategory.NETWORK) },
         { infoItem(R.string.network_airplane_mode, getAirplaneModeState(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_data_roaming, getDataRoamingState(), InfoCategory.NETWORK) },
-        { infoItem(R.string.network_link_speed, getNetworkLinkSpeed(), InfoCategory.NETWORK) }
+        { infoItem(R.string.network_link_speed, getNetworkLinkSpeed(ctx.networkCapabilities), InfoCategory.NETWORK) }
     )
 
-    private fun appInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
+    private fun appInfoItemSuppliers(ctx: CollectContext): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.app_package, context.packageName, InfoCategory.APP) },
         { infoItem(R.string.app_version_name, getAppVersionName(), InfoCategory.APP) },
         { infoItem(R.string.app_version_code, getAppVersionCode().toString(), InfoCategory.APP) },
-        { infoItem(R.string.app_first_install, getAppFirstInstallTime(), InfoCategory.APP) },
-        { infoItem(R.string.app_last_update, getAppLastUpdateTime(), InfoCategory.APP) },
+        { infoItem(R.string.app_first_install, getAppFirstInstallTime(ctx.packageInfo), InfoCategory.APP) },
+        { infoItem(R.string.app_last_update, getAppLastUpdateTime(ctx.packageInfo), InfoCategory.APP) },
         { infoItem(R.string.app_target_sdk, getAppTargetSdk(), InfoCategory.APP) },
         { infoItem(R.string.app_min_sdk, getAppMinSdk(), InfoCategory.APP) },
         { infoItem(R.string.app_installer, getAppInstaller(), InfoCategory.APP) },
         { infoItem(R.string.app_installed_count, getInstalledAppCount(), InfoCategory.APP) }
     )
 
-    private val statusUnknown: String
-        get() = context.getString(R.string.status_unknown)
+    private val statusUnknown: String = context.getString(R.string.status_unknown)
 
     private fun getAndroidIdSafe(): String = safeGet(context.getString(R.string.status_unknown)) {
         @Suppress("HardwareIds")
@@ -291,13 +320,11 @@ class DeviceInfoCollector(private val context: Context) {
         if (bm?.adapter?.isEnabled == true) context.getString(R.string.status_enabled) else context.getString(R.string.status_disabled)
     }
 
-    private fun getTotalMemory(): String {
-        val mi = getMemoryInfo()
+    private fun getTotalMemory(mi: ActivityManager.MemoryInfo): String {
         return "${mi.totalMem / 1024 / 1024} MB"
     }
 
-    private fun getAvailMemory(): String {
-        val mi = getMemoryInfo()
+    private fun getAvailMemory(mi: ActivityManager.MemoryInfo): String {
         return "${mi.availMem / 1024 / 1024} MB"
     }
 
@@ -469,7 +496,7 @@ class DeviceInfoCollector(private val context: Context) {
             calculateCpuUsageFromUptime(
                 first = firstUptime ?: return@runCatching null,
                 second = readCpuUptime() ?: return@runCatching null,
-                cpuCount = getCpuIndexes().size.coerceAtLeast(1)
+                cpuCount = cpuIndexes.size.coerceAtLeast(1)
             )
         }
     }.getOrNull()
@@ -521,12 +548,16 @@ class DeviceInfoCollector(private val context: Context) {
      * and frequencies visible; overall usage is sampled separately through /proc/uptime.
      */
     private fun getCpuCoreTopologyMetrics(): List<CpuCoreMetric> {
-        return getCpuIndexes().map { index ->
+        return cpuIndexes.map { index ->
             CpuCoreMetric(index = index, frequency = getCpuCoreFrequency(index), usagePercent = null)
         }
     }
 
-    private fun getCpuIndexes(): List<Int> = parseCpuIndexes(
+    // CPU 拓扑在运行期不变；首次调用时计算并缓存（lazy 默认线程安全），
+    // 避免每 2 秒采样都全量扫描 /sys/devices/system/cpu/online 与 cpufreq 目录。
+    private val cpuIndexes: List<Int> by lazy { computeCpuIndexes() }
+
+    private fun computeCpuIndexes(): List<Int> = parseCpuIndexes(
             readFirstLine("/sys/devices/system/cpu/online")
                 ?: readFirstLine("/sys/devices/system/cpu/present")
         )
@@ -644,8 +675,8 @@ class DeviceInfoCollector(private val context: Context) {
         if (bm.isCharging) context.getString(R.string.status_charging) else context.getString(R.string.status_not_charging)
     }
 
-    private fun getBatteryProperty(extraName: String): String = safeGet(statusUnknown) {
-        val intent = getBatteryIntent() ?: return@safeGet statusUnknown
+    private fun getBatteryProperty(batteryIntent: Intent?, extraName: String): String = safeGet(statusUnknown) {
+        val intent = batteryIntent ?: return@safeGet statusUnknown
         val value = intent.getIntExtra(extraName, -1)
         if (value < 0) return@safeGet statusUnknown
         if (extraName == BatteryManager.EXTRA_TEMPERATURE) {
@@ -655,8 +686,8 @@ class DeviceInfoCollector(private val context: Context) {
         }
     }
 
-    private fun getBatteryHealth(): String = safeGet(statusUnknown) {
-        val intent = getBatteryIntent() ?: return@safeGet statusUnknown
+    private fun getBatteryHealth(batteryIntent: Intent?): String = safeGet(statusUnknown) {
+        val intent = batteryIntent ?: return@safeGet statusUnknown
         when (intent.getIntExtra(BatteryManager.EXTRA_HEALTH, -1)) {
             BatteryManager.BATTERY_HEALTH_GOOD -> context.getString(R.string.status_health_good)
             BatteryManager.BATTERY_HEALTH_OVERHEAT -> context.getString(R.string.status_health_overheat)
@@ -668,31 +699,25 @@ class DeviceInfoCollector(private val context: Context) {
         }
     }
 
-    private fun getBatteryTechnology(): String = safeGet(statusUnknown) {
-        getBatteryIntent()
+    private fun getBatteryTechnology(batteryIntent: Intent?): String = safeGet(statusUnknown) {
+        batteryIntent
             ?.getStringExtra(BatteryManager.EXTRA_TECHNOLOGY)
             ?.takeIf { it.isNotBlank() }
             ?: statusUnknown
     }
-
-    private fun getBatteryIntent(): Intent? =
-        context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
     private fun getCameraCount() = safeGet(context.getString(R.string.status_unknown)) {
         val cam = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
         cam.cameraIdList.size.toString()
     }
 
-    private fun getNetworkType(): String = safeGet(context.getString(R.string.status_unknown)) {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return@safeGet context.getString(R.string.status_unknown)
-        val nc = cm.getNetworkCapabilities(cm.activeNetwork)
-            ?: return@safeGet context.getString(R.string.status_unknown)
+    private fun getNetworkType(nc: NetworkCapabilities?): String = safeGet(statusUnknown) {
+        val caps = nc ?: return@safeGet statusUnknown
         when {
-            nc.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> context.getString(R.string.status_wifi)
-            nc.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> context.getString(R.string.status_cellular)
-            nc.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> context.getString(R.string.status_ethernet)
-            nc.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) -> context.getString(R.string.status_bluetooth)
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> context.getString(R.string.status_wifi)
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> context.getString(R.string.status_cellular)
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> context.getString(R.string.status_ethernet)
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) -> context.getString(R.string.status_bluetooth)
             else -> context.getString(R.string.status_unknown)
         }
     }
@@ -859,12 +884,12 @@ class DeviceInfoCollector(private val context: Context) {
 
     // ── STORAGE 补充项 ──
 
-    private fun getLowMemoryState(): String = safeGet(statusUnknown) {
-        if (getMemoryInfo().lowMemory) context.getString(R.string.status_yes) else context.getString(R.string.status_no)
+    private fun getLowMemoryState(mi: ActivityManager.MemoryInfo): String = safeGet(statusUnknown) {
+        if (mi.lowMemory) context.getString(R.string.status_yes) else context.getString(R.string.status_no)
     }
 
-    private fun getMemoryThreshold(): String = safeGet(statusUnknown) {
-        "${getMemoryInfo().threshold / 1024 / 1024} MB"
+    private fun getMemoryThreshold(mi: ActivityManager.MemoryInfo): String = safeGet(statusUnknown) {
+        "${mi.threshold / 1024 / 1024} MB"
     }
 
     private fun getInternalTotalStorage(): String = safeGet(statusUnknown) {
@@ -890,8 +915,8 @@ class DeviceInfoCollector(private val context: Context) {
 
     // ── BATTERY 补充项 ──
 
-    private fun getBatteryPlugType(): String = safeGet(statusUnknown) {
-        val intent = getBatteryIntent() ?: return@safeGet statusUnknown
+    private fun getBatteryPlugType(batteryIntent: Intent?): String = safeGet(statusUnknown) {
+        val intent = batteryIntent ?: return@safeGet statusUnknown
         when (intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)) {
             BatteryManager.BATTERY_PLUGGED_AC -> context.getString(R.string.status_plugged_ac)
             BatteryManager.BATTERY_PLUGGED_USB -> context.getString(R.string.status_plugged_usb)
@@ -923,9 +948,9 @@ class DeviceInfoCollector(private val context: Context) {
             ?: statusUnknown
     }
 
-    private fun getBatteryCycleCount(): String = safeGet(statusUnknown) {
+    private fun getBatteryCycleCount(batteryIntent: Intent?): String = safeGet(statusUnknown) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            val count = getBatteryIntent()?.getIntExtra(BatteryManager.EXTRA_CYCLE_COUNT, -1) ?: -1
+            val count = batteryIntent?.getIntExtra(BatteryManager.EXTRA_CYCLE_COUNT, -1) ?: -1
             if (count > 0) return@safeGet count.toString()
         }
         readFirstLine("/sys/class/power_supply/battery/cycle_count")
@@ -972,17 +997,14 @@ class DeviceInfoCollector(private val context: Context) {
         if (wm.isWifiEnabled) context.getString(R.string.status_enabled) else context.getString(R.string.status_disabled)
     }
 
-    private fun getNetworkMetered(): String = safeGet(statusUnknown) {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return@safeGet statusUnknown
-        if (cm.isActiveNetworkMetered) context.getString(R.string.status_yes) else context.getString(R.string.status_no)
+    private fun getNetworkMetered(cm: ConnectivityManager?): String = safeGet(statusUnknown) {
+        val connectivityManager = cm ?: return@safeGet statusUnknown
+        if (connectivityManager.isActiveNetworkMetered) context.getString(R.string.status_yes) else context.getString(R.string.status_no)
     }
 
-    private fun getVpnState(): String = safeGet(statusUnknown) {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return@safeGet statusUnknown
-        val nc = cm.getNetworkCapabilities(cm.activeNetwork)
-        if (nc?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) {
+    private fun getVpnState(nc: NetworkCapabilities?): String = safeGet(statusUnknown) {
+        val caps = nc ?: return@safeGet statusUnknown
+        if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
             context.getString(R.string.status_enabled)
         } else {
             context.getString(R.string.status_disabled)
@@ -999,12 +1021,10 @@ class DeviceInfoCollector(private val context: Context) {
         if (tm.isNetworkRoaming) context.getString(R.string.status_yes) else context.getString(R.string.status_no)
     }
 
-    private fun getNetworkLinkSpeed(): String = safeGet(statusUnknown) {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return@safeGet statusUnknown
-        val nc = cm.getNetworkCapabilities(cm.activeNetwork) ?: return@safeGet statusUnknown
-        val down = nc.linkDownstreamBandwidthKbps / 1000
-        val up = nc.linkUpstreamBandwidthKbps / 1000
+    private fun getNetworkLinkSpeed(nc: NetworkCapabilities?): String = safeGet(statusUnknown) {
+        val caps = nc ?: return@safeGet statusUnknown
+        val down = caps.linkDownstreamBandwidthKbps / 1000
+        val up = caps.linkUpstreamBandwidthKbps / 1000
         if (down <= 0 && up <= 0) return@safeGet statusUnknown
         val downStr = if (down > 0) "$down" else "?"
         val upStr = if (up > 0) "$up" else "?"
@@ -1013,14 +1033,14 @@ class DeviceInfoCollector(private val context: Context) {
 
     // ── APP 补充项 ──
 
-    private fun getAppFirstInstallTime(): String = safeGet(statusUnknown) {
-        val p = context.packageManager.getPackageInfo(context.packageName, 0)
-        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(p.firstInstallTime))
+    private fun getAppFirstInstallTime(p: PackageInfo?): String = safeGet(statusUnknown) {
+        val pkg = p ?: return@safeGet statusUnknown
+        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(pkg.firstInstallTime))
     }
 
-    private fun getAppLastUpdateTime(): String = safeGet(statusUnknown) {
-        val p = context.packageManager.getPackageInfo(context.packageName, 0)
-        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(p.lastUpdateTime))
+    private fun getAppLastUpdateTime(p: PackageInfo?): String = safeGet(statusUnknown) {
+        val pkg = p ?: return@safeGet statusUnknown
+        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(pkg.lastUpdateTime))
     }
 
     private fun getAppTargetSdk(): String = safeGet(statusUnknown) {
