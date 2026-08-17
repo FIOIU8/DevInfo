@@ -19,6 +19,7 @@ package com.fioiu8.devinfo.data
 
 import android.content.Context
 import com.fioiu8.devinfo.core.model.PaletteStyle
+import kotlin.concurrent.Volatile
 import com.fioiu8.devinfo.core.model.ThemeColor
 import com.fioiu8.devinfo.core.model.ThemeMode
 import com.fioiu8.devinfo.core.model.UiStyle
@@ -28,7 +29,8 @@ import kotlinx.coroutines.flow.StateFlow
  * 简单的内存+SP 主题偏好存储。
  * 使用 SharedPreferences 实现持久化，通过 StateFlow 暴露当前值。
  */
-class ThemePreferences(context: Context) : BasePreferences<String>(context, PREFS_NAME) {
+class ThemePreferences private constructor(context: Context) :
+    BasePreferences<String>(context.applicationContext, PREFS_NAME) {
 
     private val themeModePreference =
         enumPreference(
@@ -161,8 +163,19 @@ class ThemePreferences(context: Context) : BasePreferences<String>(context, PREF
 
     fun getCheckUpdateSnapshot(): Boolean = checkUpdatePreference.snapshot
 
-    private companion object {
-        const val PREFS_NAME = "devinfo_theme_prefs"
+    companion object {
+        // 单例：避免每次 Activity 重建都新建实例并注册一组永不注销的
+        // OnSharedPreferenceChangeListener，导致旧实例（及其 StateFlow）被
+        // SharedPreferences 强引用而泄漏。实例随应用生命周期存在，符合主题存储的定位。
+        @Volatile
+        private var instance: ThemePreferences? = null
+
+        fun getInstance(context: Context): ThemePreferences =
+            instance ?: synchronized(ThemePreferences::class.java) {
+                instance ?: ThemePreferences(context.applicationContext).also { instance = it }
+            }
+
+        private const val PREFS_NAME = "devinfo_theme_prefs"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_THEME_COLOR = "theme_color"
         const val KEY_UI_STYLE = "ui_style"

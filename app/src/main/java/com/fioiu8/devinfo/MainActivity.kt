@@ -102,7 +102,7 @@ class MainActivity : ComponentActivity() {
 
         // 模块导出助手
         val exportHelper = ModuleExportHelper(this)
-        val themePrefs = ThemePreferences(this).also { this.themePrefs = it }
+        val themePrefs = ThemePreferences.getInstance(this).also { this.themePrefs = it }
         val languagePrefs = LanguagePreferences(this).also { this.languagePrefs = it }
         val appContext = applicationContext
         val collector = DeviceInfoCollector(appContext)
