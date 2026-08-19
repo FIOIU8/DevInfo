@@ -128,6 +128,7 @@
     <string name="export_format_label">フォーマット</string>
     <string name="export_format_value">ZIPアーカイブ</string>
     <string name="export_save_location">保存場所</string>
+    <string name="export_save_location_pending">次のシステムファイル選択画面で選択します</string>
     <string name="export_filename">ファイル名</string>
     <string name="export_confirm">エクスポートを確認しますか？</string>
     <string name="export_success">エクスポート成功</string>

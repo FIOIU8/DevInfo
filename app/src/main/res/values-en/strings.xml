@@ -132,6 +132,7 @@
     <string name="export_format_label">Format</string>
     <string name="export_format_value">ZIP Archive</string>
     <string name="export_save_location">Save location</string>
+    <string name="export_save_location_pending">Choose in the system file picker next</string>
     <string name="export_filename">Filename</string>
     <string name="export_confirm">Confirm export?</string>
     <string name="export_success">Export Successful</string>

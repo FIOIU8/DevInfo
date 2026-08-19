@@ -80,6 +80,7 @@ import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowDialog
 
 /**
@@ -98,13 +99,9 @@ fun ExportConfirmDialog(
 ) {
     if (!show) return
     if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixActionDialog(
-            title = stringResource(R.string.export_title),
-            message = stringResource(R.string.export_confirm_text) +
-                "\n\n" + stringResource(R.string.export_risk_warning),
-            confirmLabel = stringResource(R.string.confirm_export),
+        MiuixExportConfirmDialog(
+            fileName = fileName,
             onConfirm = onConfirm,
-            dismissLabel = stringResource(R.string.cancel),
             onDismiss = onDismiss,
         )
         return
@@ -152,6 +149,10 @@ fun ExportConfirmDialog(
                         InfoRow(
                             label = stringResource(R.string.export_format_label),
                             value = stringResource(R.string.export_format_value)
+                        )
+                        InfoRow(
+                            label = stringResource(R.string.export_save_location),
+                            value = stringResource(R.string.export_save_location_pending),
                         )
                         InfoRow(
                             label = stringResource(R.string.export_filename),
@@ -543,6 +544,97 @@ fun MiuixActionDialog(
                 MiuixTextButton(text = confirmLabel, onClick = onConfirm)
             }
         }
+    }
+}
+
+@Composable
+private fun MiuixExportConfirmDialog(
+    fileName: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    WindowDialog(
+        show = true,
+        title = stringResource(R.string.export_title),
+        onDismissRequest = onDismiss,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            MiuixText(
+                text = stringResource(R.string.export_confirm_text),
+                style = MiuixTheme.textStyles.body2,
+            )
+            MiuixText(
+                text = stringResource(R.string.export_risk_warning),
+                color = MiuixTheme.colorScheme.error,
+                style = MiuixTheme.textStyles.body2,
+            )
+            MiuixCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    MiuixExportSummaryRow(
+                        label = stringResource(R.string.export_format_label),
+                        value = stringResource(R.string.export_format_value),
+                    )
+                    HorizontalDivider(
+                        color = MiuixTheme.colorScheme.onSurfaceSecondary.copy(alpha = 0.2f),
+                    )
+                    MiuixExportSummaryRow(
+                        label = stringResource(R.string.export_save_location),
+                        value = stringResource(R.string.export_save_location_pending),
+                    )
+                    HorizontalDivider(
+                        color = MiuixTheme.colorScheme.onSurfaceSecondary.copy(alpha = 0.2f),
+                    )
+                    MiuixExportSummaryRow(
+                        label = stringResource(R.string.export_filename),
+                        value = fileName,
+                    )
+                }
+            }
+            MiuixText(
+                text = stringResource(R.string.export_confirm),
+                style = MiuixTheme.textStyles.body2,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+            ) {
+                MiuixTextButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = onDismiss,
+                )
+                MiuixTextButton(
+                    text = stringResource(R.string.confirm_export),
+                    onClick = onConfirm,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiuixExportSummaryRow(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        MiuixText(
+            text = label,
+            style = MiuixTheme.textStyles.body2,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        MiuixText(
+            text = value,
+            color = MiuixTheme.colorScheme.onSurfaceSecondary,
+            style = MiuixTheme.textStyles.body2,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 

@@ -126,6 +126,7 @@
     <string name="export_format_label">导出格式</string>
     <string name="export_format_value">ZIP 压缩包</string>
     <string name="export_save_location">保存位置</string>
+    <string name="export_save_location_pending">将在下一步系统文件选择器中选择</string>
     <string name="export_filename">文件名</string>
     <string name="export_confirm">确认导出？</string>
     <string name="export_success">导出成功</string>
