@@ -406,9 +406,10 @@
     <string name="cpu_usage_restricted">Restricted by System</string>
     <string name="root_mode_enabled">Root monitoring enabled</string>
     <string name="root_mode_failed">Root read failed</string>
-    <string name="root_required_title">Root Required</string>
-    <string name="root_required_message">Device is not rooted. Advanced CPU monitoring is unavailable.\n\nTips:\n• Rooted devices can read per-core CPU usage\n• Currently showing CPU frequency only</string>
+    <string name="root_required_title">Request Root Permission</string>
+    <string name="root_required_message">This operation will request Root permission to access system-level core data, including kernel logs, partition mount status, and raw hardware sensor values. The data is only used for in-app information display and will not modify system files or upload data. Some data involves device-unique identifiers. Please confirm that this software was downloaded from an official channel (Github) and is from a trusted source. By continuing, you acknowledge and voluntarily assume the corresponding security risks!</string>
     <string name="root_fab_desc">Toggle CPU monitoring mode</string>
+    <string name="root_fab_confirm">I understand the risks and agree</string>
     <string name="status_wifi">Wi-Fi</string>
     <string name="status_cellular">Cellular</string>
     <string name="status_ethernet">Ethernet</string>

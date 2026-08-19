@@ -404,9 +404,10 @@
     <string name="cpu_usage_restricted">システムにより制限</string>
     <string name="root_mode_enabled">Root モニタリングを有効化</string>
     <string name="root_mode_failed">Root 読み取り失敗</string>
-    <string name="root_required_title">Root 権限が必要</string>
-    <string name="root_required_message">デバイスが Root 化されていません。高度な CPU モニタリングは利用できません。\n\nヒント：\n• Root 化デバイスではコアごとの CPU 使用率を取得可能\n• 現在は CPU 周波数のみ表示</string>
+    <string name="root_required_title">Root 権限のリクエスト</string>
+    <string name="root_required_message">この操作は、カーネルログ、パーティションマウント状態、ハードウェアセンサーの生の値など、システムレベルのコアデータにアクセスするためにRoot権限をリクエストします。取得したデータは本ソフトの情報表示にのみ使用され、システムファイルの変更やデータのアップロードは行われません。一部のデータはデバイス固有の識別情報を含んでいます。本ソフトが公式チャネル（Github）からダウンロードされ、信頼できるソースであることを確認してください。続行することで、あなたはこれらのセキュリティリスクを認識し、自ら責任を負うことに同意したものとみなされます！</string>
     <string name="root_fab_desc">CPU モニタリングモード切替</string>
+    <string name="root_fab_confirm">リスクを理解して同意します</string>
     <string name="status_wifi">Wi-Fi</string>
     <string name="status_cellular">モバイルネットワーク</string>
     <string name="status_ethernet">イーサネット</string>
