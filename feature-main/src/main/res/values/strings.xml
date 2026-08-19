@@ -402,9 +402,10 @@
     <string name="cpu_usage_restricted">受系统限制</string>
     <string name="root_mode_enabled">已启用 Root 监控模式</string>
     <string name="root_mode_failed">Root 读取失败</string>
-    <string name="root_required_title">需要 Root 权限</string>
-    <string name="root_required_message">设备未 Root，无法启用高级 CPU 监控模式。\n\n提示：\n• 已 Root 设备可获取每核心真实占用率\n• 当前仅显示 CPU 频率</string>
+    <string name="root_required_title">请求 Root 权限</string>
+    <string name="root_required_message">此操作将请求 Root 权限以便访问系统底层核心数据，包括内核日志、分区挂载状态及硬件传感器原始值，获取后仅用于本软件信息展示，不会修改系统文件或上传数据，部分数据涉及设备唯一标识，请确认该软件从正规渠道（Github）下载，并且来源可信，继续即表示您已知悉并自愿承担相应安全责任！</string>
     <string name="root_fab_desc">CPU 监控模式切换</string>
+    <string name="root_fab_confirm">我已知晓风险并同意</string>
     <string name="status_wifi">Wi-Fi</string>
     <string name="status_cellular">移动网络</string>
     <string name="status_ethernet">以太网</string>

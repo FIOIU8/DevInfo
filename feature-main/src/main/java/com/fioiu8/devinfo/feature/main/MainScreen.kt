@@ -46,6 +46,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -72,6 +73,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -149,11 +151,13 @@ import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHostState as MiuixSnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
+import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.window.WindowDialog
 import com.fioiu8.devinfo.ui.CustomMiuixIcons
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.math.roundToInt
@@ -627,6 +631,7 @@ fun MainScreen(
                     .align(Alignment.BottomEnd)
                     .padding(end = 16.dp)
                     .padding(bottom = snackbarBottomPadding + 56.dp),
+                isVisible = selectedIndex == SETTINGS_TAB_INDEX && !showThemeSettingsPage && !showAboutPage && !showDetailsPage,
             )
         }
     }
@@ -743,7 +748,14 @@ fun MainScreen(
 
     RootRequiredDialog(
         show = showRootRequiredDialog,
-        onDismiss = { showRootRequiredDialog = false }
+        onDismiss = { showRootRequiredDialog = false },
+        onConfirm = {
+            showRootRequiredDialog = false
+            scope.launch {
+                val success = withContext(Dispatchers.IO) { viewModel.enableRootMode() }
+                showMessage(if (success) rootEnabledMsg else rootFailedMsg)
+            }
+        }
     )
 
     ExportConfirmDialog(
@@ -1260,8 +1272,10 @@ private fun MiuixMainNavigationRail(
 private fun BoxScope.RootModeFab(
     isRootModeEnabled: Boolean,
     onClick: () -> Unit,
+    isVisible: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
+    if (!isVisible) return
     if (LocalUiStyle.current == UiStyle.MIUIX) {
         MiuixFloatingActionButton(
             onClick = onClick,
@@ -1288,7 +1302,7 @@ private fun BoxScope.RootModeFab(
             },
         ) {
             Icon(
-                imageVector = Icons.Filled.Settings,
+                imageVector = Icons.Outlined.Build,
                 contentDescription = stringResource(R.string.root_fab_desc),
                 tint = if (isRootModeEnabled) {
                     MaterialTheme.colorScheme.onPrimaryContainer
@@ -1304,24 +1318,36 @@ private fun BoxScope.RootModeFab(
 private fun RootRequiredDialog(
     show: Boolean,
     onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
 ) {
     if (!show) return
     if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixActionDialog(
+        WindowDialog(
+            show = show,
             title = stringResource(R.string.root_required_title),
-            message = stringResource(R.string.root_required_message),
-            confirmLabel = stringResource(R.string.confirm),
-            onConfirm = onDismiss,
-            dismissLabel = stringResource(R.string.cancel),
-            onDismiss = onDismiss,
-        )
+            onDismissRequest = onDismiss,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                MiuixText(text = stringResource(R.string.root_required_message))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                ) {
+                    MiuixTextButton(text = stringResource(R.string.cancel), onClick = onDismiss)
+                    MiuixTextButton(
+                        text = stringResource(R.string.root_fab_confirm),
+                        onClick = onConfirm,
+                    )
+                }
+            }
+        }
         return
     }
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
             Icon(
-                imageVector = Icons.Outlined.Settings,
+                imageVector = Icons.Outlined.Build,
                 contentDescription = null,
                 modifier = Modifier.size(28.dp),
                 tint = MaterialTheme.colorScheme.primary
@@ -1341,8 +1367,13 @@ private fun RootRequiredDialog(
             )
         },
         confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.root_fab_confirm))
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.confirm))
+                Text(stringResource(R.string.cancel))
             }
         }
     )
