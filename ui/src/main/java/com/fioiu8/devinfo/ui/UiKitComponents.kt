@@ -26,6 +26,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -46,7 +48,6 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -308,39 +309,45 @@ fun DevInfoSegmentedDropdownItem(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val safeIndex = selectedIndex.coerceIn(0, items.lastIndex.coerceAtLeast(0))
-    val colors = ListItemDefaults.colors(
-        containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
-    )
-
     Box(modifier = modifier) {
-        ListItem(
-            headlineContent = { Text(title) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = true },
-            leadingContent = {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                )
-            },
-            supportingContent = {
-                if (summary.isNotBlank()) {
-                    Text(text = summary)
-                }
-            },
-            trailingContent = {
-                Text(
-                    text = items.getOrNull(safeIndex).orEmpty(),
-                    color = valueColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.fillMaxWidth(0.3f),
-                )
-            },
-            colors = colors,
-        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
+        ) {
+            ListItem(
+                headlineContent = { Text(title) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = true },
+                leadingContent = {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                    )
+                },
+                supportingContent = {
+                    if (summary.isNotBlank()) {
+                        Text(text = summary)
+                    }
+                },
+                trailingContent = {
+                    Text(
+                        text = items.getOrNull(safeIndex).orEmpty(),
+                        color = valueColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.fillMaxWidth(0.3f),
+                    )
+                },
+                colors = ListItemDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+            )
+        }
         if (expanded) {
             // A compact anchor at the card's lower end makes the standard M3 menu expand
             // below the whole setting row instead of covering its value text.
