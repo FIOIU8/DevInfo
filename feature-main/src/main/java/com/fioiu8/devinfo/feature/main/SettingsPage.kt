@@ -222,17 +222,6 @@ private fun MaterialSettingsPage(
         ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item { CategoryHeader(stringResource(R.string.category_appearance)) }
-        item {
-            MaterialUiStyleDropdown(
-                title = stringResource(R.string.ui_style),
-                items = uiStyleEntries.map { it.second },
-                selectedIndex = selectedUiStyleIndex,
-                onSelectedIndexChange = { index ->
-                    uiStyleEntries.getOrNull(index)?.first?.let(onUiStyleChange)
-                },
-            )
-        }
         item {
             // 检查更新开关（置于顶部）
             Card(
@@ -272,6 +261,17 @@ private fun MaterialSettingsPage(
                     )
                 }
             }
+        }
+        item { CategoryHeader(stringResource(R.string.category_appearance)) }
+        item {
+            MaterialUiStyleDropdown(
+                title = stringResource(R.string.ui_style),
+                items = uiStyleEntries.map { it.second },
+                selectedIndex = selectedUiStyleIndex,
+                onSelectedIndexChange = { index ->
+                    uiStyleEntries.getOrNull(index)?.first?.let(onUiStyleChange)
+                },
+            )
         }
         item {
             MaterialPreferenceAction(
