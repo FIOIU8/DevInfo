@@ -1287,7 +1287,7 @@ private fun BoxScope.RootModeFab(
             },
         ) {
             MiuixIcon(
-                imageVector = CustomMiuixIcons.Settings,
+                imageVector = Icons.Outlined.Build,
                 contentDescription = stringResource(R.string.root_fab_desc),
             )
         }
