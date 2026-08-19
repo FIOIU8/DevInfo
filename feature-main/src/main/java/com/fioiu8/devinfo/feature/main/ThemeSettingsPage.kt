@@ -396,102 +396,16 @@ private fun MaterialThemeSettingsPage(
 
 
             item {
-                MaterialCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = MaterialCardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    ),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            MaterialIcon(
-                                imageVector = Icons.Rounded.Wallpaper,
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                MaterialText(
-                                    text = stringResource(R.string.theme_blur),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
-                                )
-                                MaterialText(
-                                    text = stringResource(R.string.theme_blur_summary),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            DevInfoExpressiveSwitch(
-                                checked = enableBlur,
-                                onCheckedChange = onEnableBlurChange,
-                            )
-                        }
-                    }
-                }
-            }
-            item {
-                MaterialCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = MaterialCardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    ),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            MaterialIcon(
-                                imageVector = Icons.Rounded.Wallpaper,
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                MaterialText(
-                                    text = stringResource(R.string.theme_predictive_back),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
-                                )
-                                MaterialText(
-                                    text = stringResource(R.string.theme_predictive_back_summary),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            DevInfoExpressiveSwitch(
-                                checked = enablePredictiveBack,
-                                onCheckedChange = onEnablePredictiveBackChange,
-                            )
-                        }
-                    }
-                }
-            }
-            item {
-                MaterialThemeSwitchCard(
-                    title = stringResource(R.string.theme_floating_navigation_bar),
-                    summary = stringResource(R.string.theme_floating_navigation_bar_summary),
-                    checked = enableFloatingBottomBar,
-                    onCheckedChange = onEnableFloatingBottomBarChange,
+                MaterialThemeSwitchGroup(
+                    enableBlur = enableBlur,
+                    onEnableBlurChange = onEnableBlurChange,
+                    enablePredictiveBack = enablePredictiveBack,
+                    onEnablePredictiveBackChange = onEnablePredictiveBackChange,
+                    enableFloatingBottomBar = enableFloatingBottomBar,
+                    onEnableFloatingBottomBarChange = onEnableFloatingBottomBarChange,
+                    enableFloatingBottomBarBlur = enableFloatingBottomBarBlur,
+                    onEnableFloatingBottomBarBlurChange = onEnableFloatingBottomBarBlurChange,
                 )
-            }
-            if (enableFloatingBottomBar) {
-                item {
-                    MaterialThemeSwitchCard(
-                        title = stringResource(R.string.theme_floating_navigation_bar_blur),
-                        summary = stringResource(R.string.theme_floating_navigation_bar_blur_summary),
-                        checked = enableFloatingBottomBarBlur,
-                        onCheckedChange = onEnableFloatingBottomBarBlurChange,
-                    )
-                }
             }
             item {
                 MaterialPageScaleCard(
@@ -532,11 +446,15 @@ private fun MaterialThemeSettingsPage(
 }
 
 @Composable
-private fun MaterialThemeSwitchCard(
-    title: String,
-    summary: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
+private fun MaterialThemeSwitchGroup(
+    enableBlur: Boolean,
+    onEnableBlurChange: (Boolean) -> Unit,
+    enablePredictiveBack: Boolean,
+    onEnablePredictiveBackChange: (Boolean) -> Unit,
+    enableFloatingBottomBar: Boolean,
+    onEnableFloatingBottomBarChange: (Boolean) -> Unit,
+    enableFloatingBottomBarBlur: Boolean,
+    onEnableFloatingBottomBarBlurChange: (Boolean) -> Unit,
 ) {
     MaterialCard(
         modifier = Modifier.fillMaxWidth(),
@@ -545,27 +463,66 @@ private fun MaterialThemeSwitchCard(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                MaterialText(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                )
-                MaterialText(
-                    text = summary,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Column {
+            MaterialThemeSwitchRow(
+                title = stringResource(R.string.theme_blur),
+                summary = stringResource(R.string.theme_blur_summary),
+                checked = enableBlur,
+                onCheckedChange = onEnableBlurChange,
+            )
+            MaterialThemeSwitchRow(
+                title = stringResource(R.string.theme_predictive_back),
+                summary = stringResource(R.string.theme_predictive_back_summary),
+                checked = enablePredictiveBack,
+                onCheckedChange = onEnablePredictiveBackChange,
+            )
+            MaterialThemeSwitchRow(
+                title = stringResource(R.string.theme_floating_navigation_bar),
+                summary = stringResource(R.string.theme_floating_navigation_bar_summary),
+                checked = enableFloatingBottomBar,
+                onCheckedChange = onEnableFloatingBottomBarChange,
+            )
+            if (enableFloatingBottomBar) {
+                MaterialThemeSwitchRow(
+                    title = stringResource(R.string.theme_floating_navigation_bar_blur),
+                    summary = stringResource(R.string.theme_floating_navigation_bar_blur_summary),
+                    checked = enableFloatingBottomBarBlur,
+                    onCheckedChange = onEnableFloatingBottomBarBlurChange,
                 )
             }
-            DevInfoExpressiveSwitch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
+        }
+    }
+}
+
+@Composable
+private fun MaterialThemeSwitchRow(
+    title: String,
+    summary: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            MaterialText(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+            )
+            MaterialText(
+                text = summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        DevInfoExpressiveSwitch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+        )
     }
 }
 
