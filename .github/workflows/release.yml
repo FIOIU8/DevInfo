@@ -71,8 +71,7 @@ jobs:
         id: version
         run: |
           TAG="${GITHUB_REF_NAME}"
-          VERSION_NAME="${TAG#v}"
-          VERSION_NAME="${VERSION_NAME#.}"
+          VERSION_NAME="${TAG#"${TAG%%[0-9]*}"}"
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NAME"
           VERSION_CODE=$(( MAJOR * 10000 + MINOR * 100 + PATCH ))
           echo "tag=$TAG" >> $GITHUB_OUTPUT
