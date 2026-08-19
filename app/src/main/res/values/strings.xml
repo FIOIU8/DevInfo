@@ -406,6 +406,7 @@
     <string name="root_required_title">需要 Root 权限</string>
     <string name="root_required_message">设备未 Root，无法启用高级 CPU 监控模式。\n\n提示：\n• 已 Root 设备可获取每核心真实占用率\n• 当前仅显示 CPU 频率</string>
     <string name="root_fab_desc">CPU 监控模式切换</string>
+    <string name="root_fab_confirm">我已知晓风险并同意</string>
     <string name="status_wifi">Wi-Fi</string>
     <string name="status_cellular">移动网络</string>
     <string name="status_ethernet">以太网</string>
