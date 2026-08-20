@@ -97,7 +97,7 @@ object GitHubClient {
         try {
             ensureMessages(context)
             val json = getJson("/repos/$OWNER/$REPO/releases/latest") ?: run {
-                return@withContext ApiResult.Error(errorMessageRelease!!)
+                return@withContext ApiResult.Error(errorMessageRelease ?: "Failed to fetch release")
             }
             val assets = json.optJSONArray("assets")
             val downloadUrl = assets
@@ -115,7 +115,7 @@ object GitHubClient {
             )
         } catch (e: Exception) {
             Log.e(TAG, "getLatestRelease failed", e)
-            ApiResult.Error(e.message ?: errorMessageNetwork!!)
+            ApiResult.Error(e.message ?: errorMessageNetwork ?: "Network error")
         }
     }
 
