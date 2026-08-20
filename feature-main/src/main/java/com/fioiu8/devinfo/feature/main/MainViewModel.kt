@@ -83,7 +83,6 @@ class MainViewModel(
 
     private val reloadMutex = Mutex()
     private val refreshMutex = Mutex()
-    private val overviewLock = Any()
 
     @Immutable
     data class MainUiState(
@@ -158,9 +157,9 @@ class MainViewModel(
         if (metrics.isEmpty()) return false
         _uiState.update { it.copy(isRootModeEnabled = true) }
         val overallUsage = metrics.mapNotNull { it.usagePercent }
-            .average()
-            .toFloat()
-            .takeIf { !it.isNaN() }
+            .takeIf { it.isNotEmpty() }
+            ?.average()
+            ?.toFloat()
         val cpuReading = CpuUsageReading(metrics, overallUsage)
         updateOverview { snapshot -> snapshot.withCpuUsageReading(cpuReading) }
         return true
@@ -408,11 +407,10 @@ class MainViewModel(
         }
     }
 
+    @MainThread
     private fun updateOverview(transform: (OverviewSnapshot) -> OverviewSnapshot) {
-        synchronized(overviewLock) {
-            _uiState.update {
-                it.copy(overviewSnapshot = transform(it.overviewSnapshot))
-            }
+        _uiState.update {
+            it.copy(overviewSnapshot = transform(it.overviewSnapshot))
         }
     }
 
