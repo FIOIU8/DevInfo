@@ -18,11 +18,11 @@
 package com.fioiu8.devinfo.data
 
 import android.content.Context
-import kotlin.concurrent.Volatile
 import com.fioiu8.devinfo.core.model.PaletteStyle
 import com.fioiu8.devinfo.core.model.ThemeColor
 import com.fioiu8.devinfo.core.model.ThemeMode
 import com.fioiu8.devinfo.core.model.UiStyle
+import kotlin.concurrent.Volatile
 import kotlinx.coroutines.flow.StateFlow
 
 /**

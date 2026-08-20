@@ -52,23 +52,28 @@ android {
             val signatureType = System.getenv("SIGNATURE_TYPE")
             val isCI = System.getenv("CI")?.toBoolean() == true
 
-            signingConfig = when {
-                signatureType == "release" -> {
-                    signingConfigs.getByName("release")
+            signingConfig =
+                when {
+                    signatureType == "release" -> {
+                        signingConfigs.getByName("release")
+                    }
+                    signatureType == "debug" && isCI -> {
+                        // CI 环境中明确指定 debug 签名，禁止降级
+                        throw GradleException(
+                            "CI release build requires SIGNATURE_TYPE=release. " +
+                                "Debug signing is not allowed in CI environment.",
+                        )
+                    }
+                    isCI -> {
+                        // CI 环境中未指定 SIGNATURE_TYPE（如 verify job），使用 debug
+                        signingConfigs.getByName("debug")
+                    }
+                    else -> {
+                        // 本地开发允许降级到 debug 签名
+                        logger.warn("⚠️  Local release build using debug signing (missing SIGNATURE_TYPE=release)")
+                        signingConfigs.getByName("debug")
+                    }
                 }
-                isCI -> {
-                    // CI 环境必须使用正式签名，禁止降级
-                    throw GradleException(
-                        "CI release build requires SIGNATURE_TYPE=release. " +
-                        "Debug signing is not allowed in CI environment."
-                    )
-                }
-                else -> {
-                    // 本地开发允许降级到 debug 签名
-                    logger.warn("⚠️  Local release build using debug signing (missing SIGNATURE_TYPE=release)")
-                    signingConfigs.getByName("debug")
-                }
-            }
 
             val isOfficial = signatureType == "release"
             buildConfigField("boolean", "IS_OFFICIAL", isOfficial.toString())

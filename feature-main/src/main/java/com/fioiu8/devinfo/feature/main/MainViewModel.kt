@@ -16,8 +16,6 @@
  */
 
 package com.fioiu8.devinfo.feature.main
-import com.fioiu8.devinfo.core.model.CpuUsageSample
-import com.fioiu8.devinfo.core.model.OverviewSnapshot
 
 import androidx.annotation.MainThread
 import androidx.compose.runtime.Immutable
@@ -25,7 +23,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.fioiu8.devinfo.feature.main.BuildConfig
+import com.fioiu8.devinfo.core.model.CpuCoreMetric
+import com.fioiu8.devinfo.core.model.CpuUsageSample
+import com.fioiu8.devinfo.core.model.CpuUsageReading
+import com.fioiu8.devinfo.core.model.ItemWithVisibility
+import com.fioiu8.devinfo.core.model.LiveHardwareSnapshot
+import com.fioiu8.devinfo.core.model.OverviewSnapshot
+import com.fioiu8.devinfo.core.model.SecuritySnapshot
+import com.fioiu8.devinfo.core.model.UpdateState
 import com.fioiu8.devinfo.data.BatteryObserver
 import com.fioiu8.devinfo.data.CpuUsageSampler
 import com.fioiu8.devinfo.data.DeviceInfoCollector
@@ -33,14 +38,8 @@ import com.fioiu8.devinfo.data.GitHubClient
 import com.fioiu8.devinfo.data.LiveHardwareMonitor
 import com.fioiu8.devinfo.data.ThemePreferences
 import com.fioiu8.devinfo.data.UpdateChecker
-import com.fioiu8.devinfo.core.model.CpuCoreMetric
-import com.fioiu8.devinfo.core.model.CpuUsageReading
-import com.fioiu8.devinfo.core.model.LiveHardwareSnapshot
-import com.fioiu8.devinfo.core.model.SecuritySnapshot
-import com.fioiu8.devinfo.core.model.UpdateState
-import com.fioiu8.devinfo.core.model.ItemWithVisibility
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
