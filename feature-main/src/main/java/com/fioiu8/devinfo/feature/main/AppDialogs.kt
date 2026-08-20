@@ -60,6 +60,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,6 +77,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import com.fioiu8.devinfo.core.model.UiStyle
 import com.fioiu8.devinfo.data.GitHubClient
 import com.fioiu8.devinfo.feature.main.R
@@ -98,9 +104,21 @@ fun ExportConfirmDialog(
     onDismiss: () -> Unit
 ) {
     if (!show) return
+
+    var countdown by remember { mutableIntStateOf(3) }
+
+    LaunchedEffect(show) {
+        countdown = 3
+        while (countdown > 0) {
+            delay(1000L)
+            countdown--
+        }
+    }
+
     if (LocalUiStyle.current == UiStyle.MIUIX) {
         MiuixExportConfirmDialog(
             fileName = fileName,
+            countdown = countdown,
             onConfirm = onConfirm,
             onDismiss = onDismiss,
         )
@@ -176,8 +194,17 @@ fun ExportConfirmDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.confirm_export))
+            TextButton(
+                onClick = onConfirm,
+                enabled = countdown == 0
+            ) {
+                Text(
+                    if (countdown > 0) {
+                        stringResource(R.string.confirm_export_countdown, countdown)
+                    } else {
+                        stringResource(R.string.confirm_export)
+                    }
+                )
             }
         }
     )
@@ -550,6 +577,7 @@ fun MiuixActionDialog(
 @Composable
 private fun MiuixExportConfirmDialog(
     fileName: String,
+    countdown: Int,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -603,8 +631,13 @@ private fun MiuixExportConfirmDialog(
                     onClick = onDismiss,
                 )
                 MiuixTextButton(
-                    text = stringResource(R.string.confirm_export),
+                    text = if (countdown > 0) {
+                        stringResource(R.string.confirm_export_countdown, countdown)
+                    } else {
+                        stringResource(R.string.confirm_export)
+                    },
                     onClick = onConfirm,
+                    enabled = countdown == 0,
                 )
             }
         }
