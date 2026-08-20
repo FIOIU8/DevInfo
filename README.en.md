@@ -1,219 +1,187 @@
-# 📱 DevInfo - Device Information Viewer
+# DevInfo
 
 <p align="center">
-  <a href="README.md">简体中文</a> | <a href="README.en.md">English</a> | <a href="README.ja.md">日本語</a>
+  <a href="README.md">简体中文</a> |
+  <a href="README.en.md">English</a> |
+  <a href="README.ja.md">日本語</a>
 </p>
 
-> 🤖 This project was created with AI assistance.
+> This project and parts of its documentation were generated and refined with AI assistance. Code, configuration, and releases remain subject to human review.
+
+| Material 3 Device information | Material 3 Information details | Material 3 Settings |
+| --- | --- | --- |
+| <img src="md3_info.png" width="220" alt="Material 3 device information"> | <img src="md3_info_details.png" width="220" alt="Material 3 device information details"> | <img src="md3_settings.png" width="220" alt="Material 3 settings"> |
+
+| Miuix Device information | Miuix Information details | Miuix Settings |
+| --- | --- | --- |
+| <img src="miuix_info.png" width="220" alt="Miuix device information"> | <img src="miuix_info_details.png" width="220" alt="Miuix device information details"> | <img src="miuix_settings.png" width="220" alt="Miuix settings"> |
 
 [![License](https://img.shields.io/github/license/FIOIU8/DevInfo?color=blue)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-11%2B-brightgreen.svg)](https://developer.android.com)
-[![GitHub Stars](https://img.shields.io/github/stars/FIOIU8/DevInfo?style=flat&logo=github)](https://github.com/FIOIU8/DevInfo/stargazers)
+[![Android](https://img.shields.io/badge/Android-13%2B-brightgreen.svg)](https://developer.android.com)
 [![GitHub Release](https://img.shields.io/github/v/release/FIOIU8/DevInfo?style=flat&logo=github)](https://github.com/FIOIU8/DevInfo/releases)
 
-An Android device information tool built with Kotlin and Jetpack Compose. It presents hardware specifications, system status, network information, and battery data, and can export device information as Magisk or KernelSU modules.
+DevInfo is an Android device information viewer built with Kotlin and Jetpack Compose. It collects device information, presents a live hardware overview and categorized details, supports theme and language preferences, and can export device information as a Magisk/KernelSU module.
 
-## 📸 Screenshots
+## Features
 
-<p align="center">
-  <img src="devinfo-overview.png" width="240" alt="Overview dashboard with CPU waveform">
-  &nbsp;&nbsp;
-  <img src="devinfo-selected.png" width="240" alt="CPU core details">
-</p>
+### Device information
 
-## ✨ Features
+- Nine categories: identifiers, device, system, locale, display, storage, battery, network, and app information.
+- Android version, SDK, ABI, kernel, security patch, display, memory/storage, battery, network, sensor, and installed-app fields.
+- Overview dashboard with static cards, live metrics, pull-to-refresh, and categorized detail pages.
+- CPU overall/per-core usage, core frequency, GPU frequency/usage, memory/storage usage, and battery state when supported by the device.
+- Motion state, screen brightness, storage read speed, and Wi-Fi signal details when available.
 
-### 🔍 Device information
+### Export and updates
 
-- **Comprehensive collection** - More than 50 device properties across nine categories: identifiers, device, system, regional settings, display, storage, battery, network, and apps.
-- **Live dashboard** - Real-time CPU/GPU frequency and utilization, memory and storage usage, and battery status.
-- **Multi-core CPU monitoring** - Per-core frequency and utilization, visualized with Canvas waveforms.
-- **Hardware sensors** - Motion-state detection, screen brightness, live storage read speed, and Wi-Fi signal strength.
-- **Security checks** - Security patch date, lock-screen credential status, and a warning when USB debugging is enabled.
+- Export current device information as a ZIP-based Magisk/KernelSU device-spoofing module.
+- Choose a minimal export policy before writing the archive. The ZIP may contain device information and flashing it can affect system behavior.
+- Check GitHub Releases for updates and render release notes in the app. Network failures are reported as an explicit error state.
 
-### 🛠️ Tools
+### UI and localization
 
-- **Magisk/KernelSU module export** - Export current device information as a flashable device-spoofing module ZIP, with installation scripts for both environments.
-- **Automatic update checks** - Check for new versions through the GitHub Releases API, with a 12-hour cache.
-- **Markdown rendering** - Render release notes written in Markdown.
+- Material 3 and Miuix UI styles.
+- System, light, dark, and dynamic-color modes with theme colors, palette styles, page scale, blur, and floating navigation options.
+- Simplified Chinese, English, Japanese, and custom BCP-47 locale tags.
+- Predictive back gestures on Android 14+, light/dark splash screens, and app-wide pull-to-refresh.
 
-### 🎨 Interface and interaction
+## Data availability
 
-- **Material 3 design** - Material 3 with Material You dynamic colors on Android 12+, including the Material 3 Expressive API.
-- **Six theme modes** - Follow system, light, or dark, with a dynamic-color toggle.
-- **Eight theme colors** - Default, red, orange, green, teal, purple, pink, and dark.
-- **Multiple languages** - Simplified Chinese, English, Japanese, and a custom locale input.
-- **Predictive back gesture** - Android 14+ system-level back animation support.
-- **Pull to refresh** - App-wide `PullToRefreshBox` support.
-- **Splash screen** - Adapts to light and dark modes.
+Readable fields depend on the device manufacturer, Android version, and system restrictions. Individual collection failures are isolated so one unavailable field does not block the rest of the screen.
 
-## 📥 Download
+Some Android versions restrict `/proc` CPU statistics. In that case CPU utilization is shown as unavailable while CPU topology and live core frequency are retained when readable; unavailable telemetry is never presented as `0%`.
 
-[![GitHub Release Download](https://img.shields.io/github/downloads/FIOIU8/DevInfo/total?style=flat&logo=github)](https://github.com/FIOIU8/DevInfo/releases)
+## Download and build
 
-- 🚀 **Latest build**: Open [Actions](https://github.com/FIOIU8/DevInfo/actions), select the latest workflow run, and download the APK from **Artifacts**.
-- 📦 **Stable release**: Download official versions from [Releases](https://github.com/FIOIU8/DevInfo/releases).
+### Downloads
 
-## 📦 GitHub Actions automated builds
+- Official releases: [Releases](https://github.com/FIOIU8/DevInfo/releases).
+- Test builds: open [Actions](https://github.com/FIOIU8/DevInfo/actions) and download the APK from workflow Artifacts.
 
-### Triggers
+### Requirements
 
-| Trigger | Branch | Signing type | Version name | Create release |
-|---------|--------|--------------|--------------|----------------|
-| Push to `main` / `test` | main, test | debug | `dev-{commit}` | No |
-| Manual trigger - debug | Any | debug | Custom | Optional |
-| Manual trigger - release | Any | release | Custom | Optional |
+- Android Studio and Android SDK 37.
+- JDK 21; Kotlin targets JVM 11.
+- Minimum supported Android version: Android 13 (API 33).
 
-### Manual builds
-
-1. Open the repository's **Actions** page, then select **Build and Release**.
-2. Click **Run workflow** and provide the version name, signing type, and release options.
-3. When the build finishes, download the APK from Artifacts or Releases.
-
-### 🔐 Configure release signing
-
-> ⚠️ No setup is required for debug builds; they can be installed directly for testing.
-
-After forking, add these repository secrets under **Settings → Secrets and variables → Actions → Repository secrets** to enable release signing:
-
-| Secret | Description |
-|--------|-------------|
-| `KEYSTORE_BASE64` | Base64-encoded keystore file |
-| `KEYSTORE_PASSWORD` | Keystore password |
-| `KEY_ALIAS` | Key alias |
-| `KEY_PASSWORD` | Key password |
+### Local build
 
 ```bash
-# Generate a keystore.
-keytool -genkey -v -keystore release.keystore -alias devinfo -keyalg RSA -keysize 2048 -validity 10000
+# Windows
+gradlew.bat testDebugUnitTest
+gradlew.bat ktlintCheck
+gradlew.bat lintDebug
+gradlew.bat assembleDebug
 
-# Base64 encode it (Windows PowerShell).
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("release.keystore")) | Out-File -FilePath release.keystore.base64 -NoNewline
-
-# Base64 encode it (Linux/macOS).
-base64 -w 0 release.keystore > release.keystore.base64
+# Linux/macOS
+./gradlew testDebugUnitTest
+./gradlew ktlintCheck
+./gradlew lintDebug
+./gradlew assembleDebug
 ```
 
-## 🛠️ Technology stack
+The debug APK is written to `app/build/outputs/apk/debug/`. The first build requires Gradle dependency downloads.
 
-| Technology | Version | Description |
-|------------|---------|-------------|
-| Kotlin | 2.3.21 | Development language |
-| Jetpack Compose | BOM 2026.06.01 | Declarative UI |
-| Material 3 | 1.5.0-alpha23 | MD3, Material You, and Expressive API |
-| AGP | 9.1.0 | Android build plugin |
-| compileSdk / targetSdk | 37 | Android SDK |
-| minSdk | 30 (Android 11) | Minimum supported version |
+## Technology stack
 
-## 📂 Project structure
+| Technology | Current configuration |
+| --- | --- |
+| Kotlin | 2.4.0 |
+| Jetpack Compose | BOM 2026.06.01 |
+| Material 3 | Managed by the Compose BOM |
+| Miuix | 0.9.2 |
+| Android Gradle Plugin | 9.1.0 |
+| compileSdk / targetSdk | 37 |
+| minSdk | 33 (Android 13) |
+| Java compatibility | Java 11; Gradle toolchain 21 |
+
+## Project structure
 
 ```text
 DevInfo/
-├── .github/workflows/build.yml          # CI/CD workflow
-├── app/src/main/java/com/fioiu8/devinfo/
-│   ├── MainActivity.kt                  # Entry activity
-│   ├── DeviceInfoCollector.kt           # Core device-information collector (50+ properties)
-│   ├── LiveHardwareMonitor.kt           # Live hardware sensor monitor
-│   ├── CpuUsageSampler.kt               # CPU utilization sampler (2-second interval)
-│   ├── BatteryObserver.kt               # Battery status observer (callbackFlow)
-│   ├── UpdateChecker.kt                 # GitHub version-update checker
-│   ├── GitHubClient.kt                  # GitHub API client
-│   ├── DeviceIdManager.kt               # Unique device identifier management
-│   ├── ModuleExportHelper.kt            # Magisk module export
-│   ├── ThemePreferences.kt              # Theme preference storage
-│   ├── LanguagePreferences.kt           # Language preference storage
-│   ├── model/AppModels.kt               # Data-model definitions
-│   └── ui/
-│       ├── MainScreen.kt                # Main screen (navigation and layout)
-│       ├── DeviceInfoOverviewPage.kt    # Overview dashboard (live waveforms)
-│       ├── DeviceInfoPage.kt            # Categorized detail browser
-│       ├── SettingsPage.kt              # Settings page
-│       ├── AboutPage.kt                 # About page
-│       ├── MarkdownRenderer.kt          # Markdown renderer
-│       ├── AppComponents.kt             # Shared UI components
-│       ├── AppDialogs.kt                # Dialog components
-│       └── theme/                       # Material 3 theme
-├── app/src/main/res/
-│   ├── values/strings.xml               # Simplified Chinese (default)
-│   ├── values-en/strings.xml            # English
-│   └── values-ja/strings.xml            # Japanese
-└── gradle/libs.versions.toml            # Dependency version catalog
+├── app/                 # Application entry point, manifest, packaging
+├── core/                # Models, CPU parsing, and framework-independent logic
+├── data/                # Collection, monitoring, preferences, updates, export
+├── feature-main/        # Main screen, overview, details, settings, about
+├── ui/                  # Compose/Miuix theme, shared components, Markdown
+├── .github/workflows/   # CI verification, APK builds, tag releases
+├── gradle/libs.versions.toml
+├── LICENSE
+└── README.en.md
 ```
 
-## 🏗️ Architecture
+## Architecture
 
-- **Provider pattern** - `DeviceInfoCollector` collects information item by item through a list of supplier functions, so a single failure does not affect the rest.
-- **Reactive state** - `StateFlow` and `collectAsState` drive live updates for themes, language, battery status, and more.
-- **callbackFlow** - `BatteryObserver` bridges `BroadcastReceiver` to Kotlin Flow.
-- **Mutex protection** - Prevents concurrent device-information reloads.
-- **WeakReference** - `CpuUsageSampler` uses weak references to prevent memory leaks.
-- **Snapshot pattern** - `OverviewSnapshot` aggregates all live metrics and replaces them together to avoid fragmented state.
+### Module dependencies
 
-## 🔐 Permissions
+```text
+app
+├── feature-main ── data ── core
+│                 └─────── ui ── core
+├── data
+├── ui
+└── core
+```
 
-Every `uses-feature` declared by the app is set to `required="false"`, so devices that do not support an optional feature can still install and run the app.
+- **`app`** is the only Android application module. `MainActivity` assembles the collector, update checker, preference repositories, and export helper.
+- **`feature-main`** owns user-facing screens and `MainViewModel`; it coordinates interactions without implementing platform reads.
+- **`data`** contains `DeviceInfoCollector`, live hardware monitors, preferences, update checking, and module export.
+- **`core`** contains shared models such as `DeviceInfoItem` and `OverviewSnapshot`, CPU parsers, and export policies.
+- **`ui`** provides shared Material 3/Miuix themes, navigation, feedback, blur, and Markdown components.
+
+### Main data flow
+
+```text
+Android APIs / sysfs / GitHub
+             │
+             ▼
+          data layer
+             │ DeviceInfoItem, OverviewSnapshot, StateFlow
+             ▼
+       MainViewModel
+             │
+             ▼
+ feature-main screens ──> ui components ──> Compose UI
+```
+
+`MainActivity` injects dependencies, `MainViewModel` loads static and live data on background dispatchers, and screens collect lifecycle-aware `StateFlow` values. `OverviewSnapshot` replaces the complete overview state to keep live cards consistent. Preferences use observable flows, the battery broadcast is bridged through `callbackFlow`, `UpdateChecker` uses `GitHubClient` with cached state, and `ModuleExportHelper` validates ZIP entries before saving through the system picker.
+
+## Permissions and privacy
+
+The current manifests declare:
 
 | Permission | Purpose |
-|------------|---------|
-| `ACCESS_NETWORK_STATE` / `ACCESS_WIFI_STATE` | Network type and Wi-Fi signal checks |
-| `INTERNET` | GitHub API calls for update checks |
-| `BLUETOOTH` / `BLUETOOTH_CONNECT` / `BLUETOOTH_SCAN` | Bluetooth status checks |
-| `NFC` | NFC capability checks |
-| `CAMERA` | Camera-count checks |
-| `READ_PHONE_STATE` | Carrier information |
-| `READ_EXTERNAL_STORAGE` / `READ_MEDIA_*` | Storage-information reading |
+| --- | --- |
+| `INTERNET` | GitHub Releases update checks |
+| `ACCESS_NETWORK_STATE` | Network capability checks |
+| `ACCESS_WIFI_STATE` | Wi-Fi state and signal-related checks |
+| `NFC` | NFC capability detection |
 
-On Android 12+, `BLUETOOTH_SCAN` does not require location permission. Location permission may still be needed for Bluetooth scanning on lower API levels.
+Device information is read for local display and optional module export. Exported ZIP files may contain identifiers, build fingerprints, or security-patch data; inspect them before sharing or flashing. Update checks contact GitHub only when enabled.
 
-## 🔗 Quick links
+## CI and releases
 
-| Resource | Link |
-|----------|------|
-| 📦 Source code | [Code](https://github.com/FIOIU8/DevInfo) |
-| 🐛 Report an issue | [Issues](https://github.com/FIOIU8/DevInfo/issues) |
-| 🔀 Pull requests | [Pull Requests](https://github.com/FIOIU8/DevInfo/pulls) |
-| 📦 Releases | [Releases](https://github.com/FIOIU8/DevInfo/releases) |
-| 🔧 Continuous integration | [Actions](https://github.com/FIOIU8/DevInfo/actions) |
-| 📊 Project board | [Projects](https://github.com/FIOIU8/DevInfo/projects) |
+- `build.yml` runs unit tests, ktlint, Android lint, and a debug APK build for pushes to `main`/`test`, pull requests, and manual runs.
+- Manual runs accept a version name and `debug` or `release` signing type; artifacts are uploaded to Actions.
+- `release.yml` runs on `v*` tags, performs the quality gate, signs the release with repository Secrets, and creates a Draft Release.
+- Release signing requires `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`. Never commit a keystore or password.
 
-## 👥 Contributors
+## Contributing
 
-[![Contributors](https://contrib.rocks/image?repo=FIOIU8/DevInfo)](https://github.com/FIOIU8/DevInfo/graphs/contributors)
+1. Fork the repository and create a feature branch.
+2. Update code or documentation and add relevant tests.
+3. Run `testDebugUnitTest`, `ktlintCheck`, and `lintDebug` locally.
+4. Open a pull request describing affected modules and verification results.
 
-Issues and pull requests are welcome.
+Report issues through [Issues](https://github.com/FIOIU8/DevInfo/issues).
 
-1. Fork this repository.
-2. Create a feature branch: `git checkout -b feature/AmazingFeature`.
-3. Commit your changes: `git commit -m 'feat: Add some AmazingFeature'`.
-4. Push the branch: `git push origin feature/AmazingFeature`.
-5. Open a pull request.
+## License
 
-We recommend [Conventional Commits](https://www.conventionalcommits.org/) prefixes such as `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `perf:`, `test:`, `chore:`, and `ci:`.
+This project is released under [GPL-3.0](LICENSE).
 
-## 📜 License
+## Links
 
-This project is open source under the [GNU General Public License v3.0 or later (GPL-3.0-or-later)](LICENSE).
-
-## 🙏 Acknowledgments
-
-- [Material 3](https://developer.android.com/jetpack/compose/designsystems/material3) - Material Design 3 design system
-- [Jetpack Compose](https://developer.android.com/jetpack/compose) - Modern Android UI toolkit
-- [MIUIX](https://github.com/compose-miuix-ui/miuix) - UI
-- [KernelSU-Style-UI-Kit](https://github.com/chenaizhang/KernelSU-Style-UI-Kit) - UI framework
-- All contributors and users
-
----
-
-> ⚠️ Versions built automatically by GitHub Actions are development builds intended for testing. Download official releases from [Releases](https://github.com/FIOIU8/DevInfo/releases).
-
-<p align="center">
-  <a href="https://github.com/FIOIU8/DevInfo">
-    <img src="https://img.shields.io/badge/⭐_Star_Me-If_You_Like_This-FFD700?style=for-the-badge&logo=github" alt="Star Me">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/FIOIU8/DevInfo">
-    <img src="https://github.com/FIOIU8/DevInfo/raw/main/app/src/main/res/drawable/ic_launcher_foreground.xml" width="100" alt="App Icon">
-  </a>
-</p>
+- [Source code](https://github.com/FIOIU8/DevInfo)
+- [Releases](https://github.com/FIOIU8/DevInfo/releases)
+- [Actions](https://github.com/FIOIU8/DevInfo/actions)
+- [Issues](https://github.com/FIOIU8/DevInfo/issues)
