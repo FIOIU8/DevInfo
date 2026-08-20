@@ -1,219 +1,187 @@
-# 📱 DevInfo - デバイス情報ビューア
+# DevInfo
 
 <p align="center">
-  <a href="README.md">简体中文</a> | <a href="README.en.md">English</a> | <a href="README.ja.md">日本語</a>
+  <a href="README.md">简体中文</a> |
+  <a href="README.en.md">English</a> |
+  <a href="README.ja.md">日本語</a>
 </p>
 
-> 🤖 このプロジェクトは AI の支援を受けて作成されています。
+> このプロジェクトとドキュメントの一部は AI の支援により生成・整理されています。コード、設定、リリース内容は人による確認を前提としています。
+
+| Material 3 デバイス情報 | Material 3 情報の詳細 | Material 3 設定 |
+| --- | --- | --- |
+| <img src="md3_info.png" width="220" alt="Material 3 デバイス情報"> | <img src="md3_info_details.png" width="220" alt="Material 3 デバイス情報の詳細"> | <img src="md3_settings.png" width="220" alt="Material 3 設定"> |
+
+| Miuix デバイス情報 | Miuix 情報の詳細 | Miuix 設定 |
+| --- | --- | --- |
+| <img src="miuix_info.png" width="220" alt="Miuix デバイス情報"> | <img src="miuix_info_details.png" width="220" alt="Miuix デバイス情報の詳細"> | <img src="miuix_settings.png" width="220" alt="Miuix 設定"> |
 
 [![License](https://img.shields.io/github/license/FIOIU8/DevInfo?color=blue)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-11%2B-brightgreen.svg)](https://developer.android.com)
-[![GitHub Stars](https://img.shields.io/github/stars/FIOIU8/DevInfo?style=flat&logo=github)](https://github.com/FIOIU8/DevInfo/stargazers)
+[![Android](https://img.shields.io/badge/Android-13%2B-brightgreen.svg)](https://developer.android.com)
 [![GitHub Release](https://img.shields.io/github/v/release/FIOIU8/DevInfo?style=flat&logo=github)](https://github.com/FIOIU8/DevInfo/releases)
 
-Kotlin と Jetpack Compose で構築した Android 向けデバイス情報ツールです。ハードウェア仕様、システム状態、ネットワーク情報、バッテリーデータを包括的に表示し、デバイス情報を Magisk / KernelSU モジュールとしてエクスポートできます。
+DevInfo は Kotlin と Jetpack Compose で構築した Android デバイス情報ビューアです。デバイス情報の収集、リアルタイムのハードウェア概要、カテゴリ別の詳細表示、テーマと言語設定、Magisk / KernelSU モジュールとしての情報エクスポートを提供します。
 
-## 📸 スクリーンショット
+## 主な機能
 
-<p align="center">
-  <img src="devinfo-overview.png" width="240" alt="CPU 波形を表示した概要ダッシュボード">
-  &nbsp;&nbsp;
-  <img src="devinfo-selected.png" width="240" alt="CPU コアの詳細">
-</p>
+### デバイス情報
 
-## ✨ 主な機能
+- 識別子、デバイス、システム、地域、表示、ストレージ、バッテリー、ネットワーク、アプリの 9 分類に対応します。
+- Android バージョン、SDK、ABI、カーネル、セキュリティパッチ、画面、メモリ/ストレージ、バッテリー、ネットワーク、センサー、インストール済みアプリの情報を収集します。
+- 静的カードとリアルタイム指標をまとめた概要画面、プル・トゥ・リフレッシュ、カテゴリ別詳細画面を提供します。
+- CPU 全体/コア別使用率、コア周波数、GPU 周波数/使用率、メモリ/ストレージ使用率、バッテリー状態を端末が対応する範囲で表示します。
+- 動作状態、画面の明るさ、ストレージ読み取り速度、Wi-Fi 信号情報も利用可能な場合に表示します。
 
-### 🔍 デバイス情報
+### エクスポートと更新
 
-- **幅広い情報収集** - 識別子、デバイス、システム、地域、表示、ストレージ、バッテリー、ネットワーク、アプリの 9 分類で、50 項目以上の情報を収集します。
-- **リアルタイムダッシュボード** - CPU / GPU の周波数と使用率、メモリ / ストレージ使用量、バッテリー状態をリアルタイムに表示します。
-- **マルチコア CPU 監視** - 各 CPU コアの周波数と使用率を Canvas 波形で可視化します。
-- **ハードウェアセンサー** - 動作状態、画面の明るさ、リアルタイムのストレージ読み取り速度、Wi-Fi 信号強度を検出します。
-- **セキュリティチェック** - セキュリティパッチの日付、ロック画面の認証状態、USB デバッグが有効な場合の警告を表示します。
+- 現在のデバイス情報を ZIP 形式の Magisk / KernelSU 端末偽装モジュールとしてエクスポートします。
+- 保存前に最小限のエクスポートポリシーを選択できます。ZIP にはデバイス情報が含まれる可能性があり、フラッシュによってシステム動作が変わる場合があります。
+- GitHub Releases で更新を確認し、リリースノートをアプリ内で表示します。ネットワーク障害はエラー状態として表示します。
 
-### 🛠️ ツール機能
+### UI とローカライズ
 
-- **Magisk / KernelSU モジュールのエクスポート** - 現在のデバイス情報をフラッシュ可能な端末偽装モジュール ZIP として出力します。両環境用のインストールスクリプトを含みます。
-- **自動アップデート確認** - GitHub Releases API を通じて新しいバージョンを確認します。キャッシュ時間は 12 時間です。
-- **Markdown レンダリング** - Markdown 形式の更新履歴を表示できます。
+- Material 3 と Miuix の UI スタイル。
+- システム、ライト、ダーク、動的カラーの各モード、テーマカラー、パレット、表示倍率、ぼかし、フローティングナビゲーションを設定できます。
+- 簡体字中国語、英語、日本語、およびカスタム BCP-47 locale タグに対応します。
+- Android 14 以降の予測型戻るジェスチャー、ライト/ダーク対応 Splash、アプリ全体のプル・トゥ・リフレッシュに対応します。
 
-### 🎨 UI と操作
+## データの可用性
 
-- **Material 3 デザイン** - Android 12 以降の Material You 動的カラーと Material 3 Expressive API を含む Material 3 を使用します。
-- **6 種類のテーマモード** - システムに合わせる、ライト、ダークの選択と、動的カラーの切り替えに対応します。
-- **8 種類のテーマカラー** - 標準、赤、オレンジ、緑、青緑、紫、ピンク、ダークを選べます。
-- **多言語対応** - 簡体字中国語、英語、日本語、およびカスタム locale 入力に対応します。
-- **予測型戻るジェスチャー** - Android 14 以降のシステムレベルの戻るアニメーションをサポートします。
-- **プル・トゥ・リフレッシュ** - アプリ全体で `PullToRefreshBox` をサポートします。
-- **スプラッシュ画面** - ライト / ダークモードに対応します。
+読み取れる項目は端末メーカー、Android バージョン、システムの制限によって異なります。個々の収集に失敗しても他の項目の表示は継続します。
 
-## 📥 ダウンロード
+一部の Android バージョンでは `/proc` の CPU 統計が制限されます。その場合、CPU 使用率は利用不可として表示し、読み取り可能な CPU トポロジーとコア周波数を表示します。利用できないデータを `0%` として表示することはありません。
 
-[![GitHub Release Download](https://img.shields.io/github/downloads/FIOIU8/DevInfo/total?style=flat&logo=github)](https://github.com/FIOIU8/DevInfo/releases)
+## ダウンロードとビルド
 
-- 🚀 **最新ビルド**: [Actions](https://github.com/FIOIU8/DevInfo/actions) を開き、最新のワークフローを選択して、**Artifacts** から APK をダウンロードします。
-- 📦 **正式リリース**: [Releases](https://github.com/FIOIU8/DevInfo/releases) から正式版をダウンロードします。
+### ダウンロード
 
-## 📦 GitHub Actions による自動ビルド
+- 正式版: [Releases](https://github.com/FIOIU8/DevInfo/releases)。
+- テストビルド: [Actions](https://github.com/FIOIU8/DevInfo/actions) のワークフロー Artifacts から APK を取得します。
 
-### トリガー
+### 必要な環境
 
-| トリガー | ブランチ | 署名種別 | バージョン名 | Release の作成 |
-|----------|----------|----------|--------------|----------------|
-| `main` / `test` へのプッシュ | main, test | debug | `dev-{commit}` | なし |
-| 手動実行 - debug | 任意 | debug | 任意 | 任意 |
-| 手動実行 - release | 任意 | release | 任意 | 任意 |
+- Android Studio と Android SDK 37。
+- JDK 21。Kotlin の JVM ターゲットは 11。
+- 最低対応 Android: Android 13（API 33）。
 
-### 手動ビルド
-
-1. リポジトリの **Actions** を開き、**Build and Release** を選択します。
-2. **Run workflow** をクリックし、バージョン名、署名種別、Release オプションを指定します。
-3. ビルド完了後、Artifacts または Releases から APK を取得します。
-
-### 🔐 Release 署名の設定
-
-> ⚠️ debug ビルドにはこの設定は不要です。テスト用にそのままインストールできます。
-
-Fork 後に release 署名を有効にするには、**Settings → Secrets and variables → Actions → Repository secrets** で次のシークレットを追加します。
-
-| シークレット | 説明 |
-|--------------|------|
-| `KEYSTORE_BASE64` | Base64 エンコードしたキーストアファイル |
-| `KEYSTORE_PASSWORD` | キーストアのパスワード |
-| `KEY_ALIAS` | キーのエイリアス |
-| `KEY_PASSWORD` | キーのパスワード |
+### ローカルビルド
 
 ```bash
-# キーストアを生成します。
-keytool -genkey -v -keystore release.keystore -alias devinfo -keyalg RSA -keysize 2048 -validity 10000
+# Windows
+gradlew.bat testDebugUnitTest
+gradlew.bat ktlintCheck
+gradlew.bat lintDebug
+gradlew.bat assembleDebug
 
-# Base64 エンコード (Windows PowerShell)。
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("release.keystore")) | Out-File -FilePath release.keystore.base64 -NoNewline
-
-# Base64 エンコード (Linux / macOS)。
-base64 -w 0 release.keystore > release.keystore.base64
+# Linux/macOS
+./gradlew testDebugUnitTest
+./gradlew ktlintCheck
+./gradlew lintDebug
+./gradlew assembleDebug
 ```
 
-## 🛠️ 技術スタック
+Debug APK は `app/build/outputs/apk/debug/` に出力されます。初回ビルドでは Gradle が依存関係をダウンロードします。
 
-| 技術 | バージョン | 説明 |
-|------|------------|------|
-| Kotlin | 2.3.21 | 開発言語 |
-| Jetpack Compose | BOM 2026.06.01 | 宣言型 UI |
-| Material 3 | 1.5.0-alpha23 | MD3、Material You、Expressive API |
-| AGP | 9.1.0 | Android ビルドプラグイン |
-| compileSdk / targetSdk | 37 | Android SDK |
-| minSdk | 30 (Android 11) | 最低サポートバージョン |
+## 技術スタック
 
-## 📂 プロジェクト構成
+| 技術 | 現在の設定 |
+| --- | --- |
+| Kotlin | 2.4.0 |
+| Jetpack Compose | BOM 2026.06.01 |
+| Material 3 | Compose BOM で管理 |
+| Miuix | 0.9.2 |
+| Android Gradle Plugin | 9.1.0 |
+| compileSdk / targetSdk | 37 |
+| minSdk | 33（Android 13） |
+| Java 互換性 | Java 11、Gradle toolchain 21 |
+
+## プロジェクト構成
 
 ```text
 DevInfo/
-├── .github/workflows/build.yml          # CI/CD ワークフロー
-├── app/src/main/java/com/fioiu8/devinfo/
-│   ├── MainActivity.kt                  # エントリー Activity
-│   ├── DeviceInfoCollector.kt           # デバイス情報収集の中心 (50 項目以上)
-│   ├── LiveHardwareMonitor.kt           # リアルタイムハードウェアセンサー監視
-│   ├── CpuUsageSampler.kt               # CPU 使用率サンプラー (2 秒間隔)
-│   ├── BatteryObserver.kt               # バッテリー状態オブザーバー (callbackFlow)
-│   ├── UpdateChecker.kt                 # GitHub 更新確認
-│   ├── GitHubClient.kt                  # GitHub API クライアント
-│   ├── DeviceIdManager.kt               # 一意なデバイス ID の管理
-│   ├── ModuleExportHelper.kt            # Magisk モジュールのエクスポート
-│   ├── ThemePreferences.kt              # テーマ設定の保存
-│   ├── LanguagePreferences.kt           # 言語設定の保存
-│   ├── model/AppModels.kt               # データモデル定義
-│   └── ui/
-│       ├── MainScreen.kt                # メイン画面 (ナビゲーションとレイアウト)
-│       ├── DeviceInfoOverviewPage.kt    # 概要ダッシュボード (リアルタイム波形)
-│       ├── DeviceInfoPage.kt            # 分類別詳細ブラウザー
-│       ├── SettingsPage.kt              # 設定画面
-│       ├── AboutPage.kt                 # このアプリについて
-│       ├── MarkdownRenderer.kt          # Markdown レンダラー
-│       ├── AppComponents.kt             # 共通 UI コンポーネント
-│       ├── AppDialogs.kt                # ダイアログコンポーネント
-│       └── theme/                       # Material 3 テーマ
-├── app/src/main/res/
-│   ├── values/strings.xml               # 簡体字中国語 (デフォルト)
-│   ├── values-en/strings.xml            # 英語
-│   └── values-ja/strings.xml            # 日本語
-└── gradle/libs.versions.toml            # 依存関係のバージョンカタログ
+├── app/                 # アプリの入口、Manifest、パッケージング
+├── core/                # モデル、CPU 解析、UI に依存しない基礎ロジック
+├── data/                # 情報収集、監視、設定、更新、エクスポート
+├── feature-main/        # メイン画面、概要、詳細、設定、About
+├── ui/                  # Compose/Miuix テーマ、共通コンポーネント、Markdown
+├── .github/workflows/   # CI 検証、APK ビルド、tag リリース
+├── gradle/libs.versions.toml
+├── LICENSE
+└── README.ja.md
 ```
 
-## 🏗️ アーキテクチャ
+## アーキテクチャ解析
 
-- **Provider パターン** - `DeviceInfoCollector` は supplier 関数のリストを通じて項目ごとに情報を収集するため、1 項目の失敗が全体に影響しません。
-- **リアクティブ状態** - `StateFlow` と `collectAsState` により、テーマ、言語、バッテリー状態などをリアルタイムに更新します。
-- **callbackFlow** - `BatteryObserver` は `BroadcastReceiver` を Kotlin Flow に接続します。
-- **Mutex による保護** - デバイス情報の同時再読み込みを防ぎます。
-- **WeakReference** - `CpuUsageSampler` はメモリリーク防止のために弱参照を使用します。
-- **Snapshot パターン** - `OverviewSnapshot` はすべてのリアルタイム指標を集約して一括置換し、状態の断片化を防ぎます。
+### モジュール依存関係
 
-## 🔐 権限
+```text
+app
+├── feature-main ── data ── core
+│                 └─────── ui ── core
+├── data
+├── ui
+└── core
+```
 
-アプリが宣言するすべての `uses-feature` は `required="false"` に設定されています。任意機能に対応していない端末でも、アプリのインストールと実行が可能です。
+- **`app`** は唯一の Android application モジュールです。 `MainActivity` が収集、更新確認、設定保存、エクスポートの依存関係を組み立てます。
+- **`feature-main`** は画面と `MainViewModel` を担当し、システム情報の読み取り処理を持たずに操作を調整します。
+- **`data`** は `DeviceInfoCollector`、リアルタイム監視、設定、更新確認、モジュールエクスポートを提供します。
+- **`core`** は `DeviceInfoItem`、`OverviewSnapshot`、CPU 解析、エクスポートポリシーなどの共有モデルを提供します。
+- **`ui`** は Material 3/Miuix のテーマ、ナビゲーション、フィードバック、ぼかし、Markdown コンポーネントを提供します。
+
+### 主なデータフロー
+
+```text
+Android API / sysfs / GitHub
+             │
+             ▼
+          data 層
+             │ DeviceInfoItem、OverviewSnapshot、StateFlow
+             ▼
+       MainViewModel
+             │
+             ▼
+ feature-main 画面 ──> ui コンポーネント ──> Compose UI
+```
+
+`MainActivity` が依存関係を注入し、`MainViewModel` がバックグラウンドで静的情報とリアルタイム情報を読み込みます。画面はライフサイクルを考慮した `StateFlow` を購読します。`OverviewSnapshot` で概要全体を置き換えることで、リアルタイムカード間の不整合を抑えます。設定は監視可能な Flow で公開し、バッテリー Broadcast は `callbackFlow` に橋渡しします。`UpdateChecker` は `GitHubClient` とキャッシュ状態を使い、`ModuleExportHelper` は ZIP エントリを検証してからシステムファイルピッカーへ保存します。
+
+## 権限とプライバシー
+
+現在の Manifest で宣言している権限は次のとおりです。
 
 | 権限 | 用途 |
-|------|------|
-| `ACCESS_NETWORK_STATE` / `ACCESS_WIFI_STATE` | ネットワーク種別と Wi-Fi 信号の確認 |
-| `INTERNET` | 更新確認のための GitHub API 呼び出し |
-| `BLUETOOTH` / `BLUETOOTH_CONNECT` / `BLUETOOTH_SCAN` | Bluetooth 状態の確認 |
-| `NFC` | NFC 機能の確認 |
-| `CAMERA` | カメラ数の確認 |
-| `READ_PHONE_STATE` | 通信事業者情報 |
-| `READ_EXTERNAL_STORAGE` / `READ_MEDIA_*` | ストレージ情報の読み取り |
+| --- | --- |
+| `INTERNET` | GitHub Releases の更新確認 |
+| `ACCESS_NETWORK_STATE` | ネットワーク能力の確認 |
+| `ACCESS_WIFI_STATE` | Wi-Fi 状態と信号関連情報の確認 |
+| `NFC` | NFC 対応状況の確認 |
 
-Android 12 以降では、`BLUETOOTH_SCAN` に位置情報権限は必要ありません。ただし、より低い API レベルで Bluetooth スキャンを行う場合は、位置情報権限が必要になることがあります。
+デバイス情報は画面表示と任意のモジュールエクスポートのために読み取られます。エクスポートした ZIP には識別子、ビルドフィンガープリント、セキュリティパッチが含まれる可能性があるため、共有またはフラッシュ前に内容を確認してください。更新確認を有効にした場合のみ GitHub にアクセスします。
 
-## 🔗 リンク
+## CI とリリース
 
-| リソース | リンク |
-|----------|--------|
-| 📦 ソースコード | [Code](https://github.com/FIOIU8/DevInfo) |
-| 🐛 問題の報告 | [Issues](https://github.com/FIOIU8/DevInfo/issues) |
-| 🔀 プルリクエスト | [Pull Requests](https://github.com/FIOIU8/DevInfo/pulls) |
-| 📦 リリース | [Releases](https://github.com/FIOIU8/DevInfo/releases) |
-| 🔧 継続的インテグレーション | [Actions](https://github.com/FIOIU8/DevInfo/actions) |
-| 📊 プロジェクトボード | [Projects](https://github.com/FIOIU8/DevInfo/projects) |
+- `build.yml` は `main`/`test` への push、Pull Request、手動実行で単体テスト、ktlint、Android lint、Debug APK ビルドを実行します。
+- 手動実行ではバージョン名と `debug`/`release` の署名種別を指定でき、Artifacts に成果物をアップロードします。
+- `release.yml` は `v*` tag で起動し、品質検証後に Secrets で署名して Draft Release を作成します。
+- リリース署名には `KEYSTORE_BASE64`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD` が必要です。キーストアやパスワードをコミットしないでください。
 
-## 👥 コントリビューター
+## コントリビューション
 
-[![Contributors](https://contrib.rocks/image?repo=FIOIU8/DevInfo)](https://github.com/FIOIU8/DevInfo/graphs/contributors)
+1. リポジトリを Fork して機能ブランチを作成します。
+2. コードまたはドキュメントを更新し、必要なテストを追加します。
+3. `testDebugUnitTest`、`ktlintCheck`、`lintDebug` をローカルで実行します。
+4. 変更対象モジュールと検証結果を記載して Pull Request を作成します。
 
-Issue とプルリクエストを歓迎します。
+問題は [Issues](https://github.com/FIOIU8/DevInfo/issues) から報告してください。
 
-1. このリポジトリを Fork します。
-2. 機能ブランチを作成します: `git checkout -b feature/AmazingFeature`。
-3. 変更をコミットします: `git commit -m 'feat: Add some AmazingFeature'`。
-4. ブランチをプッシュします: `git push origin feature/AmazingFeature`。
-5. プルリクエストを作成します。
+## ライセンス
 
-`feat:`、`fix:`、`docs:`、`style:`、`refactor:`、`perf:`、`test:`、`chore:`、`ci:` などの [Conventional Commits](https://www.conventionalcommits.org/) プレフィックスの利用を推奨します。
+このプロジェクトは [GPL-3.0](LICENSE) の下で公開されています。
 
-## 📜 ライセンス
+## リンク
 
-このプロジェクトは [GNU General Public License v3.0 or later (GPL-3.0-or-later)](LICENSE) の下で公開されています。
-
-## 🙏 謝辞
-
-- [Material 3](https://developer.android.com/jetpack/compose/designsystems/material3) - Material Design 3 のデザインシステム
-- [Jetpack Compose](https://developer.android.com/jetpack/compose) - モダンな Android UI ツールキット
-- [MIUIX](https://github.com/compose-miuix-ui/miuix) - UI
-- [KernelSU-Style-UI-Kit](https://github.com/chenaizhang/KernelSU-Style-UI-Kit) - UI フレームワーク
-- すべてのコントリビューターとユーザー
-
----
-
-> ⚠️ GitHub Actions により自動ビルドされたバージョンは、テスト用の開発ビルドです。正式版は [Releases](https://github.com/FIOIU8/DevInfo/releases) からダウンロードしてください。
-
-<p align="center">
-  <a href="https://github.com/FIOIU8/DevInfo">
-    <img src="https://img.shields.io/badge/⭐_Star_Me-If_You_Like_This-FFD700?style=for-the-badge&logo=github" alt="Star Me">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/FIOIU8/DevInfo">
-    <img src="https://github.com/FIOIU8/DevInfo/raw/main/app/src/main/res/drawable/ic_launcher_foreground.xml" width="100" alt="アプリアイコン">
-  </a>
-</p>
+- [ソースコード](https://github.com/FIOIU8/DevInfo)
+- [Releases](https://github.com/FIOIU8/DevInfo/releases)
+- [Actions](https://github.com/FIOIU8/DevInfo/actions)
+- [Issues](https://github.com/FIOIU8/DevInfo/issues)
