@@ -127,7 +127,8 @@ class LiveHardwareMonitor(context: Context) : SensorEventListener {
         }
 
         val elapsed = now - lastStorageSampleAt
-        val delta = sectors - lastSectorsRead!!
+        val lastRead = lastSectorsRead ?: return null to recentReadSpeeds.averageOrNull()
+        val delta = sectors - lastRead
         lastSectorsRead = sectors
         lastStorageSampleAt = now
         if (elapsed <= 0L || delta < 0L) return null to recentReadSpeeds.averageOrNull()
