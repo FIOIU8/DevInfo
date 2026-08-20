@@ -48,20 +48,36 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig =
-                if (System.getenv("SIGNATURE_TYPE") == "release") {
+
+            val signatureType = System.getenv("SIGNATURE_TYPE")
+            val isCI = System.getenv("CI")?.toBoolean() == true
+
+            signingConfig = when {
+                signatureType == "release" -> {
                     signingConfigs.getByName("release")
-                } else {
+                }
+                isCI -> {
+                    // CI 环境必须使用正式签名，禁止降级
+                    throw GradleException(
+                        "CI release build requires SIGNATURE_TYPE=release. " +
+                        "Debug signing is not allowed in CI environment."
+                    )
+                }
+                else -> {
+                    // 本地开发允许降级到 debug 签名
+                    logger.warn("⚠️  Local release build using debug signing (missing SIGNATURE_TYPE=release)")
                     signingConfigs.getByName("debug")
                 }
+            }
+
+            val isOfficial = signatureType == "release"
+            buildConfigField("boolean", "IS_OFFICIAL", isOfficial.toString())
+            buildConfigField("String", "BUILD_TYPE_NAME", "\"${if (isOfficial) "official" else "dev"}\"")
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-
-            val isOfficial = System.getenv("SIGNATURE_TYPE") == "release"
-            buildConfigField("boolean", "IS_OFFICIAL", isOfficial.toString())
-            buildConfigField("String", "BUILD_TYPE_NAME", "\"${if (isOfficial) "official" else "dev"}\"")
         }
         debug {
             buildConfigField("boolean", "IS_OFFICIAL", "false")
