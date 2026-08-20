@@ -128,6 +128,10 @@ abstract class BasePreferences<T : CharSequence>(
             get() = mutableValue.value
 
         fun set(value: V) {
+            // 立即更新 StateFlow，确保 UI 响应，不仅依赖监听器回调
+            // （在 Activity recreate 后，特别是语言切换创建新 Configuration Context 时，
+            // SharedPreferences 的监听器通知可能在某些设备上失效）
+            mutableValue.value = value
             // apply() 异步写盘；同步 commit() 会在 UI 回调（开关/滑条）中阻塞主线程
             preferences.edit().putString(key.toString(), serialize(value)).apply()
         }

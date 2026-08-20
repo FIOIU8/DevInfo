@@ -18,8 +18,8 @@
 package com.fioiu8.devinfo.data
 
 import android.content.Context
-import com.fioiu8.devinfo.core.model.PaletteStyle
 import kotlin.concurrent.Volatile
+import com.fioiu8.devinfo.core.model.PaletteStyle
 import com.fioiu8.devinfo.core.model.ThemeColor
 import com.fioiu8.devinfo.core.model.ThemeMode
 import com.fioiu8.devinfo.core.model.UiStyle
@@ -172,7 +172,9 @@ class ThemePreferences private constructor(context: Context) :
 
         fun getInstance(context: Context): ThemePreferences =
             instance ?: synchronized(ThemePreferences::class.java) {
-                instance ?: ThemePreferences(context.applicationContext).also { instance = it }
+                instance ?: ThemePreferences(context.applicationContext).also {
+                    instance = it
+                }
             }
 
         private const val PREFS_NAME = "devinfo_theme_prefs"

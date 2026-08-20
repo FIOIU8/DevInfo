@@ -55,13 +55,14 @@ import com.fioiu8.devinfo.ui.theme.DevInfoTheme
 
 class MainActivity : ComponentActivity() {
 
-    private var themePrefs: ThemePreferences? = null
+    // ThemePreferences 是单例，不应在 Activity 销毁时 close，否则 recreate() 后监听器失效
+    // LanguagePreferences 不是单例，需要在 onDestroy 中 close
     private var languagePrefs: LanguagePreferences? = null
     private var attachLanguagePrefs: LanguagePreferences? = null
 
     override fun onDestroy() {
         super.onDestroy()
-        themePrefs?.close()
+        // themePrefs 是单例，跨 Activity 生命周期，不在这里 close
         languagePrefs?.close()
         attachLanguagePrefs?.close()
     }
@@ -102,7 +103,7 @@ class MainActivity : ComponentActivity() {
 
         // 模块导出助手
         val exportHelper = ModuleExportHelper(this)
-        val themePrefs = ThemePreferences.getInstance(this).also { this.themePrefs = it }
+        val themePrefs = ThemePreferences.getInstance(this)
         val languagePrefs = LanguagePreferences(this).also { this.languagePrefs = it }
         val appContext = applicationContext
         val collector = DeviceInfoCollector(appContext)
