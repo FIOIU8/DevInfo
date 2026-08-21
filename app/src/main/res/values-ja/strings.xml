@@ -49,7 +49,7 @@
 
     <!-- Language settings -->
     <string name="language_setting">言語設定</string>
-    <string name="custom_locale_hint">ロケールタグを入力（例: ja, ko, de）</string>
+    <string name="custom_locale_hint">ロケールタグを入力（例: ja-JP、en-US、zh-CN）</string>
     <string name="custom_locale_apply">適用</string>
     <string name="custom_locale_title">カスタム言語</string>
     <string name="custom_locale_placeholder">ロケールコードを入力…</string>

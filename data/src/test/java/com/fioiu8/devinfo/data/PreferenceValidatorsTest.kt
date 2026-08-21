@@ -33,9 +33,11 @@ class PreferenceValidatorsTest {
     fun `locale tags are parsed and normalized before storage`() {
         assertEquals("en-US", PreferenceValidators.normalizedLocaleTag(" en-us "))
         assertTrue(PreferenceValidators.isValidLocaleTag("ja"))
+        assertTrue(PreferenceValidators.isValidLocaleTag("zh-CN"))
         assertFalse(PreferenceValidators.isValidLocaleTag(""))
         assertFalse(PreferenceValidators.isValidLocaleTag("not a locale"))
         assertFalse(PreferenceValidators.isValidLocaleTag("en_US"))
+        assertFalse(PreferenceValidators.isValidLocaleTag("ko"))
     }
 
     @Test

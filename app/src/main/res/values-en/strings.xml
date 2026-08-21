@@ -50,7 +50,7 @@
 
     <!-- Language settings -->
     <string name="language_setting">Language</string>
-    <string name="custom_locale_hint">Enter locale tag (e.g. ja, ko, de)</string>
+    <string name="custom_locale_hint">Enter locale tag (e.g. ja-JP, en-US, zh-CN)</string>
     <string name="custom_locale_apply">Apply</string>
     <string name="custom_locale_title">Custom Language</string>
     <string name="custom_locale_placeholder">Enter locale code…</string>

@@ -49,7 +49,7 @@
 
     <!-- Language settings -->
     <string name="language_setting">语言设置</string>
-    <string name="custom_locale_hint">输入语言标签（如 ja, ko, de）</string>
+    <string name="custom_locale_hint">输入语言标签（如 ja-JP、en-US、zh-CN）</string>
     <string name="custom_locale_apply">应用</string>
     <string name="custom_locale_title">自定义语言</string>
     <string name="custom_locale_placeholder">输入区域代码…</string>

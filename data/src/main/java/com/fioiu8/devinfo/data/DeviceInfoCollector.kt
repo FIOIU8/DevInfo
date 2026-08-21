@@ -80,6 +80,7 @@ private inline fun safeGet(
 }
 
 class DeviceInfoCollector(private val context: Context) {
+    private val locale: Locale = context.resources.configuration.locales[0]
 
     // 写于 Default/IO 线程（loadDeviceInfo），读于主线程（appVersionName 懒加载）
     @Volatile private var cachedVersionName: String? = null
@@ -217,11 +218,11 @@ class DeviceInfoCollector(private val context: Context) {
     )
 
     private fun localeInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
-        { infoItem(R.string.locale_language, Locale.getDefault().language, InfoCategory.LOCALE) },
-        { infoItem(R.string.locale_country, Locale.getDefault().country, InfoCategory.LOCALE) },
+        { infoItem(R.string.locale_language, locale.language, InfoCategory.LOCALE) },
+        { infoItem(R.string.locale_country, locale.country, InfoCategory.LOCALE) },
         { infoItem(R.string.locale_timezone, TimeZone.getDefault().id, InfoCategory.LOCALE) },
-        { infoItem(R.string.locale_display_name, Locale.getDefault().displayName, InfoCategory.LOCALE) },
-        { infoItem(R.string.locale_tag, Locale.getDefault().toLanguageTag(), InfoCategory.LOCALE) },
+        { infoItem(R.string.locale_display_name, locale.displayName, InfoCategory.LOCALE) },
+        { infoItem(R.string.locale_tag, locale.toLanguageTag(), InfoCategory.LOCALE) },
         { infoItem(R.string.locale_timezone_offset, getTimezoneOffset(), InfoCategory.LOCALE) },
         { infoItem(R.string.locale_currency, getLocaleCurrency(), InfoCategory.LOCALE) },
         { infoItem(R.string.locale_system_locales, getSystemLocales(), InfoCategory.LOCALE) },
@@ -802,7 +803,7 @@ class DeviceInfoCollector(private val context: Context) {
 
     private fun getBootTime(): String = safeGet(statusUnknown) {
         val bootMillis = System.currentTimeMillis() - SystemClock.elapsedRealtime()
-        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(bootMillis))
+        SimpleDateFormat("yyyy-MM-dd HH:mm", locale).format(Date(bootMillis))
     }
 
     private fun getUsbDebuggingState(): String = safeGet(statusUnknown) {
@@ -833,7 +834,7 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     private fun getLocaleCurrency(): String = safeGet(statusUnknown) {
-        val currency = Currency.getInstance(Locale.getDefault())
+        val currency = Currency.getInstance(locale)
         "${currency.currencyCode} (${currency.symbol})"
     }
 
@@ -1050,12 +1051,12 @@ class DeviceInfoCollector(private val context: Context) {
 
     private fun getAppFirstInstallTime(p: PackageInfo?): String = safeGet(statusUnknown) {
         val pkg = p ?: return@safeGet statusUnknown
-        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(pkg.firstInstallTime))
+        SimpleDateFormat("yyyy-MM-dd HH:mm", locale).format(Date(pkg.firstInstallTime))
     }
 
     private fun getAppLastUpdateTime(p: PackageInfo?): String = safeGet(statusUnknown) {
         val pkg = p ?: return@safeGet statusUnknown
-        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(pkg.lastUpdateTime))
+        SimpleDateFormat("yyyy-MM-dd HH:mm", locale).format(Date(pkg.lastUpdateTime))
     }
 
     private fun getAppTargetSdk(): String = safeGet(statusUnknown) {
