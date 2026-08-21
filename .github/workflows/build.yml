@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
+      - dev
       - test
   pull_request:
     branches:
       - main
+      - dev
       - test
   workflow_dispatch:
     inputs:
@@ -76,7 +78,7 @@ jobs:
 
   # -------------------------------
   # Job 2: Build APK
-  # Only runs on push to main/test or workflow_dispatch (skips PR from forks)
+  # Only runs on push to main/dev/test or workflow_dispatch (skips PR from forks)
   # -------------------------------
   build:
     name: Build APK
