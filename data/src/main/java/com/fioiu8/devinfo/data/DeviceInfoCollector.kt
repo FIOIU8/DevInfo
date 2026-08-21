@@ -84,8 +84,6 @@ class DeviceInfoCollector(private val context: Context) {
     // 写于 Default/IO 线程（loadDeviceInfo），读于主线程（appVersionName 懒加载）
     @Volatile private var cachedVersionName: String? = null
     @Volatile private var cachedVersionCode: Long? = null
-    @Volatile
-    private var cachedRootAvailable: Boolean? = null
 
     fun getAppVersionName(): String {
         if (cachedVersionName == null) cachePackageInfo()
@@ -400,10 +398,9 @@ class DeviceInfoCollector(private val context: Context) {
 
     /**
      * 检测设备是否已 Root（su 命令是否可用）。
-     * 仅阳性结果会被缓存；阴性结果不缓存，用户授予 Root 后可重新检测。
+     * 每次调用都重新验证，避免 Root 权限在运行期间撤销后仍使用旧状态。
      */
     suspend fun isRootAvailable(): Boolean {
-        cachedRootAvailable?.let { return it }
         val result = runCatching {
             val process = ProcessBuilder("su", "-c", "echo", "test")
                 .redirectErrorStream(true)
@@ -420,7 +417,6 @@ class DeviceInfoCollector(private val context: Context) {
                 if (process.isAlive) process.destroyForcibly()
             }
         }.getOrDefault(false)
-        if (result) cachedRootAvailable = result
         return result
     }
 

@@ -40,6 +40,7 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     private var scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val selfReference = WeakReference(this)
     private var onSample: ((CpuUsageReading) -> Unit)? = null
+    private var useRoot = false
     @Volatile private var running = false
     @Volatile private var generation = 0L
     @Volatile private var consecutiveFailures = 0
@@ -70,10 +71,11 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
         }
     }
 
-    fun start(callback: (CpuUsageReading) -> Unit) {
+    fun start(useRoot: Boolean = false, callback: (CpuUsageReading) -> Unit) {
         stop()
         generation++
         running = true
+        this.useRoot = useRoot
         consecutiveFailures = 0
         lastDeliveredReading = null
         onSample = callback
@@ -84,6 +86,7 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     fun stop() {
         running = false
         generation++
+        useRoot = false
         onSample = null
         lastDeliveredReading = null
         handler.removeCallbacksAndMessages(null)
@@ -91,7 +94,13 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     }
 
     private suspend fun read(): CpuUsageReading {
-        val cores = runCatching { collector.getCpuCoreMetrics() }.getOrDefault(emptyList())
+        val cores = runCatching {
+            if (useRoot) {
+                collector.getCpuCoreMetricsWithRoot().ifEmpty { collector.getCpuCoreMetrics() }
+            } else {
+                collector.getCpuCoreMetrics()
+            }
+        }.getOrDefault(emptyList())
         return if (cores.isNotEmpty()) {
             val perCoreAverage = cores.mapNotNull { it.usagePercent }
                 .average()
