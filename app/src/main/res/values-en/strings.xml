@@ -143,6 +143,7 @@
     <string name="device_id_fetch_failed">Failed to retrieve: %1$s</string>
     <string name="cancel">Cancel</string>
     <string name="confirm_export">Confirm Export</string>
+    <string name="confirm_export_countdown">Confirm Export (%d)</string>
     <string name="confirm">OK</string>
 
     <!-- External link dialog -->

@@ -139,6 +139,7 @@
     <string name="device_id_fetch_failed">取得に失敗しました: %1$s</string>
     <string name="cancel">キャンセル</string>
     <string name="confirm_export">エクスポート確認</string>
+    <string name="confirm_export_countdown">エクスポート確認 (%d)</string>
     <string name="confirm">OK</string>
 
     <!-- External link dialog -->
