@@ -7,6 +7,21 @@ plugins {
     id("com.github.ben-manes.versions") version "0.52.0"
 }
 
+val signatureType = System.getenv("SIGNATURE_TYPE")
+val isCI = System.getenv("CI")?.toBoolean() == true
+
+gradle.taskGraph.whenReady {
+    val releaseTaskRequested = allTasks.any { task ->
+        task.name.contains("release", ignoreCase = true)
+    }
+    if (isCI && releaseTaskRequested && signatureType != "release") {
+        throw GradleException(
+            "CI release build requires SIGNATURE_TYPE=release. " +
+                "Debug signing is not allowed in CI environment.",
+        )
+    }
+}
+
 android {
     namespace = "com.fioiu8.devinfo"
     compileSdk = 37
@@ -49,20 +64,10 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
 
-            val signatureType = System.getenv("SIGNATURE_TYPE")
-            val isCI = System.getenv("CI")?.toBoolean() == true
-
             signingConfig =
                 when {
                     signatureType == "release" -> {
                         signingConfigs.getByName("release")
-                    }
-                    signatureType == "debug" && isCI -> {
-                        // CI 环境中明确指定 debug 签名，禁止降级
-                        throw GradleException(
-                            "CI release build requires SIGNATURE_TYPE=release. " +
-                                "Debug signing is not allowed in CI environment.",
-                        )
                     }
                     isCI -> {
                         // CI 环境中未指定 SIGNATURE_TYPE（如 verify job），使用 debug
