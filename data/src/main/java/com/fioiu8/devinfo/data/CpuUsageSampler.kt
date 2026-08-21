@@ -41,6 +41,7 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     private val selfReference = WeakReference(this)
     private var onSample: ((CpuUsageReading) -> Unit)? = null
     @Volatile private var running = false
+    @Volatile private var generation = 0L
     @Volatile private var consecutiveFailures = 0
     private var lastDeliveredReading: CpuUsageReading? = null
 
@@ -51,10 +52,11 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
             override fun run() {
                 val sampler = selfReference.get() ?: return
                 if (!sampler.running) return
+                val runGeneration = sampler.generation
                 sampler.scope.launch {
                     val reading = sampler.read()
                     withContext(Dispatchers.Main.immediate) {
-                        if (!sampler.running) return@withContext
+                        if (!sampler.running || sampler.generation != runGeneration) return@withContext
                         if (reading != sampler.lastDeliveredReading) {
                             sampler.lastDeliveredReading = reading
                             runCatching { sampler.onSample?.invoke(reading) }
@@ -70,6 +72,7 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
 
     fun start(callback: (CpuUsageReading) -> Unit) {
         stop()
+        generation++
         running = true
         consecutiveFailures = 0
         lastDeliveredReading = null
@@ -80,6 +83,7 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
 
     fun stop() {
         running = false
+        generation++
         onSample = null
         lastDeliveredReading = null
         handler.removeCallbacksAndMessages(null)

@@ -22,6 +22,8 @@ import com.fioiu8.devinfo.core.model.UpdateState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * 更新检查器 — 封装 GitHub API + 12 小时缓存。
@@ -43,11 +45,13 @@ class UpdateChecker(
     private val _releaseInfo = MutableStateFlow<GitHubClient.ReleaseInfo?>(null)
     val releaseInfo: StateFlow<GitHubClient.ReleaseInfo?> = _releaseInfo.asStateFlow()
 
+    private val checkMutex = Mutex()
+
     /** 当前是否正在检查 */
     val isChecking: Boolean get() = _state.value == UpdateState.CHECKING
 
     /** 开始异步检查 */
-    suspend fun check(currentVersion: String) {
+    suspend fun check(currentVersion: String): Unit = checkMutex.withLock {
         if (!isOfficialBuild) return
 
         _state.value = UpdateState.CHECKING
@@ -78,12 +82,16 @@ class UpdateChecker(
             is GitHubClient.ApiResult.Success -> {
                 val info = result.data
                 _releaseInfo.value = info
-                cacheRepository.writeLong(KEY_LAST_CHECK, now)
-                cacheRepository.writeString(KEY_CACHED_TAG, info.tagName)
-                cacheRepository.writeString(KEY_RELEASE_NAME, info.name)
-                cacheRepository.writeString(KEY_RELEASE_BODY, info.body)
-                cacheRepository.writeString(KEY_RELEASE_URL, info.htmlUrl)
-                cacheRepository.writeString(KEY_RELEASE_DOWNLOAD_URL, info.downloadUrl.orEmpty())
+                cacheRepository.writeBatch(
+                    mapOf(
+                        KEY_LAST_CHECK to PreferenceValue.LongValue(now),
+                        KEY_CACHED_TAG to PreferenceValue.StringValue(info.tagName),
+                        KEY_RELEASE_NAME to PreferenceValue.StringValue(info.name),
+                        KEY_RELEASE_BODY to PreferenceValue.StringValue(info.body),
+                        KEY_RELEASE_URL to PreferenceValue.StringValue(info.htmlUrl),
+                        KEY_RELEASE_DOWNLOAD_URL to PreferenceValue.StringValue(info.downloadUrl.orEmpty()),
+                    ),
+                )
                 _state.value = if (info.tagName.isNotBlank() &&
                     GitHubClient.isNewerVersion(info.tagName, currentVersion)
                 ) {

@@ -21,4 +21,20 @@ interface PreferenceRepository {
     suspend fun writeLong(key: String, value: Long): Boolean
 
     suspend fun writeString(key: String, value: String): Boolean
+
+    /** Writes related values as one logical update where the backend supports it. */
+    suspend fun writeBatch(values: Map<String, PreferenceValue>): Boolean {
+        return values.all { (key, value) ->
+            when (value) {
+                is PreferenceValue.LongValue -> writeLong(key, value.value)
+                is PreferenceValue.StringValue -> writeString(key, value.value)
+            }
+        }
+    }
+}
+
+sealed interface PreferenceValue {
+    data class LongValue(val value: Long) : PreferenceValue
+
+    data class StringValue(val value: String) : PreferenceValue
 }

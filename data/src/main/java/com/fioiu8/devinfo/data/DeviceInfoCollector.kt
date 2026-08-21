@@ -54,6 +54,7 @@ import java.util.Currency
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -411,12 +412,12 @@ class DeviceInfoCollector(private val context: Context) {
                 // 先限时等待进程退出再读输出：readText() 是纯阻塞调用，
                 // 协程超时无法将其中断，su 挂起时会无限占用线程
                 if (!process.waitFor(ROOT_COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                    process.destroyForcibly()
                     return@runCatching false
                 }
-                val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
-                output == "test"
+                process.inputStream.bufferedReader().use { it.readLine()?.trim() == "test" }
             } finally {
-                process.destroy()
+                if (process.isAlive) process.destroyForcibly()
             }
         }.getOrDefault(false)
         if (result) cachedRootAvailable = result
@@ -459,15 +460,33 @@ class DeviceInfoCollector(private val context: Context) {
         val process = ProcessBuilder("su", "-c", "cat $path")
             .redirectErrorStream(true)
             .start()
+        val lines = mutableListOf<String>()
+        val readerDone = CountDownLatch(1)
+        val readerThread = Thread {
+            runCatching {
+                process.inputStream.bufferedReader().useLines { output ->
+                    output.forEach { line ->
+                        synchronized(lines) {
+                            if (lines.size < MAX_ROOT_OUTPUT_LINES) lines += line
+                        }
+                    }
+                }
+            }
+            readerDone.countDown()
+        }.apply {
+            isDaemon = true
+            start()
+        }
         try {
-            val lines = process.inputStream.bufferedReader().useLines { it.toList() }
             if (!process.waitFor(ROOT_COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
                 process.destroyForcibly()
+                readerThread.interrupt()
                 return@runCatching emptyList()
             }
-            lines
+            readerDone.await(ROOT_COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            synchronized(lines) { lines.toList() }
         } finally {
-            process.destroy()
+            if (process.isAlive) process.destroyForcibly()
         }
     }.getOrDefault(emptyList())
 
@@ -1080,6 +1099,7 @@ class DeviceInfoCollector(private val context: Context) {
     private companion object {
         const val TOP_COMMAND_TIMEOUT_MS = 1_500L
         const val ROOT_COMMAND_TIMEOUT_MS = 5_000L
+        const val MAX_ROOT_OUTPUT_LINES = 512
     }
 }
 

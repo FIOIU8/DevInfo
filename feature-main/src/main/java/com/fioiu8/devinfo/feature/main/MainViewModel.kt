@@ -105,6 +105,7 @@ class MainViewModel(
     private var batteryJob: Job? = null
     private var dynamicMetricsJob: Job? = null
     private var hardwareMonitoringJob: Job? = null
+    private var hardwareMonitoringGeneration = 0L
     private var isForeground = false
     private var isInfoTabSelected = true
     private val _monitorMode = MutableStateFlow(MonitorMode.STOPPED)
@@ -370,6 +371,7 @@ class MainViewModel(
     private fun startHardwareMonitoring(mode: MonitorMode) {
         if (hardwareMonitoringJob?.isActive == true) stopHardwareMonitoring()
 
+        val generation = ++hardwareMonitoringGeneration
         liveHardwareMonitor.start(collectMotion = mode == MonitorMode.ACTIVE)
         val interval = if (mode == MonitorMode.ACTIVE) ACTIVE_REFRESH_INTERVAL_MS else LOW_FREQUENCY_REFRESH_INTERVAL_MS
         hardwareMonitoringJob = viewModelScope.launch {
@@ -383,6 +385,7 @@ class MainViewModel(
                 } catch (_: Exception) {
                     null
                 }
+                if (generation != hardwareMonitoringGeneration) break
                 hardware?.let {
                     updateOverview { snapshot -> snapshot.copy(hardware = hardware) }
                 }
@@ -392,6 +395,7 @@ class MainViewModel(
     }
 
     private fun stopHardwareMonitoring() {
+        hardwareMonitoringGeneration++
         hardwareMonitoringJob?.cancel()
         hardwareMonitoringJob = null
         liveHardwareMonitor.stop()

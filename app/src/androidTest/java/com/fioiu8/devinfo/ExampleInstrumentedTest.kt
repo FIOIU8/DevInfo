@@ -28,11 +28,12 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
-import com.fioiu8.devinfo.ui.CpuUsageSample
-import com.fioiu8.devinfo.ui.DeviceInfoOverviewPage
-import com.fioiu8.devinfo.ui.OverviewSnapshot
+import com.fioiu8.devinfo.core.model.CpuCoreMetric
+import com.fioiu8.devinfo.core.model.CpuUsageSample
+import com.fioiu8.devinfo.core.model.OverviewSnapshot
+import com.fioiu8.devinfo.core.model.ThemeMode
+import com.fioiu8.devinfo.feature.main.DeviceInfoOverviewPage
 import com.fioiu8.devinfo.ui.theme.DevInfoTheme
-import com.fioiu8.devinfo.data.ThemeMode
 import org.junit.Rule
 
 import org.junit.Test
