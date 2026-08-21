@@ -11,9 +11,10 @@ val signatureType = System.getenv("SIGNATURE_TYPE")
 val isCI = System.getenv("CI")?.toBoolean() == true
 
 gradle.taskGraph.whenReady {
-    val releaseTaskRequested = allTasks.any { task ->
-        task.name.contains("release", ignoreCase = true)
-    }
+    val releaseTaskRequested =
+        allTasks.any { task ->
+            task.name.contains("release", ignoreCase = true)
+        }
     if (isCI && releaseTaskRequested && signatureType != "release") {
         throw GradleException(
             "CI release build requires SIGNATURE_TYPE=release. " +
