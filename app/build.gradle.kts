@@ -8,17 +8,16 @@ plugins {
 }
 
 val signatureType = System.getenv("SIGNATURE_TYPE")
-val isCI = System.getenv("CI")?.toBoolean() == true
 
 gradle.taskGraph.whenReady {
     val releaseTaskRequested =
         allTasks.any { task ->
             task.name.contains("release", ignoreCase = true)
         }
-    if (isCI && releaseTaskRequested && signatureType != "release") {
+    if (releaseTaskRequested && signatureType != "release") {
         throw GradleException(
-            "CI release build requires SIGNATURE_TYPE=release. " +
-                "Debug signing is not allowed in CI environment.",
+            "Release build requires SIGNATURE_TYPE=release. " +
+                "Debug signing is not allowed for release artifacts.",
         )
     }
 }
@@ -70,13 +69,8 @@ android {
                     signatureType == "release" -> {
                         signingConfigs.getByName("release")
                     }
-                    isCI -> {
-                        // CI 环境中未指定 SIGNATURE_TYPE（如 verify job），使用 debug
-                        signingConfigs.getByName("debug")
-                    }
                     else -> {
-                        // 本地开发允许降级到 debug 签名
-                        logger.warn("⚠️  Local release build using debug signing (missing SIGNATURE_TYPE=release)")
+                        // taskGraph 校验会拒绝实际的 Release 任务；此配置仅用于完成 Gradle 配置阶段。
                         signingConfigs.getByName("debug")
                     }
                 }

@@ -23,8 +23,12 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.charset.StandardCharsets
 
 /**
  * GitHub API 客户端 — 获取最新 Release 信息。
@@ -36,6 +40,8 @@ object GitHubClient {
     private const val BASE = "https://api.github.com"
     private const val OWNER = "FIOIU8"
     private const val REPO = "DevInfo"
+    private const val MAX_RESPONSE_BYTES = 1024 * 1024
+    private const val MAX_LOG_BODY_LENGTH = 512
 
     /** Resolved error messages from string resources. Populated lazily on first use. */
     @Volatile private var errorMessageRelease: String? = null
@@ -125,7 +131,7 @@ object GitHubClient {
     private inline fun <T> fetchAndParse(path: String, parse: (String) -> T): T? {
         val (code, body) = httpGet(path)
         if (code != HttpURLConnection.HTTP_OK) {
-            Log.w(TAG, "GET $path → $code: $body")
+            Log.w(TAG, "GET $path → $code: ${body?.take(MAX_LOG_BODY_LENGTH)}")
             return null
         }
         if (body.isNullOrBlank()) return null
@@ -149,11 +155,12 @@ object GitHubClient {
                 conn.setRequestProperty("Authorization", "Bearer $token")
             }
             val code = conn.responseCode
-            val body = try {
-                conn.inputStream.bufferedReader().use { it.readText() }
+            val stream = try {
+                conn.inputStream
             } catch (_: Exception) {
-                conn.errorStream?.bufferedReader()?.use { it.readText() }
+                conn.errorStream
             }
+            val body = stream?.let(::readResponseBody)
             return Pair(code, body)
         } catch (e: Exception) {
             Log.e(TAG, "HTTP GET $path failed", e)
@@ -161,5 +168,23 @@ object GitHubClient {
         } finally {
             conn?.disconnect()
         }
+    }
+
+    private fun readResponseBody(input: InputStream): String {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var totalBytes = 0
+        input.use { stream ->
+            while (true) {
+                val bytesRead = stream.read(buffer)
+                if (bytesRead < 0) break
+                totalBytes += bytesRead
+                if (totalBytes > MAX_RESPONSE_BYTES) {
+                    throw IOException("Response body exceeds $MAX_RESPONSE_BYTES bytes")
+                }
+                output.write(buffer, 0, bytesRead)
+            }
+        }
+        return output.toByteArray().toString(StandardCharsets.UTF_8)
     }
 }
