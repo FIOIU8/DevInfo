@@ -58,6 +58,19 @@ class SharedPreferencesPreferenceRepository(
         runCatching { preferences.edit().putString(key, value).commit() }
             .getOrDefault(false)
     }
+
+    override suspend fun writeBatch(values: Map<String, PreferenceValue>): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            preferences.edit().apply {
+                values.forEach { (key, value) ->
+                    when (value) {
+                        is PreferenceValue.LongValue -> putLong(key, value.value)
+                        is PreferenceValue.StringValue -> putString(key, value.value)
+                    }
+                }
+            }.commit()
+        }.getOrDefault(false)
+    }
 }
 
 /**
@@ -83,18 +96,23 @@ class DataStorePreferenceRepository(
             ?: legacyRepository.readString(key)
 
     override suspend fun writeLong(key: String, value: Long): Boolean {
-        val dataStoreResult = writeDataStoreValue { preferences ->
-            preferences[longPreferencesKey(key)] = value
-        }
-        val legacyResult = legacyRepository.writeLong(key, value)
-        return dataStoreResult && legacyResult
+        return writeBatch(mapOf(key to PreferenceValue.LongValue(value)))
     }
 
     override suspend fun writeString(key: String, value: String): Boolean {
+        return writeBatch(mapOf(key to PreferenceValue.StringValue(value)))
+    }
+
+    override suspend fun writeBatch(values: Map<String, PreferenceValue>): Boolean {
         val dataStoreResult = writeDataStoreValue { preferences ->
-            preferences[stringPreferencesKey(key)] = value
+            values.forEach { (key, value) ->
+                when (value) {
+                    is PreferenceValue.LongValue -> preferences[longPreferencesKey(key)] = value.value
+                    is PreferenceValue.StringValue -> preferences[stringPreferencesKey(key)] = value.value
+                }
+            }
         }
-        val legacyResult = legacyRepository.writeString(key, value)
+        val legacyResult = legacyRepository.writeBatch(values)
         return dataStoreResult && legacyResult
     }
 
@@ -111,20 +129,42 @@ class DataStorePreferenceRepository(
         if (migrationDone.get()) return
         migrationMutex.withLock {
             if (migrationDone.get()) return
-            val currentData = readDataStoreSnapshot() ?: return
-            val legacyLastCheck = legacyRepository.readLong(KEY_LAST_CHECK)
-            val legacyCachedTag = legacyRepository.readString(KEY_CACHED_TAG)
-            runCatching {
-                dataStore.edit { preferences ->
-                    if (preferences[longPreferencesKey(KEY_LAST_CHECK)] == null) {
-                        legacyLastCheck?.let { preferences[longPreferencesKey(KEY_LAST_CHECK)] = it }
-                    }
-                    if (preferences[stringPreferencesKey(KEY_CACHED_TAG)] == null) {
-                        legacyCachedTag?.let { preferences[stringPreferencesKey(KEY_CACHED_TAG)] = it }
+            val legacyValues = buildMap {
+                legacyRepository.readLong(KEY_LAST_CHECK)?.let {
+                    put(KEY_LAST_CHECK, PreferenceValue.LongValue(it))
+                }
+                listOf(
+                    KEY_CACHED_TAG,
+                    KEY_RELEASE_NAME,
+                    KEY_RELEASE_BODY,
+                    KEY_RELEASE_URL,
+                    KEY_RELEASE_DOWNLOAD_URL,
+                ).forEach { key ->
+                    legacyRepository.readString(key)?.let { value ->
+                        put(key, PreferenceValue.StringValue(value))
                     }
                 }
             }
-            migrationDone.set(true)
+            val migrationSucceeded = runCatching {
+                dataStore.edit { preferences ->
+                    legacyValues.forEach { (key, value) ->
+                        when (value) {
+                            is PreferenceValue.LongValue -> {
+                                if (preferences[longPreferencesKey(key)] == null) {
+                                    preferences[longPreferencesKey(key)] = value.value
+                                }
+                            }
+                            is PreferenceValue.StringValue -> {
+                                if (preferences[stringPreferencesKey(key)] == null) {
+                                    preferences[stringPreferencesKey(key)] = value.value
+                                }
+                            }
+                        }
+                    }
+                }
+                true
+            }.getOrDefault(false)
+            if (migrationSucceeded) migrationDone.set(true)
         }
     }
 
@@ -146,6 +186,10 @@ class DataStorePreferenceRepository(
         const val DATASTORE_FILE_NAME = "devinfo_update.preferences_pb"
         const val KEY_LAST_CHECK = "last_check_time"
         const val KEY_CACHED_TAG = "cached_tag"
+        const val KEY_RELEASE_NAME = "release_name"
+        const val KEY_RELEASE_BODY = "release_body"
+        const val KEY_RELEASE_URL = "release_url"
+        const val KEY_RELEASE_DOWNLOAD_URL = "release_download_url"
 
         // 同一文件的 DataStore 必须全局唯一。仓库实例随 Activity 重建而反复创建，
         // 若每次都新建 DataStore 会连带泄漏一个永不取消的 IO 协程作用域，
