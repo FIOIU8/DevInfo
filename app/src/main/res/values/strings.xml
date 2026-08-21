@@ -137,6 +137,7 @@
     <string name="device_id_fetch_failed">获取失败: %1$s</string>
     <string name="cancel">取消</string>
     <string name="confirm_export">确认导出</string>
+    <string name="confirm_export_countdown">确认导出 (%d)</string>
     <string name="confirm">确定</string>
 
     <!-- External link dialog -->
