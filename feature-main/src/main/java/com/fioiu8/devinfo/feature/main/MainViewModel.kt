@@ -162,6 +162,7 @@ class MainViewModel(
             ?.toFloat()
         val cpuReading = CpuUsageReading(metrics, overallUsage)
         updateOverview { snapshot -> snapshot.withCpuUsageReading(cpuReading) }
+        if (dynamicMetricsJob?.isActive == true) startCpuSampling()
         return true
     }
 
@@ -351,9 +352,7 @@ class MainViewModel(
     private fun startDynamicMonitoring() {
         if (dynamicMetricsJob?.isActive == true) return
 
-        cpuUsageSampler.start { reading ->
-            updateOverview { snapshot -> snapshot.withCpuUsageReading(reading) }
-        }
+        startCpuSampling()
         dynamicMetricsJob = viewModelScope.launch {
             while (isActive) {
                 delay(ACTIVE_REFRESH_INTERVAL_MS)
@@ -366,6 +365,12 @@ class MainViewModel(
         dynamicMetricsJob?.cancel()
         dynamicMetricsJob = null
         cpuUsageSampler.stop()
+    }
+
+    private fun startCpuSampling() {
+        cpuUsageSampler.start(useRoot = _uiState.value.isRootModeEnabled) { reading ->
+            updateOverview { snapshot -> snapshot.withCpuUsageReading(reading) }
+        }
     }
 
     private fun startHardwareMonitoring(mode: MonitorMode) {
