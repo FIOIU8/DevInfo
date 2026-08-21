@@ -74,7 +74,6 @@ class MainActivity : ComponentActivity() {
         val newBase = if (tag != null) {
             // Recreate the base context so Android resolves resources in the selected locale.
             val locale = Locale.forLanguageTag(tag)
-            Locale.setDefault(locale)
             val config = Configuration(base.resources.configuration)
             config.setLocale(locale)
             base.createConfigurationContext(config)
@@ -101,12 +100,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val localizedAppContext = applicationContext.createConfigurationContext(
+            Configuration(resources.configuration),
+        )
+
         // 模块导出助手
-        val exportHelper = ModuleExportHelper(this)
+        val exportHelper = ModuleExportHelper(localizedAppContext)
         val themePrefs = ThemePreferences.getInstance(this)
         val languagePrefs = LanguagePreferences(this).also { this.languagePrefs = it }
         val appContext = applicationContext
-        val collector = DeviceInfoCollector(appContext)
+        val collector = DeviceInfoCollector(localizedAppContext)
         val mainViewModelFactory = MainViewModel.factory(
             collector = collector,
             cpuUsageSampler = CpuUsageSampler(collector),
@@ -134,7 +137,11 @@ class MainActivity : ComponentActivity() {
             val uiStyle by themePrefs.uiStyle.collectAsStateWithLifecycle()
             val appLanguage by languagePrefs.appLanguage.collectAsStateWithLifecycle(initialValue = AppLanguage.SYSTEM)
             val customLocaleTag by languagePrefs.customLocaleTag.collectAsStateWithLifecycle(initialValue = "")
-            val mainViewModel: MainViewModel = viewModel(factory = mainViewModelFactory)
+            val viewModelKey = "main:$appLanguage:$customLocaleTag:${resources.configuration.locales.toLanguageTags()}"
+            val mainViewModel: MainViewModel = viewModel(
+                key = viewModelKey,
+                factory = mainViewModelFactory,
+            )
             val checkUpdate by themePrefs.checkUpdate.collectAsStateWithLifecycle(initialValue = true)
             val paletteStyle by themePrefs.paletteStyle.collectAsStateWithLifecycle(initialValue = PaletteStyle.DEFAULT)
             val colorSpec by themePrefs.colorSpec.collectAsStateWithLifecycle(initialValue = com.fioiu8.devinfo.core.model.ColorSpec.DEFAULT)

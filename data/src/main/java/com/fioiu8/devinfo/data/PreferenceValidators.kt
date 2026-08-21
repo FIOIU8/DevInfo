@@ -23,6 +23,7 @@ object PreferenceValidators {
     const val DEFAULT_PAGE_SCALE = 1.0f
 
     private val localeTagPattern = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*")
+    private val supportedAppLanguages = setOf("en", "zh", "ja")
 
     fun pageScaleOrDefault(value: Float): Float =
         value.takeIf { it.isFinite() && it in MIN_PAGE_SCALE..MAX_PAGE_SCALE } ?: DEFAULT_PAGE_SCALE
@@ -36,7 +37,10 @@ object PreferenceValidators {
         }
 
         val locale = Locale.forLanguageTag(normalized)
-        return locale.takeUnless { it == Locale.ROOT || it.language.isEmpty() }?.toLanguageTag()
+        return locale
+            .takeUnless { it == Locale.ROOT || it.language.isEmpty() }
+            ?.takeIf { it.language in supportedAppLanguages }
+            ?.toLanguageTag()
     }
 
     fun validLastCheckTimeOrZero(value: Long, now: Long): Long =
