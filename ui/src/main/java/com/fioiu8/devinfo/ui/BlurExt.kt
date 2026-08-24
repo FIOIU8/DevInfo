@@ -1,6 +1,5 @@
 package com.fioiu8.devinfo.ui
 
-import android.os.Build
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -21,7 +20,7 @@ import top.yukonga.miuix.kmp.blur.textureBlur
  */
 @Composable
 fun rememberBlurBackdrop(enableBlur: Boolean, surfaceColor: Color): LayerBackdrop? {
-    if (!enableBlur || Build.VERSION.SDK_INT < 31) return null
+    if (!enableBlur) return null
     return rememberLayerBackdrop {
         drawRect(surfaceColor)
         drawContent()
