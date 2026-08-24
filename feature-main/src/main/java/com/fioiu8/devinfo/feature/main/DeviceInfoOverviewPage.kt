@@ -87,7 +87,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
@@ -204,9 +203,11 @@ fun DeviceInfoOverviewPage(
     }
 
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
-    val fontScale = LocalDensity.current.fontScale
     val compactLayout = screenWidthDp < 600
-    val useSingleColumn = screenWidthDp < 360 || fontScale >= 1.3f
+    // Keep the card grid stable when the system font scale changes. Card text
+    // already applies max-lines/ellipsis, so accessibility scaling should not
+    // collapse otherwise wide-enough metric cards into a single column.
+    val useSingleColumn = screenWidthDp < 360
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
 
@@ -321,9 +322,8 @@ private fun MiuixDeviceInfoOverviewPage(
     }
 
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
-    val fontScale = LocalDensity.current.fontScale
     val compactLayout = screenWidthDp < 600
-    val useSingleColumn = screenWidthDp < 360 || fontScale >= 1.3f
+    val useSingleColumn = screenWidthDp < 360
 
     // 参数依次为 isRefreshing / onRefresh / modifier，其余取默认值
     MiuixPullToRefresh(
