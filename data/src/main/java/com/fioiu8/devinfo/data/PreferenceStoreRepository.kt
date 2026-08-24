@@ -112,8 +112,11 @@ class DataStorePreferenceRepository(
                 }
             }
         }
-        val legacyResult = legacyRepository.writeBatch(values)
-        return dataStoreResult && legacyResult
+        legacyRepository.writeBatch(values)
+        // DataStore is the primary source of truth. Legacy writes are retained only
+        // for the rollback window and must not make a successful primary write look
+        // like a failure.
+        return dataStoreResult
     }
 
     private val migrationMutex = Mutex()
