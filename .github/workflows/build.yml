@@ -134,13 +134,24 @@ jobs:
       # -------------------------------
       - name: Set version variables
         id: version
+        env:
+          INPUT_VERSION_NAME: ${{ inputs.version_name }}
+          INPUT_SIGNATURE_TYPE: ${{ inputs.signature_type }}
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             TRIGGER_TYPE="workflow_dispatch"
             TRIGGER_TYPE_DISPLAY="Manual trigger"
             TRIGGER_ACTOR="${{ github.actor }}"
-            VERSION_NAME="${{ github.event.inputs.version_name }}"
-            SIGNATURE_TYPE="${{ github.event.inputs.signature_type }}"
+            VERSION_NAME="${INPUT_VERSION_NAME}"
+            SIGNATURE_TYPE="${INPUT_SIGNATURE_TYPE}"
+            if [[ ! "$VERSION_NAME" =~ ^[0-9A-Za-z][0-9A-Za-z._+-]{0,63}$ ]]; then
+              echo "Error: version name contains unsupported characters"
+              exit 1
+            fi
+            if [[ "$SIGNATURE_TYPE" != "debug" && "$SIGNATURE_TYPE" != "release" ]]; then
+              echo "Error: unsupported signature type"
+              exit 1
+            fi
           else
             TRIGGER_TYPE="push"
             TRIGGER_TYPE_DISPLAY="Push trigger"
