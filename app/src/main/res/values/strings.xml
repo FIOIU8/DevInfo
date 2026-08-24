@@ -34,7 +34,7 @@
     <string name="theme_preview_summary">预览当前主题外观</string>
     <string name="theme_floating_navigation_bar">悬浮导航栏</string>
     <string name="theme_floating_navigation_bar_summary">以悬浮样式显示底部导航栏</string>
-    <string name="theme_floating_navigation_bar_blur">悬浮导航栏毛玻璃</string>
+    <string name="theme_floating_navigation_bar_blur">AndroidLiquidGlass 效果</string>
     <string name="theme_floating_navigation_bar_blur_summary">为悬浮导航栏应用毛玻璃效果</string>
     <string name="theme_page_scale">页面缩放</string>
     <string name="theme_page_scale_summary">调整应用界面的显示比例</string>
@@ -137,6 +137,7 @@
     <string name="device_id_fetch_failed">获取失败: %1$s</string>
     <string name="cancel">取消</string>
     <string name="confirm_export">确认导出</string>
+    <string name="confirm_export_countdown">确认导出 (%d)</string>
     <string name="confirm">确定</string>
 
     <!-- External link dialog -->

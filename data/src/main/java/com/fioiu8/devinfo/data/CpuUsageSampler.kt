@@ -21,6 +21,7 @@ import android.os.Handler
 import android.os.Looper
 import com.fioiu8.devinfo.core.model.CpuUsageReading
 import java.lang.ref.WeakReference
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -94,13 +95,17 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     }
 
     private suspend fun read(): CpuUsageReading {
-        val cores = runCatching {
+        val cores = try {
             if (useRoot) {
                 collector.getCpuCoreMetricsWithRoot().ifEmpty { collector.getCpuCoreMetrics() }
             } else {
                 collector.getCpuCoreMetrics()
             }
-        }.getOrDefault(emptyList())
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            emptyList()
+        }
         return if (cores.isNotEmpty()) {
             val perCoreAverage = cores.mapNotNull { it.usagePercent }
                 .average()
@@ -108,10 +113,25 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
                 .takeIf { !it.isNaN() }
             CpuUsageReading(
                 cores,
-                perCoreAverage ?: runCatching { collector.getCpuUsagePercent() }.getOrNull()
+                perCoreAverage ?: try {
+                    collector.getCpuUsagePercent()
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    null
+                }
             )
         } else {
-            CpuUsageReading(emptyList(), runCatching { collector.getCpuUsagePercent() }.getOrNull())
+            CpuUsageReading(
+                emptyList(),
+                try {
+                    collector.getCpuUsagePercent()
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    null
+                }
+            )
         }
     }
 

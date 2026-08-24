@@ -12,10 +12,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -296,11 +296,12 @@ fun FloatingBottomBar(
     val combinedBackdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop)
 
     Box(
-        modifier = modifier.width(IntrinsicSize.Min),
+        modifier = modifier,
         contentAlignment = Alignment.CenterStart
     ) {
         Row(
             Modifier
+                .fillMaxWidth()
                 .onGloballyPositioned { coords ->
                     totalWidthPx = coords.size.width.toFloat()
                     val contentWidthPx = totalWidthPx - with(density) { 8.dp.toPx() }
@@ -347,7 +348,7 @@ fun FloatingBottomBar(
                     }
                 )
                 .then(if (isBlurEnabled) interactiveHighlight.modifier else Modifier)
-                .height(64.dp)
+                .height(56.dp)
                 .padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
             content = content
@@ -361,6 +362,7 @@ fun FloatingBottomBar(
             ) {
                 Row(
                     Modifier
+                        .fillMaxWidth()
                         .clearAndSetSemantics {}
                         .alpha(0f)
                         .layerBackdrop(tabsBackdrop)
@@ -379,7 +381,7 @@ fun FloatingBottomBar(
                             onDrawSurface = { drawRect(containerColor) },
                         )
                         .then(interactiveHighlight.modifier)
-                        .height(56.dp)
+                        .height(48.dp)
                         .padding(horizontal = 4.dp)
                         .graphicsLayer(colorFilter = ColorFilter.tint(accentColor)),
                     verticalAlignment = Alignment.CenterVertically,
@@ -416,9 +418,6 @@ fun FloatingBottomBar(
                             layerBlock = {
                                 scaleX = dampedDragAnimation.scaleX
                                 scaleY = dampedDragAnimation.scaleY
-                                val velocity = dampedDragAnimation.velocity / 10f
-                                scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                                scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                             },
                             onDrawSurface = {
                                 val progress = dampedDragAnimation.pressProgress
@@ -436,7 +435,7 @@ fun FloatingBottomBar(
                                 alpha = dampedDragAnimation.pressProgress,
                             )
                         }
-                        .height(56.dp)
+                        .height(48.dp)
                         .width(tabWidthDp)
                 )
             } else {
@@ -450,7 +449,7 @@ fun FloatingBottomBar(
                         .then(dampedDragAnimation.modifier)
                         .clip(pillShape)
                         .background(accentColor.copy(alpha = 0.15f), pillShape)
-                        .height(56.dp)
+                        .height(48.dp)
                         .width(tabWidthDp)
                 )
             }

@@ -20,7 +20,6 @@ package com.fioiu8.devinfo.ui.theme
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -153,7 +152,7 @@ fun DevInfoTheme(
             if (darkTheme) themedDarkColorScheme(themeColorToColor(themeColor)) else themedLightColorScheme(themeColorToColor(themeColor))
         }
 
-        themeMode.isDynamic && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        themeMode.isDynamic -> {
             val dynamicScheme = if (darkTheme) {
                 dynamicDarkColorScheme(context)
             } else {

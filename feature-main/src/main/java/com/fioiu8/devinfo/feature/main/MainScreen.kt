@@ -1017,7 +1017,10 @@ private fun BoxScope.MaterialKitFloatingNavigationBar(
     // 底部定位与安全区留白由外层 FloatingMainNavigationBar 统一处理，
     // 此处再补一次会导致浮动栏悬浮过高（双重 12.dp + 双重导航栏 inset）
     FloatingBottomBar(
-        modifier = Modifier.align(Alignment.BottomCenter),
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
         selectedIndex = selectedIndexProvider,
         onSelected = onItemSelected,
         backdrop = backdrop,
@@ -1029,7 +1032,7 @@ private fun BoxScope.MaterialKitFloatingNavigationBar(
     ) {
         items.forEachIndexed { index, item ->
             FloatingBottomBarItem(
-                modifier = Modifier.defaultMinSize(minWidth = 76.dp),
+                modifier = Modifier.defaultMinSize(minWidth = 92.dp),
                 onClick = { onItemSelected(index) },
             ) {
                 Icon(
@@ -1064,7 +1067,10 @@ private fun BoxScope.MiuixKitFloatingNavigationBar(
 
     // 同 MaterialKitFloatingNavigationBar：底部留白由外层统一处理
     FloatingBottomBar(
-        modifier = Modifier.align(Alignment.BottomCenter),
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
         selectedIndex = selectedIndexProvider,
         onSelected = onItemSelected,
         backdrop = backdrop,
@@ -1073,7 +1079,7 @@ private fun BoxScope.MiuixKitFloatingNavigationBar(
     ) {
         items.forEachIndexed { index, item ->
             FloatingBottomBarItem(
-                modifier = Modifier.defaultMinSize(minWidth = 76.dp),
+                modifier = Modifier.defaultMinSize(minWidth = 92.dp),
                 onClick = { onItemSelected(index) },
             ) {
                 MiuixIcon(
