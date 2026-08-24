@@ -163,7 +163,7 @@ Device information is read for local display and optional module export. Exporte
 
 - `build.yml` runs unit tests, ktlint, Android lint, and a debug APK build for pushes to `main`/`test`, pull requests, and manual runs.
 - Manual runs accept a version name and `debug` or `release` signing type; artifacts are uploaded to Actions.
-- `release.yml` runs on `v*` tags, performs the quality gate, signs the release with repository Secrets, and creates a Draft Release.
+- `release.yml` supports pushes to `main`, `vMAJOR.MINOR.PATCH` tags, and manual dispatch. It publishes only after a version tag reaches `main`, then runs the quality gate, signs with repository Secrets, and creates a Draft Release; manual dispatch can create the tag from `main`.
 - Release signing requires `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`. Never commit a keystore or password.
 
 ## Contributing
