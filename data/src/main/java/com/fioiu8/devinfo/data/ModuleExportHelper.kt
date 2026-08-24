@@ -33,6 +33,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -96,6 +97,8 @@ class ModuleExportHelper(private val context: Context) {
                 writeModuleFiles(directories, metadata, buildInfo, deviceId, policy)
                 val zipFile = createModuleArchive(directories.root, buildInfo.model)
                 onSuccess(zipFile.absolutePath)
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
                 onError(e.message ?: context.getString(R.string.error_unknown))
             } finally {
@@ -133,6 +136,8 @@ class ModuleExportHelper(private val context: Context) {
                 writeModuleFiles(directories, metadata, buildInfo, deviceId, policy)
                 writeZipArchive(directories.root, outputStream)
                 onSuccess()
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
                 onError(e.message ?: context.getString(R.string.error_unknown))
             } finally {
@@ -814,8 +819,9 @@ ui_print "    DeviceInfo 机型模拟模块"
 ui_print "================================="
 
 # 确定模块安装路径
-if [ -z "${dollar}MODPATH" ]; then
-    MODPATH="${dollar}MODPATH"
+if [ -z "${dollar}{MODPATH:-}" ]; then
+    ui_print "! 错误: 安装环境未提供 MODPATH"
+    exit 1
 fi
 
 # 检查并加载工具函数

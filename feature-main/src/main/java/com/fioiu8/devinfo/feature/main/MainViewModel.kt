@@ -142,18 +142,28 @@ class MainViewModel(
     }
 
     /** 检测 Root 权限是否可用 */
-    suspend fun checkRootAvailable(): Boolean = runCatching {
-        withContext(Dispatchers.IO) { collector.isRootAvailable() }
-    }.getOrDefault(false)
+    suspend fun checkRootAvailable(): Boolean {
+        return try {
+            withContext(Dispatchers.IO) { collector.isRootAvailable() }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     /**
      * 尝试启用 Root 监控模式。
      * @return Root 模式是否成功启用
      */
     suspend fun enableRootMode(): Boolean {
-        val metrics = runCatching {
+        val metrics = try {
             withContext(Dispatchers.IO) { collector.getCpuCoreMetricsWithRoot() }
-        }.getOrDefault(emptyList())
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            emptyList()
+        }
         if (metrics.isEmpty()) return false
         _uiState.update { it.copy(isRootModeEnabled = true) }
         val overallUsage = metrics.mapNotNull { it.usagePercent }
@@ -252,12 +262,24 @@ class MainViewModel(
     private suspend fun loadOverviewSnapshot() {
         val hardware = runCatching { liveHardwareMonitor.snapshot() }.getOrDefault(LiveHardwareSnapshot())
         val cpuFrequency = runCatching { collector.getCpuFrequency() }.getOrNull()
-        val coreMetrics = runCatching { collector.getCpuCoreMetrics() }.getOrDefault(emptyList())
+        val coreMetrics = try {
+            collector.getCpuCoreMetrics()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            emptyList()
+        }
         val overallUsage = coreMetrics.mapNotNull { it.usagePercent }
             .average()
             .toFloat()
             .takeIf { !it.isNaN() }
-            ?: runCatching { collector.getCpuUsagePercent() }.getOrNull()
+            ?: try {
+                collector.getCpuUsagePercent()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                null
+            }
         val cpuReading = CpuUsageReading(coreMetrics, overallUsage)
         val dynamicMetrics = readDynamicMetrics()
         updateOverview { snapshot ->

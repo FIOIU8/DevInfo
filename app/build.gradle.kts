@@ -8,6 +8,17 @@ plugins {
 }
 
 val signatureType = System.getenv("SIGNATURE_TYPE")
+val configuredVersionName = System.getenv("VERSION_NAME") ?: "1.0.0"
+
+fun stableVersionCode(versionName: String): Int {
+    val match = Regex("^v?(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?(?:[-+].*)?$").find(versionName) ?: return 1
+    val major = match.groupValues[1].toLongOrNull() ?: return 1
+    val minor = match.groupValues[2].toLongOrNull() ?: 0L
+    val patch = match.groupValues[3].toLongOrNull() ?: 0L
+    return (major * 10_000L + minor * 100L + patch)
+        .coerceIn(1L, Int.MAX_VALUE.toLong())
+        .toInt()
+}
 
 gradle.taskGraph.whenReady {
     val releaseTaskRequested =
@@ -40,11 +51,10 @@ android {
         minSdk = 33
         targetSdk = 37
 
-        // 无 CI 环境变量时用秒级时间戳（上限 21 亿内）作本地默认，
-        // 保证本地构建可直接覆盖安装历史正式版而不被判为降级
-        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull()
-            ?: (System.currentTimeMillis() / 1000L).toInt()
-        versionName = System.getenv("VERSION_NAME") ?: "1.0.0"
+        // CI 可显式传入版本号；本地构建从版本名稳定推导，避免同一源码每次产生不同 APK。
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull()?.takeIf { it > 0 }
+            ?: stableVersionCode(configuredVersionName)
+        versionName = configuredVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -55,8 +65,11 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
-        // D2: 仅保留项目支持的语言资源
-        resourceConfigurations += listOf("en", "zh", "ja")
+    }
+
+    // D2: 仅保留项目支持的语言资源
+    androidResources {
+        localeFilters += listOf("en", "zh", "ja")
     }
 
     buildTypes {

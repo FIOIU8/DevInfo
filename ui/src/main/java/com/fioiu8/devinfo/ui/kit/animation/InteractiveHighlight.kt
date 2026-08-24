@@ -2,7 +2,6 @@ package com.fioiu8.devinfo.ui.kit.animation
 
 import android.annotation.SuppressLint
 import android.graphics.RuntimeShader
-import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.VisibilityThreshold
@@ -42,9 +41,8 @@ class InteractiveHighlight(
     val offset: Offset get() = positionAnimation.value - startPosition
 
     @Language("AGSL")
-    private val shader: RuntimeShader? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        RuntimeShader(
-            """
+    private val shader: RuntimeShader? = RuntimeShader(
+        """
     uniform float2 size;
     layout(color) uniform half4 color;
     uniform float radius;
@@ -55,8 +53,7 @@ class InteractiveHighlight(
         float intensity = smoothstep(radius, radius * 0.5, dist);
         return color * intensity;
     }"""
-        )
-    } else null
+    )
 
     // 画刷仅是 shader 的包装，复用同一实例避免按压动画期间每帧分配
     private val shaderBrush = shader?.let { ShaderBrush(it) }

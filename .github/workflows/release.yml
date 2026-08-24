@@ -71,9 +71,19 @@ jobs:
         id: version
         run: |
           TAG="${GITHUB_REF_NAME}"
-          VERSION_NAME="${TAG#"${TAG%%[0-9]*}"}"
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NAME"
+          if [[ ! "$TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "Error: release tags must match vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          VERSION_NAME="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+          MAJOR="${BASH_REMATCH[1]}"
+          MINOR="${BASH_REMATCH[2]}"
+          PATCH="${BASH_REMATCH[3]}"
           VERSION_CODE=$(( MAJOR * 10000 + MINOR * 100 + PATCH ))
+          if (( VERSION_CODE <= 0 || VERSION_CODE > 2147483647 )); then
+            echo "Error: release version code is out of range"
+            exit 1
+          fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT

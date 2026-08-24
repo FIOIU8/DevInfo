@@ -30,7 +30,7 @@ import kotlinx.coroutines.sync.withLock
  */
 class UpdateChecker(
     private val context: Context,
-    private val isOfficialBuild: Boolean = true
+    private val isOfficialBuild: Boolean
 ) {
 
     private val cacheRepository: PreferenceRepository = runCatching {

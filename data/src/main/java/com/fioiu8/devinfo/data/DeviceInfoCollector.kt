@@ -56,6 +56,7 @@ import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -376,26 +377,32 @@ class DeviceInfoCollector(private val context: Context) {
 
     fun getCpuFrequency(): String? = readFrequency(*cpuFrequencyPaths(0).toTypedArray())
 
-    suspend fun getCpuCoreMetrics(): List<CpuCoreMetric> = runCatching {
-        val first = readCpuTimesByCore()
-        if (first.isEmpty()) return@runCatching getCpuCoreTopologyMetrics()
-        delay(CPU_USAGE_SAMPLE_DELAY_MS)
-        val second = readCpuTimesByCore()
-        (first.keys + second.keys).toSortedSet().map { index ->
-            val firstTimes = first[index]
-            val secondTimes = second[index]
-            val usage = if (firstTimes == null || secondTimes == null) {
-                null
-            } else {
-                val totalDelta = secondTimes.total - firstTimes.total
-                val idleDelta = secondTimes.idle - firstTimes.idle
-                if (totalDelta <= 0L) null else {
-                    ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
+    suspend fun getCpuCoreMetrics(): List<CpuCoreMetric> {
+        return try {
+            val first = readCpuTimesByCore()
+            if (first.isEmpty()) return getCpuCoreTopologyMetrics()
+            delay(CPU_USAGE_SAMPLE_DELAY_MS)
+            val second = readCpuTimesByCore()
+            (first.keys + second.keys).toSortedSet().map { index ->
+                val firstTimes = first[index]
+                val secondTimes = second[index]
+                val usage = if (firstTimes == null || secondTimes == null) {
+                    null
+                } else {
+                    val totalDelta = secondTimes.total - firstTimes.total
+                    val idleDelta = secondTimes.idle - firstTimes.idle
+                    if (totalDelta <= 0L) null else {
+                        ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
+                    }
                 }
+                CpuCoreMetric(index, getCpuCoreFrequency(index), usage)
             }
-            CpuCoreMetric(index, getCpuCoreFrequency(index), usage)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            getCpuCoreTopologyMetrics()
         }
-    }.getOrElse { getCpuCoreTopologyMetrics() }
+    }
 
     /**
      * 检测设备是否已 Root（su 命令是否可用）。
@@ -422,26 +429,32 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     /** 通过 Root 权限读取 /proc/stat 并计算每核心占用率 */
-    suspend fun getCpuCoreMetricsWithRoot(): List<CpuCoreMetric> = runCatching {
-        val first = readCpuTimesByCoreWithRoot()
-        if (first.isEmpty()) return@runCatching emptyList()
-        delay(CPU_USAGE_SAMPLE_DELAY_MS)
-        val second = readCpuTimesByCoreWithRoot()
-        (first.keys + second.keys).toSortedSet().map { index ->
-            val firstTimes = first[index]
-            val secondTimes = second[index]
-            val usage = if (firstTimes == null || secondTimes == null) {
-                null
-            } else {
-                val totalDelta = secondTimes.total - firstTimes.total
-                val idleDelta = secondTimes.idle - firstTimes.idle
-                if (totalDelta <= 0L) null else {
-                    ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
+    suspend fun getCpuCoreMetricsWithRoot(): List<CpuCoreMetric> {
+        return try {
+            val first = readCpuTimesByCoreWithRoot()
+            if (first.isEmpty()) return emptyList()
+            delay(CPU_USAGE_SAMPLE_DELAY_MS)
+            val second = readCpuTimesByCoreWithRoot()
+            (first.keys + second.keys).toSortedSet().map { index ->
+                val firstTimes = first[index]
+                val secondTimes = second[index]
+                val usage = if (firstTimes == null || secondTimes == null) {
+                    null
+                } else {
+                    val totalDelta = secondTimes.total - firstTimes.total
+                    val idleDelta = secondTimes.idle - firstTimes.idle
+                    if (totalDelta <= 0L) null else {
+                        ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
+                    }
                 }
+                CpuCoreMetric(index, getCpuCoreFrequency(index), usage)
             }
-            CpuCoreMetric(index, getCpuCoreFrequency(index), usage)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            emptyList()
         }
-    }.getOrDefault(emptyList())
+    }
 
     private fun readCpuTimesByCoreWithRoot(): Map<Int, CpuTimes> {
         val result = mutableMapOf<Int, CpuTimes>()
@@ -494,28 +507,34 @@ class DeviceInfoCollector(private val context: Context) {
         "/sys/devices/platform/17000000.gpu/devfreq/17000000.gpu/cur_freq"
     )
 
-    suspend fun getCpuUsagePercent(): Float? = runCatching {
-        val first = readCpuTimes()
-        val firstUptime = if (first == null) readCpuUptime() else null
-        if (first == null && firstUptime == null) {
-            return@runCatching readCpuUsageFromTop()
-        }
-        delay(CPU_USAGE_SAMPLE_DELAY_MS)
-        if (first != null) {
-            val second = readCpuTimes() ?: return@runCatching null
-            val totalDelta = second.total - first.total
-            val idleDelta = second.idle - first.idle
-            if (totalDelta <= 0L) null else {
-                ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
+    suspend fun getCpuUsagePercent(): Float? {
+        return try {
+            val first = readCpuTimes()
+            val firstUptime = if (first == null) readCpuUptime() else null
+            if (first == null && firstUptime == null) {
+                return readCpuUsageFromTop()
             }
-        } else {
-            calculateCpuUsageFromUptime(
-                first = firstUptime ?: return@runCatching null,
-                second = readCpuUptime() ?: return@runCatching null,
-                cpuCount = cpuIndexes.size.coerceAtLeast(1)
-            )
+            delay(CPU_USAGE_SAMPLE_DELAY_MS)
+            if (first != null) {
+                val second = readCpuTimes() ?: return null
+                val totalDelta = second.total - first.total
+                val idleDelta = second.idle - first.idle
+                if (totalDelta <= 0L) null else {
+                    ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
+                }
+            } else {
+                calculateCpuUsageFromUptime(
+                    first = firstUptime ?: return null,
+                    second = readCpuUptime() ?: return null,
+                    cpuCount = cpuIndexes.size.coerceAtLeast(1)
+                )
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            null
         }
-    }.getOrNull()
+    }
 
     fun getGpuUsagePercent(): Float? = readFirstLine(
         "/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage",
