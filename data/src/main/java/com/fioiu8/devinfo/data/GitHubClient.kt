@@ -20,6 +20,7 @@ import com.fioiu8.devinfo.data.R
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -42,22 +43,6 @@ object GitHubClient {
     private const val REPO = "DevInfo"
     private const val MAX_RESPONSE_BYTES = 1024 * 1024
     private const val MAX_LOG_BODY_LENGTH = 512
-
-    /** Resolved error messages from string resources. Populated lazily on first use. */
-    @Volatile private var errorMessageRelease: String? = null
-    @Volatile private var errorMessageNetwork: String? = null
-
-    private fun ensureMessages(context: Context) {
-        if (errorMessageRelease == null) {
-            val res = context.applicationContext.resources
-            val release = res.getString(R.string.error_fetch_release)
-            val network = res.getString(R.string.error_network)
-            errorMessageNetwork = network
-            // errorMessageRelease 是并发方的判断哨兵，必须最后写入：
-            // 其他线程一旦观察到它非空就会直接读取 errorMessageNetwork
-            errorMessageRelease = release
-        }
-    }
 
     /** GitHub Release 信息 */
     data class ReleaseInfo(
@@ -101,9 +86,9 @@ object GitHubClient {
 
     suspend fun getLatestRelease(context: Context): ApiResult<ReleaseInfo> = withContext(Dispatchers.IO) {
         try {
-            ensureMessages(context)
+            val errorRelease = context.getString(R.string.error_fetch_release)
             val json = getJson("/repos/$OWNER/$REPO/releases/latest") ?: run {
-                return@withContext ApiResult.Error(errorMessageRelease ?: "Failed to fetch release")
+                return@withContext ApiResult.Error(errorRelease)
             }
             val assets = json.optJSONArray("assets")
             val downloadUrl = assets
@@ -119,9 +104,11 @@ object GitHubClient {
                     downloadUrl = downloadUrl
                 )
             )
+        } catch (error: CancellationException) {
+            throw error
         } catch (e: Exception) {
             Log.e(TAG, "getLatestRelease failed", e)
-            ApiResult.Error(e.message ?: errorMessageNetwork ?: "Network error")
+            ApiResult.Error(e.message ?: context.getString(R.string.error_network))
         }
     }
 

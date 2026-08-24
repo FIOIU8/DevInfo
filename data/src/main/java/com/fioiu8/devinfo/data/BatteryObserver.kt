@@ -66,16 +66,14 @@ class BatteryObserver(context: Context) {
             }
         }
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        // ACTION_BATTERY_CHANGED is a system-only sticky broadcast with no
-        // untrusted external sender, and many OEMs/older systems do not deliver
-        // it to receivers registered with RECEIVER_NOT_EXPORTED. Use
-        // RECEIVER_EXPORTED so the sticky intent is reliably received.
+        // ACTION_BATTERY_CHANGED is delivered by the system and does not need an
+        // externally addressable receiver. Keep the receiver private to the app.
         val registered = runCatching {
             ContextCompat.registerReceiver(
                 appContext,
                 receiver,
                 filter,
-                ContextCompat.RECEIVER_EXPORTED
+                ContextCompat.RECEIVER_NOT_EXPORTED
             )
         }.isSuccess
         if (!registered) {

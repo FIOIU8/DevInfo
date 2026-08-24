@@ -819,8 +819,9 @@ ui_print "    DeviceInfo 机型模拟模块"
 ui_print "================================="
 
 # 确定模块安装路径
-if [ -z "${dollar}MODPATH" ]; then
-    MODPATH="${dollar}MODPATH"
+if [ -z "${dollar}{MODPATH:-}" ]; then
+    ui_print "! 错误: 安装环境未提供 MODPATH"
+    exit 1
 fi
 
 # 检查并加载工具函数

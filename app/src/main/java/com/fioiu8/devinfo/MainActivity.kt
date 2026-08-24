@@ -115,7 +115,10 @@ class MainActivity : ComponentActivity() {
             cpuUsageSampler = CpuUsageSampler(collector),
             liveHardwareMonitor = LiveHardwareMonitor(appContext),
             batteryObserver = BatteryObserver(appContext),
-            updateChecker = UpdateChecker(appContext),
+            updateChecker = UpdateChecker(
+                context = localizedAppContext,
+                isOfficialBuild = com.fioiu8.devinfo.feature.main.BuildConfig.IS_OFFICIAL,
+            ),
             themePreferences = themePrefs,
         )
 
