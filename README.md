@@ -178,7 +178,7 @@ Manifest 当前声明的权限为：
 
 - `build.yml` 在 `main`、`test` 的 push、目标分支 pull request 和手动触发时运行单元测试、ktlint、Android lint 与 Debug APK 构建。
 - 手动工作流可传入版本名和签名类型（`debug` 或 `release`）；构建产物会上传到 Actions Artifacts。
-- `release.yml` 由 `v*` tag 触发，先执行质量检查，再使用仓库 Secrets 签名并创建 Draft Release。
+- `release.yml` 支持 `main` 合并、`vMAJOR.MINOR.PATCH` tag 和手动触发：只有版本 tag 进入 `main` 后才会执行质量检查、使用仓库 Secrets 签名并创建 Draft Release；也可在 `main` 上手动输入版本号发布。
 - Release 签名需要配置 `KEYSTORE_BASE64`、`KEYSTORE_PASSWORD`、`KEY_ALIAS` 和 `KEY_PASSWORD`；不要把 keystore 或密码提交到仓库。
 
 ## 贡献
