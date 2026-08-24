@@ -36,7 +36,7 @@
     <string name="theme_preview_summary">現在のテーマの外観をプレビュー</string>
     <string name="theme_floating_navigation_bar">フローティング ナビゲーション バー</string>
     <string name="theme_floating_navigation_bar_summary">下部ナビゲーション バーをフローティング表示します</string>
-    <string name="theme_floating_navigation_bar_blur">フローティング ナビゲーション バーのぼかし</string>
+    <string name="theme_floating_navigation_bar_blur">AndroidLiquidGlass 効果</string>
     <string name="theme_floating_navigation_bar_blur_summary">フローティング ナビゲーション バーにすりガラス効果を適用します</string>
     <string name="theme_page_scale">ページの拡大率</string>
     <string name="theme_page_scale_summary">アプリ画面の表示倍率を調整します</string>
