@@ -6,7 +6,6 @@ import androidx.compose.foundation.MutatorMutex
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.android.awaitFrame
@@ -19,7 +18,7 @@ import kotlin.math.abs
  * 改进：
  * - press/release 从 5 个独立协程 → 1 个 coroutineScope 内并发
  * - release 中 snapshotFlow 阻塞 → awaitFrame 轮询
- * - updateValue 中 velocity 更新不单独启动协程
+ * - updateValue 只负责位置阻尼，不把速度反馈到视觉几何
  */
 class DampedDragAnimation(
     private val animationScope: CoroutineScope,
@@ -53,16 +52,11 @@ class DampedDragAnimation(
         Animatable(initialScale, 0.001f)
 
     private val mutatorMutex = MutatorMutex()
-    private val velocityTracker = VelocityTracker()
-
     val value: Float get() = valueAnimation.value
     val targetValue: Float get() = valueAnimation.targetValue
     val pressProgress: Float get() = pressProgressAnimation.value
     val scaleX: Float get() = scaleXAnimation.value
     val scaleY: Float get() = scaleYAnimation.value
-    var velocity: Float = 0f
-        private set
-
     val modifier: Modifier = Modifier.pointerInput(Unit) {
         inspectDragGestures(
             onDragStart = { down ->
@@ -89,7 +83,6 @@ class DampedDragAnimation(
     }
 
     fun press() {
-        velocityTracker.resetTracking()
         animationScope.launch {
             // 单次启动，内部并发，减少调度开销
             kotlinx.coroutines.coroutineScope {
@@ -121,18 +114,7 @@ class DampedDragAnimation(
     fun updateValue(value: Float) {
         val targetValue = value.coerceIn(valueRange)
         animationScope.launch {
-            // 启动 value 动画，completion 中直接更新 velocity（不额外启动协程）
-            valueAnimation.animateTo(targetValue, valueAnimationSpec) {
-                // 动画帧回调中直接同步更新 velocity
-                velocityTracker.addPosition(
-                    System.currentTimeMillis(),
-                    Offset(valueAnimation.value, 0f)
-                )
-                val targetVelocity = velocityTracker.calculateVelocity().x / (valueRange.endInclusive - valueRange.start)
-                // 帧回调非挂起上下文：直接同步更新 velocity 属性，
-                // 避免每帧新启动协程以及多个 animateTo 在 velocity 上相互打断
-                this@DampedDragAnimation.velocity = targetVelocity
-            }
+            valueAnimation.animateTo(targetValue, valueAnimationSpec)
         }
     }
 
@@ -142,9 +124,6 @@ class DampedDragAnimation(
                 press()
                 val targetValue = value.coerceIn(valueRange)
                 valueAnimation.animateTo(targetValue, valueAnimationSpec)
-                if (velocity != 0f) {
-                    velocity = 0f
-                }
                 release()
             }
         }
