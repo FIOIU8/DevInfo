@@ -2,18 +2,122 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Release version (for example 1.4.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}-${{ inputs.version_name || github.sha }}
+  cancel-in-progress: false
+
 jobs:
+  # Resolve the release source before running the expensive quality gate.
+  # A main push is releasable only when it introduces a SemVer tag into main.
+  prepare:
+    name: Resolve Release Version
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.version.outputs.should_release }}
+      tag: ${{ steps.version.outputs.tag }}
+      version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: version
+        env:
+          INPUT_VERSION_NAME: ${{ inputs.version_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          should_release=true
+          tag=""
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
+              echo "Manual releases must run from main."
+              exit 1
+            fi
+            version_name="$INPUT_VERSION_NAME"
+            tag="v${version_name}"
+          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
+            tag="${GITHUB_REF_NAME}"
+            # Tags created on dev are promoted only after the tagged commit is
+            # reachable from main. This keeps formal releases on the stable branch.
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "Tag $tag is not on main yet; release will be attempted after merge."
+              should_release=false
+              version_name=""
+            else
+              version_name="${tag#v}"
+            fi
+          else
+            # A main push publishes only a SemVer tag newly introduced by this
+            # push. This also handles a tag made on dev before a merge commit.
+            tag=""
+            while IFS= read -r candidate; do
+              candidate_sha=$(git rev-list -n 1 "$candidate")
+              if git merge-base --is-ancestor "$candidate_sha" "$GITHUB_SHA" \
+                && { [[ -z "$BEFORE_SHA" ]] || [[ "$BEFORE_SHA" =~ ^0+$ ]] || ! git merge-base --is-ancestor "$candidate_sha" "$BEFORE_SHA"; }; then
+                tag="$candidate"
+              fi
+            done < <(git tag --list 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V)
+            if [[ -z "$tag" ]]; then
+              echo "No new SemVer tag was introduced by this main push; skipping release."
+              should_release=false
+              version_name=""
+            else
+              version_name="${tag#v}"
+            fi
+          fi
+
+          if [[ "$should_release" == true ]]; then
+            if [[ ! "$tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              echo "Error: release tags must match vMAJOR.MINOR.PATCH"
+              exit 1
+            fi
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            patch="${BASH_REMATCH[3]}"
+            version_code=$((major * 10000 + minor * 100 + patch))
+            if (( version_code <= 0 || version_code > 2147483647 )); then
+              echo "Error: release version code is out of range"
+              exit 1
+            fi
+          else
+            version_code=""
+          fi
+
+          {
+            echo "should_release=$should_release"
+            echo "tag=$tag"
+            echo "version_name=$version_name"
+            echo "version_code=$version_code"
+          } >> "$GITHUB_OUTPUT"
+
   # -------------------------------
   # Job 1: Verify (quality gate, reused from build.yml)
   # -------------------------------
   verify:
     name: Verify
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -47,7 +151,8 @@ jobs:
   # -------------------------------
   release:
     name: Build Release
-    needs: verify
+    needs: [prepare, verify]
+    if: needs.prepare.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -67,27 +172,6 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
-      - name: Derive version from tag
-        id: version
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          if [[ ! "$TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            echo "Error: release tags must match vMAJOR.MINOR.PATCH"
-            exit 1
-          fi
-          VERSION_NAME="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
-          MAJOR="${BASH_REMATCH[1]}"
-          MINOR="${BASH_REMATCH[2]}"
-          PATCH="${BASH_REMATCH[3]}"
-          VERSION_CODE=$(( MAJOR * 10000 + MINOR * 100 + PATCH ))
-          if (( VERSION_CODE <= 0 || VERSION_CODE > 2147483647 )); then
-            echo "Error: release version code is out of range"
-            exit 1
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
-          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
-
       - name: Decode release keystore
         run: |
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
@@ -102,8 +186,8 @@ jobs:
         run: ./gradlew assembleRelease --stacktrace
         env:
           SIGNATURE_TYPE: release
-          VERSION_NAME: ${{ steps.version.outputs.version_name }}
-          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          VERSION_NAME: ${{ needs.prepare.outputs.version_name }}
+          VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -116,14 +200,15 @@ jobs:
             echo "Error: release APK not found"
             exit 1
           fi
-          NEW_NAME="DevInfo-${{ steps.version.outputs.version_name }}.apk"
+          NEW_NAME="DevInfo-${{ needs.prepare.outputs.version_name }}.apk"
           cp "$APK_FILE" "$NEW_NAME"
           echo "apk_name=$NEW_NAME" >> $GITHUB_OUTPUT
           ls -lh "$NEW_NAME"
 
       - name: Generate release notes
         run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          TAG="${{ needs.prepare.outputs.tag }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || echo "")
           {
             echo "### What's Changed"
             echo ""
@@ -142,8 +227,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" \
-            --draft \
-            --title "${{ steps.version.outputs.tag }}" \
-            --notes-file notes.md \
-            "${{ steps.apk.outputs.apk_name }}"
+          TAG="${{ needs.prepare.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; uploading the verified APK."
+            gh release upload "$TAG" "${{ steps.apk.outputs.apk_name }}" --clobber
+          else
+            gh release create "$TAG" \
+              --draft \
+              --target "$GITHUB_SHA" \
+              --title "$TAG" \
+              --notes-file notes.md \
+              "${{ steps.apk.outputs.apk_name }}"
+          fi

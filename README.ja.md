@@ -163,7 +163,7 @@ Android API / sysfs / GitHub
 
 - `build.yml` は `main`/`test` への push、Pull Request、手動実行で単体テスト、ktlint、Android lint、Debug APK ビルドを実行します。
 - 手動実行ではバージョン名と `debug`/`release` の署名種別を指定でき、Artifacts に成果物をアップロードします。
-- `release.yml` は `v*` tag で起動し、品質検証後に Secrets で署名して Draft Release を作成します。
+- `release.yml` は `main` への push、`vMAJOR.MINOR.PATCH` tag、手動実行に対応します。バージョン tag が `main` に入った後だけ品質検証と Secrets による署名を行い、Draft Release を作成します。手動実行では `main` から tag を作成できます。
 - リリース署名には `KEYSTORE_BASE64`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD` が必要です。キーストアやパスワードをコミットしないでください。
 
 ## コントリビューション
