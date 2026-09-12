@@ -32,6 +32,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -85,7 +86,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -202,12 +202,6 @@ fun DeviceInfoOverviewPage(
         return
     }
 
-    val screenWidthDp = LocalConfiguration.current.screenWidthDp
-    val compactLayout = screenWidthDp < 600
-    // Keep the card grid stable when the system font scale changes. Card text
-    // already applies max-lines/ellipsis, so accessibility scaling should not
-    // collapse otherwise wide-enough metric cards into a single column.
-    val useSingleColumn = screenWidthDp < 360
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
 
@@ -226,68 +220,73 @@ fun DeviceInfoOverviewPage(
             DevInfoLoadingIndicator()
         }
     } else {
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = { isRefreshing = true },
-            state = pullToRefreshState,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            LazyVerticalGrid(
-                columns = if (useSingleColumn) {
-                    GridCells.Fixed(1)
-                } else if (compactLayout) {
-                    GridCells.Fixed(2)
-                } else {
-                    GridCells.Adaptive(minSize = 148.dp)
-                },
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = if (compactLayout) 12.dp else 20.dp,
-                    top = if (compactLayout) 12.dp else 20.dp,
-                    end = if (compactLayout) 12.dp else 20.dp,
-                    bottom = (if (compactLayout) 12.dp else 20.dp) +
-                        LocalFloatingNavigationContentPadding.current,
-                ),
-                horizontalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp),
-                verticalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp)
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val compactLayout = maxWidth < 600.dp
+            val useSingleColumn = maxWidth < 320.dp
+
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = { isRefreshing = true },
+                state = pullToRefreshState,
+                modifier = Modifier.fillMaxSize()
             ) {
-                items(
-                    items = metrics,
-                    key = { metric -> metric.id },
-                    span = { metric ->
-                        GridItemSpan(
-                            if (useSingleColumn || (!compactLayout && metric.id == OverviewMetricId.REALTIME_CPU)) {
-                                maxLineSpan
-                            } else {
-                                metric.size.span
-                            }
+                LazyVerticalGrid(
+                    columns = if (useSingleColumn) {
+                        GridCells.Fixed(1)
+                    } else if (compactLayout) {
+                        GridCells.Fixed(2)
+                    } else {
+                        GridCells.Adaptive(minSize = 148.dp)
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = if (compactLayout) 12.dp else 20.dp,
+                        top = if (compactLayout) 12.dp else 20.dp,
+                        end = if (compactLayout) 12.dp else 20.dp,
+                        bottom = (if (compactLayout) 12.dp else 20.dp) +
+                            LocalFloatingNavigationContentPadding.current,
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp)
+                ) {
+                    items(
+                        items = metrics,
+                        key = { metric -> metric.id },
+                        span = { metric ->
+                            GridItemSpan(
+                                if (useSingleColumn || (!compactLayout && metric.id == OverviewMetricId.REALTIME_CPU)) {
+                                    maxLineSpan
+                                } else {
+                                    metric.size.span
+                                }
+                            )
+                        }
+                    ) { metric ->
+                        OverviewMetricCard(
+                            metric = metric,
+                            wideLayout = !compactLayout,
+                            onClick = { onOpenDetails(metric.category) }
                         )
                     }
-                ) { metric ->
-                    OverviewMetricCard(
-                        metric = metric,
-                        wideLayout = !compactLayout,
-                        onClick = { onOpenDetails(metric.category) }
-                    )
-                }
-                items(
-                    items = staticCards,
-                    key = { card -> card.keyResId },
-                    span = { GridItemSpan(1) }
-                ) { card ->
-                    StaticInfoCard(
-                        card = card,
-                        onClick = { onOpenDetails(card.category) }
-                    )
-                }
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    HardwareSensorsCard(
-                        snapshot = snapshot.hardware,
-                        stackValues = useSingleColumn
-                    )
-                }
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    SecuritySummaryCard(snapshot)
+                    items(
+                        items = staticCards,
+                        key = { card -> card.keyResId },
+                        span = { GridItemSpan(1) }
+                    ) { card ->
+                        StaticInfoCard(
+                            card = card,
+                            onClick = { onOpenDetails(card.category) }
+                        )
+                    }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        HardwareSensorsCard(
+                            snapshot = snapshot.hardware,
+                            stackValues = useSingleColumn
+                        )
+                    }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        SecuritySummaryCard(snapshot)
+                    }
                 }
             }
         }
@@ -321,71 +320,72 @@ private fun MiuixDeviceInfoOverviewPage(
         return
     }
 
-    val screenWidthDp = LocalConfiguration.current.screenWidthDp
-    val compactLayout = screenWidthDp < 600
-    val useSingleColumn = screenWidthDp < 360
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val compactLayout = maxWidth < 600.dp
+        val useSingleColumn = maxWidth < 320.dp
 
-    // 参数依次为 isRefreshing / onRefresh / modifier，其余取默认值
-    MiuixPullToRefresh(
-        isRefreshing,
-        { isRefreshing = true },
-        Modifier.fillMaxSize()
-    ) {
-        LazyVerticalGrid(
-            columns = if (useSingleColumn) {
-                GridCells.Fixed(1)
-            } else if (compactLayout) {
-                GridCells.Fixed(2)
-            } else {
-                GridCells.Adaptive(minSize = 148.dp)
-            },
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = if (compactLayout) 12.dp else 20.dp,
-                top = if (compactLayout) 12.dp else 20.dp,
-                end = if (compactLayout) 12.dp else 20.dp,
-                bottom = (if (compactLayout) 12.dp else 20.dp) +
-                    LocalFloatingNavigationContentPadding.current,
-            ),
-            horizontalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp),
-            verticalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp)
+        // 参数依次为 isRefreshing / onRefresh / modifier，其余取默认值
+        MiuixPullToRefresh(
+            isRefreshing,
+            { isRefreshing = true },
+            Modifier.fillMaxSize()
         ) {
-            items(
-                items = metrics,
-                key = { metric -> metric.id },
-                span = { metric ->
-                    GridItemSpan(
-                        if (useSingleColumn || (!compactLayout && metric.id == OverviewMetricId.REALTIME_CPU)) {
-                            maxLineSpan
-                        } else {
-                            metric.size.span
-                        }
+            LazyVerticalGrid(
+                columns = if (useSingleColumn) {
+                    GridCells.Fixed(1)
+                } else if (compactLayout) {
+                    GridCells.Fixed(2)
+                } else {
+                    GridCells.Adaptive(minSize = 148.dp)
+                },
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = if (compactLayout) 12.dp else 20.dp,
+                    top = if (compactLayout) 12.dp else 20.dp,
+                    end = if (compactLayout) 12.dp else 20.dp,
+                    bottom = (if (compactLayout) 12.dp else 20.dp) +
+                        LocalFloatingNavigationContentPadding.current,
+                ),
+                horizontalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp)
+            ) {
+                items(
+                    items = metrics,
+                    key = { metric -> metric.id },
+                    span = { metric ->
+                        GridItemSpan(
+                            if (useSingleColumn || (!compactLayout && metric.id == OverviewMetricId.REALTIME_CPU)) {
+                                maxLineSpan
+                            } else {
+                                metric.size.span
+                            }
+                        )
+                    }
+                ) { metric ->
+                    MiuixMetricCard(
+                        metric = metric,
+                        onClick = { onOpenDetails(metric.category) }
                     )
                 }
-            ) { metric ->
-                MiuixMetricCard(
-                    metric = metric,
-                    onClick = { onOpenDetails(metric.category) }
-                )
-            }
-            items(
-                items = staticCards,
-                key = { card -> card.keyResId },
-                span = { GridItemSpan(1) }
-            ) { card ->
-                MiuixStaticInfoCard(
-                    card = card,
-                    onClick = { onOpenDetails(card.category) }
-                )
-            }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                MiuixHardwareSensorsCard(
-                    snapshot = snapshot.hardware,
-                    stackValues = useSingleColumn
-                )
-            }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                MiuixSecuritySummaryCard(snapshot)
+                items(
+                    items = staticCards,
+                    key = { card -> card.keyResId },
+                    span = { GridItemSpan(1) }
+                ) { card ->
+                    MiuixStaticInfoCard(
+                        card = card,
+                        onClick = { onOpenDetails(card.category) }
+                    )
+                }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    MiuixHardwareSensorsCard(
+                        snapshot = snapshot.hardware,
+                        stackValues = useSingleColumn
+                    )
+                }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    MiuixSecuritySummaryCard(snapshot)
+                }
             }
         }
     }
