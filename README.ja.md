@@ -60,7 +60,7 @@ Manifest が宣言するのは `INTERNET`、`ACCESS_NETWORK_STATE`、`ACCESS_WIF
 ### 必要な環境
 
 - Android Studio と Android SDK 37。
-- JDK 21、Java/Kotlin のコンパイルターゲットは JVM 11。
+- JDK 21、`app`/`feature-main` のコンパイルターゲットは JVM 21、`core`/`data`/`ui` は JVM 11 のままです。
 - 最低対応 Android は Android 13（API 33）です。
 
 ### ローカルビルド
@@ -81,13 +81,13 @@ Debug APK は `app/build/outputs/apk/debug/` に出力されます。
 
 | 項目 | 現在の設定 |
 | --- | --- |
-| Kotlin | 2.4.0 |
-| Jetpack Compose | BOM 2026.06.01 |
-| Miuix | 0.9.2 |
+| Kotlin | 2.4.10 |
+| Jetpack Compose | BOM 2026.08.00 |
+| Miuix | 0.9.4-rc01 |
 | Android Gradle Plugin | 9.1.0 |
 | compileSdk / targetSdk | 37 |
 | minSdk | 33（Android 13） |
-| Java ターゲット / ツールチェーン | JVM 11 / JDK 21 |
+| Java ターゲット / ツールチェーン | `app`/`feature-main`: JVM 21、`core`/`data`/`ui`: JVM 11、JDK 21 |
 
 ```text
 DevInfo/

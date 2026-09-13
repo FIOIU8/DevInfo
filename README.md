@@ -60,7 +60,7 @@ Manifest 当前声明 `INTERNET`、`ACCESS_NETWORK_STATE`、`ACCESS_WIFI_STATE` 
 ### 环境要求
 
 - Android Studio 和 Android SDK 37。
-- JDK 21；Java/Kotlin 编译目标为 JVM 11。
+- JDK 21；`app`/`feature-main` 使用 JVM 21，`core`/`data`/`ui` 保持 JVM 11。
 - 最低支持 Android 13（API 33）。
 
 ### 本地构建
@@ -81,13 +81,13 @@ Debug APK 输出在 `app/build/outputs/apk/debug/`。
 
 | 项目 | 当前配置 |
 | --- | --- |
-| Kotlin | 2.4.0 |
-| Jetpack Compose | BOM 2026.06.01 |
-| Miuix | 0.9.2 |
+| Kotlin | 2.4.10 |
+| Jetpack Compose | BOM 2026.08.00 |
+| Miuix | 0.9.4-rc01 |
 | Android Gradle Plugin | 9.1.0 |
 | compileSdk / targetSdk | 37 |
 | minSdk | 33（Android 13） |
-| Java 编译目标 / 工具链 | JVM 11 / JDK 21 |
+| Java 编译目标 / 工具链 | `app`/`feature-main`: JVM 21；`core`/`data`/`ui`: JVM 11；JDK 21 |
 
 ```text
 DevInfo/
