@@ -67,10 +67,6 @@ class DeviceIdManager(private val context: Context) {
         runCatching { UUID.randomUUID().toString() }.getOrElse { context.packageName }
     }
 
-    fun resetDeviceId() {
-        runCatching { prefs.edit().remove(KEY_DEVICE_ID).apply() }
-    }
-
     private companion object {
         const val PREFS_NAME = "device_prefs"
         const val KEY_DEVICE_ID = "device_unique_id"
