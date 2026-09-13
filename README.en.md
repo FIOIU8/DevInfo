@@ -31,8 +31,8 @@ DevInfo is an Android device information viewer built with Kotlin and Jetpack Co
 
 ### Export and updates
 
-- Export a ZIP-based Magisk/KernelSU module through the system file picker, with optional fields selected before export.
-- Exported files may contain device identifiers, build fingerprints, or security-patch data; flashing a module can change system behavior.
+- Export a ZIP-based Magisk/KernelSU module through the system file picker; the exported content is a fixed minimal set (brand, model, device, product name, Android version/SDK, and ABI lists).
+- The module version and versionCode come from the app version. Flashing a module writes ro.product.* system properties and can change system behavior.
 - Official builds can check GitHub Releases and show release notes. Network failures are reported as an error state.
 
 ### UI and localization
