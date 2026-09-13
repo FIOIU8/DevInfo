@@ -120,6 +120,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fioiu8.devinfo.feature.main.BuildConfig
+import com.fioiu8.devinfo.data.GitHubClient
 import com.fioiu8.devinfo.data.ModuleExportHelper
 import com.fioiu8.devinfo.core.model.UpdateState
 import com.fioiu8.devinfo.data.AppLanguage
@@ -221,6 +222,7 @@ fun MainScreen(
     var showExportSuccessDialog by rememberSaveable { mutableStateOf(false) }
     var exportedFileUri by rememberSaveable(stateSaver = UriSaver) { mutableStateOf<Uri?>(null) }
     var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
+    var showDownloadConfirmDialog by rememberSaveable { mutableStateOf(false) }
     var showRootRequiredDialog by rememberSaveable { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
@@ -230,6 +232,7 @@ fun MainScreen(
     val alreadyLatestMessage = stringResource(R.string.already_latest)
     val exportFailedLabel = stringResource(R.string.export_failed)
     val cannotOpenFileMessage = stringResource(R.string.cannot_open_file)
+    val exportPartialFileWarning = stringResource(R.string.export_failed_partial_file)
     val exportFileName = remember { ModuleExportHelper.createExportFileName(android.os.Build.MODEL) }
     val materialSnackbarHostState = remember { SnackbarHostState() }
     val miuixSnackbarHostState = remember { MiuixSnackbarHostState() }
@@ -238,21 +241,30 @@ fun MainScreen(
         miuixHostState = miuixSnackbarHostState,
     )
 
-    // SAF 导出 — 用户选择保存位置后将 ZIP 写入 ContentResolver 提供的输出流
+    // SAF 导出 — 用户选择保存位置后将 ZIP 写入 ContentResolver 提供的输出流。
+    //
+    // 失败时不删除目标文档：CreateDocument 在用户选择已存在文件并确认覆盖时返回的
+    // 正是原文件 URI，删除它会连同用户原有内容一起丢失，且 SAF 没有回收站可以恢复。
+    // 因此失败只做提示，并告知保存位置可能残留不完整文件。
     val saveExportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip")
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult // 用户取消
-        fun removeFailedExport() {
-            runCatching { context.contentResolver.delete(uri, null, null) }
+        fun reportExportFailure(reason: String) {
+            showMessage("$exportFailedLabel: $reason. $exportPartialFileWarning")
         }
         scope.launch(Dispatchers.IO) {
             try {
-                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                val outputStream = context.contentResolver.openOutputStream(uri)
+                if (outputStream == null) {
+                    reportExportFailure(cannotOpenFileMessage)
+                    return@launch
+                }
+                outputStream.use { stream ->
                     exportHelper.exportModuleToStream(
                         deviceId = settings.deviceId,
                         itemsState = uiState.deviceInfoItems,
-                        outputStream = outputStream,
+                        outputStream = stream,
                         policy = com.fioiu8.devinfo.core.model.ModuleExportPolicy.MINIMAL,
                         onSuccess = {
                             scope.launch {
@@ -260,18 +272,11 @@ fun MainScreen(
                                 showExportSuccessDialog = true
                             }
                         },
-                        onError = { error ->
-                            removeFailedExport()
-                            showMessage("$exportFailedLabel: $error")
-                        }
+                        onError = { error -> reportExportFailure(error) }
                     )
-                } ?: run {
-                    removeFailedExport()
-                    showMessage("$exportFailedLabel: $cannotOpenFileMessage")
                 }
             } catch (e: Exception) {
-                removeFailedExport()
-                showMessage("$exportFailedLabel: ${e.message}")
+                reportExportFailure(e.message ?: exportFailedLabel)
             }
         }
     }
@@ -306,7 +311,7 @@ fun MainScreen(
     }
 
     LaunchedEffect(navigator.isOverviewVisible, viewModel) {
-        viewModel.onInfoTabChanged(navigator.isOverviewVisible)
+        viewModel.onOverviewVisibilityChanged(navigator.isOverviewVisible)
     }
 
     LaunchedEffect(updateState) {
@@ -422,13 +427,9 @@ fun MainScreen(
         isError = updateState == UpdateState.ERROR,
         currentVersion = BuildConfig.VERSION_NAME,
         onDownload = {
-            openUrl(
-                context = context,
-                url = releaseInfo?.htmlUrl ?: RELEASES_URL,
-                onFailure = showMessage,
-            )
+            // 关闭更新提示，弹出二级确认；用户需在确认对话框中再次点击才真正跳转浏览器
             showUpdateDialog = false
-            viewModel.resetUpdateState()
+            showDownloadConfirmDialog = true
         },
         onRetry = {
             showUpdateDialog = false
@@ -450,6 +451,22 @@ fun MainScreen(
                 showMessage(if (success) rootEnabledMsg else rootFailedMsg)
             }
         }
+    )
+
+    // 下载二次确认：用户必须在弹出对话框中再次点击"确认下载"才会跳转浏览器。
+    // 这样设计是为了避免单次点击立即触发离开应用的行为（用户的实际意图可能是查看 release notes）。
+    DownloadConfirmDialog(
+        show = showDownloadConfirmDialog,
+        onConfirm = {
+            showDownloadConfirmDialog = false
+            openUrl(
+                context = context,
+                url = releaseInfo?.htmlUrl ?: GitHubClient.RELEASES_URL,
+                onFailure = showMessage,
+            )
+            viewModel.resetUpdateState()
+        },
+        onDismiss = { showDownloadConfirmDialog = false },
     )
 
     ExportConfirmDialog(
@@ -1464,7 +1481,6 @@ private fun openUrl(
 private const val FORWARD_DIRECTION = 1
 private const val BACKWARD_DIRECTION = -1
 private const val TABLET_NAVIGATION_RAIL_MIN_WIDTH_DP = 600
-private const val RELEASES_URL = "https://github.com/FIOIU8/DevInfo/releases"
 
 private val UriSaver = Saver<Uri?, String>(
     save = { it?.toString() },

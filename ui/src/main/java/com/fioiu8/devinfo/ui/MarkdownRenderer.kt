@@ -241,6 +241,12 @@ private sealed class MdBlock {
     data class ListItem(val text: String, val ordered: Boolean, val index: Int) : MdBlock()
 }
 
+// 每次发布说明文本变化都会重新解析，正则提为模块级常量避免逐行重复编译
+private val HEADING_REGEX = Regex("^(#{1,6})\\s+(.+)$")
+private val HORIZONTAL_RULE_REGEX = Regex("^[-*_]{3,}\\s*$")
+private val ORDERED_LIST_REGEX = Regex("^(\\d+)\\.\\s+(.+)$")
+private val UNORDERED_LIST_REGEX = Regex("^[-*]\\s+(.+)$")
+
 /** 将文本行解析为 MdBlock 列表 */
 private fun parseBlocks(lines: List<String>): List<MdBlock> {
     val blocks = mutableListOf<MdBlock>()
@@ -256,7 +262,7 @@ private fun parseBlocks(lines: List<String>): List<MdBlock> {
         }
 
         // ### / ## / # 标题
-        val headingMatch = Regex("^(#{1,6})\\s+(.+)$").find(line.trimStart())
+        val headingMatch = HEADING_REGEX.find(line.trimStart())
         if (headingMatch != null) {
             blocks.add(
                 MdBlock.Heading(
@@ -269,7 +275,7 @@ private fun parseBlocks(lines: List<String>): List<MdBlock> {
         }
 
         // --- / *** 分隔线
-        if (line.trimStart().matches(Regex("^[-*_]{3,}\\s*$"))) {
+        if (line.trimStart().matches(HORIZONTAL_RULE_REGEX)) {
             blocks.add(MdBlock.HorizontalRule)
             i++
             continue
@@ -297,7 +303,7 @@ private fun parseBlocks(lines: List<String>): List<MdBlock> {
         }
 
         // 有序列表：1. / 2.
-        val orderedMatch = Regex("^(\\d+)\\.\\s+(.+)$").find(line.trimStart())
+        val orderedMatch = ORDERED_LIST_REGEX.find(line.trimStart())
         if (orderedMatch != null) {
             blocks.add(
                 MdBlock.ListItem(
@@ -311,7 +317,7 @@ private fun parseBlocks(lines: List<String>): List<MdBlock> {
         }
 
         // 无序列表：- / *
-        val unorderedMatch = Regex("^[-*]\\s+(.+)$").find(line.trimStart())
+        val unorderedMatch = UNORDERED_LIST_REGEX.find(line.trimStart())
         if (unorderedMatch != null) {
             blocks.add(
                 MdBlock.ListItem(

@@ -107,7 +107,7 @@ class MainViewModel(
     private var hardwareMonitoringJob: Job? = null
     private var hardwareMonitoringGeneration = 0L
     private var isForeground = false
-    private var isInfoTabSelected = true
+    private var isOverviewVisible = true
     private val _monitorMode = MutableStateFlow(MonitorMode.STOPPED)
     val monitorMode: StateFlow<MonitorMode> = _monitorMode.asStateFlow()
 
@@ -176,9 +176,10 @@ class MainViewModel(
         return true
     }
 
+    /** 概览页是否为当前可见的根页面；参数名与 [monitorModeFor] 保持一致。 */
     @MainThread
-    fun onInfoTabChanged(selected: Boolean) {
-        isInfoTabSelected = selected
+    fun onOverviewVisibilityChanged(visible: Boolean) {
+        isOverviewVisible = visible
         updateMonitoring()
     }
 
@@ -317,7 +318,7 @@ class MainViewModel(
     }
 
     private fun updateMonitoring() {
-        val mode = monitorModeFor(isForeground, isInfoTabSelected)
+        val mode = monitorModeFor(isForeground, isOverviewVisible)
         if (_monitorMode.value == mode) return
         _monitorMode.value = mode
 
