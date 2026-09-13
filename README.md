@@ -31,8 +31,8 @@ DevInfo 是一个使用 Kotlin 和 Jetpack Compose 编写的 Android 设备信�
 
 ### 导出与更新
 
-- 通过系统文件选择器导出 ZIP 格式的 Magisk/KernelSU 模块，并在导出前选择可选字段。
-- 导出文件可能包含设备标识、构建指纹或安全补丁信息；刷入模块可能改变系统行为。
+- 通过系统文件选择器导出 ZIP 格式的 Magisk/KernelSU 模块；导出内容固定为最小集合，仅包含品牌、型号、设备代号、产品名、Android 版本/SDK 与 ABI 列表。
+- 模块的 version 与 versionCode 取自应用版本；刷入模块会写入 ro.product.* 等系统属性，可能改变系统行为。
 - 正式构建可检查 GitHub Releases 更新并显示发布说明；网络异常会显示失败状态。
 
 ### 界面与本地化
@@ -112,7 +112,7 @@ DevInfo/
 
 ## 贡献
 
-请先阅读代码和测试，再修改对应模块，并运行相关 Gradle 检查。提交格式为 `英文前缀: 中文描述`，例如 `docs: 更新开发文档`。问题请提交到 [Issues](https://github.com/FIOIU8/DevInfo/issues)。
+请先阅读代码和测试，再修改对应模块，并运行相关 Gradle 检查。提交格式为 `英文前缀: 英文描述`（与 `AGENTS.md` §8 一致），例如 `docs: update contributor instructions`。问题请提交到 [Issues](https://github.com/FIOIU8/DevInfo/issues)。
 
 ## 许可证与链接
 

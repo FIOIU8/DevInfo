@@ -4,6 +4,7 @@ This file is an execution contract for AI agents working in this repository. It 
 
 ## 1. Execution contract
 
+- If a rule in this file conflicts with the user's current prompt, stop and ask the user which one to follow. Do not silently pick a side. （若与用户提示词冲突，需请求用户到底使用什么。）
 - Treat the user's current request as the objective for this turn. When the user explicitly requests implementation, implement it; do not return only a plan.
 - Do not ask the user to reconfirm facts that are already explicit. Ask only when scope, authority, safety, compatibility, or a behavior trade-off is materially ambiguous.
 - Before editing, inspect git status, the relevant source files, their callers, and the relevant tests. Never infer implementation from filenames or stale documentation.
@@ -153,6 +154,7 @@ Test locations:
 
 - Use English for commit messages, branch names, pull request titles/descriptions, and agent status/final reports.
 - Use an English commit prefix and an English description, for example: fix: repair foreground monitoring lifecycle, docs: update contributor instructions, test: cover module export validation.
+- **Conflict resolution**: if any instruction in this file or any other documentation (README, docs/, etc.) conflicts with the user's current prompt, **stop and ask the user which rule to follow** — do not silently pick a side, and do not guess. Examples that require asking: commit message language, scope expansion, force-push, security-gate loosening. Always present the conflict and the trade-off before acting.
 - Keep one reviewable purpose per commit. Do not mix unrelated formatting, dependency upgrades, or refactors.
 - Pull requests must state the goal, affected modules, behavior changes, risks, verification commands/results, and unverified items.
 - Before submission, inspect git diff, git diff --check, and the file list. Confirm that no secrets, device data, APKs, ZIPs, logs, or temporary files are included.
