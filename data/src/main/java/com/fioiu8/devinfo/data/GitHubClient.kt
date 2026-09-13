@@ -41,6 +41,12 @@ object GitHubClient {
     private const val BASE = "https://api.github.com"
     private const val OWNER = "FIOIU8"
     private const val REPO = "DevInfo"
+
+    /**
+     * 项目 Releases 页面，供 UI 在缺少 html_url 时兜底。
+     * 从这里派生可以避免仓库地址在 UI 层被重复硬编码。
+     */
+    const val RELEASES_URL = "https://github.com/$OWNER/$REPO/releases"
     private const val MAX_RESPONSE_BYTES = 1024 * 1024
     private const val MAX_LOG_BODY_LENGTH = 512
 
@@ -137,10 +143,9 @@ object GitHubClient {
             conn.readTimeout = 10_000
             conn.setRequestProperty("Accept", "application/vnd.github+json")
             conn.setRequestProperty("User-Agent", "DevInfo-App")
-            val token = System.getenv("GITHUB_TOKEN")
-            if (!token.isNullOrBlank()) {
-                conn.setRequestProperty("Authorization", "Bearer $token")
-            }
+            // 客户端不携带任何凭据。Android 进程环境不包含构建期环境变量，
+            // System.getenv 恒为 null；而把 Token 编译进 APK 会让任何解包者获得该
+            // Token 的权限。匿名调用受 GitHub 60 次/小时限流，配合 12 小时缓存足够。
             val code = conn.responseCode
             val stream = try {
                 conn.inputStream
