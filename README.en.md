@@ -60,7 +60,7 @@ The manifest declares `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, a
 ### Requirements
 
 - Android Studio and Android SDK 37.
-- JDK 21; Java/Kotlin compile target JVM 11.
+- JDK 21; `app`/`feature-main` target JVM 21, while `core`/`data`/`ui` remain on JVM 11.
 - Minimum supported Android version: Android 13 (API 33).
 
 ### Local build
@@ -81,13 +81,13 @@ The debug APK is written to `app/build/outputs/apk/debug/`.
 
 | Technology | Current configuration |
 | --- | --- |
-| Kotlin | 2.4.0 |
-| Jetpack Compose | BOM 2026.06.01 |
-| Miuix | 0.9.2 |
+| Kotlin | 2.4.10 |
+| Jetpack Compose | BOM 2026.08.00 |
+| Miuix | 0.9.4-rc01 |
 | Android Gradle Plugin | 9.1.0 |
 | compileSdk / targetSdk | 37 |
 | minSdk | 33 (Android 13) |
-| Java target / toolchain | JVM 11 / JDK 21 |
+| Java target / toolchain | `app`/`feature-main`: JVM 21; `core`/`data`/`ui`: JVM 11; JDK 21 |
 
 ```text
 DevInfo/
