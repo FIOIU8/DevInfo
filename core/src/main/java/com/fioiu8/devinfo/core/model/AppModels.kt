@@ -28,16 +28,17 @@ enum class UiStyle {
 /**
  * Theme mode options.
  * Display names resolved by UI layer via string key.
+ *
+ * [isDynamic] is an explicit flag instead of a `name.startsWith("DYNAMIC")` check, so
+ * adding or renaming an entry cannot silently change which modes use dynamic color.
  */
-enum class ThemeMode {
-    SYSTEM,
-    LIGHT,
-    DARK,
-    DYNAMIC_SYSTEM,
-    DYNAMIC_LIGHT,
-    DYNAMIC_DARK;
-
-    val isDynamic: Boolean get() = name.startsWith("DYNAMIC")
+enum class ThemeMode(val isDynamic: Boolean) {
+    SYSTEM(isDynamic = false),
+    LIGHT(isDynamic = false),
+    DARK(isDynamic = false),
+    DYNAMIC_SYSTEM(isDynamic = true),
+    DYNAMIC_LIGHT(isDynamic = true),
+    DYNAMIC_DARK(isDynamic = true),
 }
 
 /**
@@ -135,21 +136,3 @@ data class ModuleExportPolicy(
         val MINIMAL = ModuleExportPolicy()
     }
 }
-
-/**
- * Simplified device info for module export.
- */
-data class MenuInfo(
-    val deviceId: String,
-    val brand: String,
-    val manufacturer: String,
-    val model: String,
-    val device: String,
-    val product: String,
-    val versionRelease: String,
-    val versionSdk: String,
-    val securityPatch: String,
-    val supportedAbis: List<String>,
-    val supported32BitAbis: List<String>,
-    val supported64BitAbis: List<String>
-)

@@ -24,7 +24,6 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.net.wifi.WifiManager
 import android.os.SystemClock
-import android.provider.Settings
 import com.fioiu8.devinfo.core.model.LiveHardwareSnapshot
 import java.io.File
 import kotlin.math.roundToInt
@@ -102,14 +101,8 @@ class LiveHardwareMonitor(context: Context) : SensorEventListener {
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
-    private fun readBrightnessPercent(): Int? = runCatching {
-        val raw = Settings.System.getInt(
-            appContext.contentResolver,
-            Settings.System.SCREEN_BRIGHTNESS,
-            -1
-        )
-        raw.takeIf { it >= 0 }?.let { (it / 255f * 100f).roundToInt().coerceIn(0, 100) }
-    }.getOrNull()
+    /** 亮度量程随厂商变化，统一走 [readScreenBrightnessPercent] 归一化后再展示。 */
+    private fun readBrightnessPercent(): Int? = readScreenBrightnessPercent(appContext)
 
     // minSdk 33 仍需支持 WIFI_RSSI，无新 API 替代
     @Suppress("DEPRECATION")

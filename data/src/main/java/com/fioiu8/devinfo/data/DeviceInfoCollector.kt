@@ -29,6 +29,7 @@ import android.content.res.Configuration
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.hardware.camera2.CameraManager
+import android.hardware.display.DisplayManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
@@ -40,10 +41,17 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.util.Log
+import android.view.Display
 import com.fioiu8.devinfo.data.BuildConfig
 import com.fioiu8.devinfo.core.cpu.CPU_USAGE_SAMPLE_DELAY_MS
 import com.fioiu8.devinfo.core.cpu.CpuTimes
 import com.fioiu8.devinfo.core.cpu.CpuUptimeTimes
+import com.fioiu8.devinfo.core.cpu.calculateCpuUsageFromUptime
+import com.fioiu8.devinfo.core.cpu.formatCpuFrequency
+import com.fioiu8.devinfo.core.cpu.parseCpuIndexes
+import com.fioiu8.devinfo.core.cpu.parseCpuTimes
+import com.fioiu8.devinfo.core.cpu.parseCpuUptime
+import com.fioiu8.devinfo.core.cpu.parseTopCpuUsage
 import com.fioiu8.devinfo.core.model.CpuCoreMetric
 import com.fioiu8.devinfo.core.model.SecuritySnapshot
 import com.fioiu8.devinfo.core.model.DeviceInfoItem
@@ -236,7 +244,7 @@ class DeviceInfoCollector(private val context: Context) {
         { infoItem(R.string.display_width, context.resources.displayMetrics.widthPixels.toString(), InfoCategory.DISPLAY) },
         { infoItem(R.string.display_height, context.resources.displayMetrics.heightPixels.toString(), InfoCategory.DISPLAY) },
         { infoItem(R.string.display_size, getDisplaySize(), InfoCategory.DISPLAY) },
-        { infoItem(R.string.display_refresh_rate, safeGet(statusUnknown) { context.display.refreshRate.toString() }, InfoCategory.DISPLAY) },
+        { infoItem(R.string.display_refresh_rate, getRefreshRate(), InfoCategory.DISPLAY) },
         { infoItem(R.string.display_font_scale, context.resources.configuration.fontScale.toString(), InfoCategory.DISPLAY) },
         { infoItem(R.string.display_orientation, getOrientation(), InfoCategory.DISPLAY) },
         { infoItem(R.string.display_dark_mode, getDarkModeState(), InfoCategory.DISPLAY) },
@@ -303,7 +311,7 @@ class DeviceInfoCollector(private val context: Context) {
         { infoItem(R.string.app_target_sdk, getAppTargetSdk(), InfoCategory.APP) },
         { infoItem(R.string.app_min_sdk, getAppMinSdk(), InfoCategory.APP) },
         { infoItem(R.string.app_installer, getAppInstaller(), InfoCategory.APP) },
-        { infoItem(R.string.app_installed_count, getInstalledAppCount(), InfoCategory.APP) }
+        { infoItem(R.string.app_installed_count, getVisibleInstalledAppCount(), InfoCategory.APP) }
     )
 
     private val statusUnknown: String = context.getString(R.string.status_unknown)
@@ -664,7 +672,7 @@ class DeviceInfoCollector(private val context: Context) {
             process.inputStream.bufferedReader().useLines { lines ->
                 // Android 15 can expose top while filtering its global counters. On affected
                 // builds the summary is always entirely idle, which is not a valid reading.
-                lines.mapNotNull(::parseUsableTopCpuUsage).firstOrNull()
+                lines.mapNotNull(::parseTopCpuUsage).firstOrNull { it > 0f }
             }
         } finally {
             process.destroy()
@@ -890,16 +898,17 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     private fun getHdrSupport(): String = safeGet(statusUnknown) {
-        if (context.display.isHdr) context.getString(R.string.status_supported) else context.getString(R.string.status_not_supported)
+        val display = defaultDisplay() ?: return@safeGet statusUnknown
+        if (display.isHdr) context.getString(R.string.status_supported) else context.getString(R.string.status_not_supported)
     }
 
     private fun getWideColorGamutSupport(): String = safeGet(statusUnknown) {
-        if (context.display.isWideColorGamut) context.getString(R.string.status_supported) else context.getString(R.string.status_not_supported)
+        val display = defaultDisplay() ?: return@safeGet statusUnknown
+        if (display.isWideColorGamut) context.getString(R.string.status_supported) else context.getString(R.string.status_not_supported)
     }
 
     private fun getScreenBrightness(): String = safeGet(statusUnknown) {
-        val value = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
-        "${(value / 255f * 100).toInt()}%"
+        readScreenBrightnessPercent(context)?.let { "$it%" } ?: statusUnknown
     }
 
     private fun getScreenTimeout(): String = safeGet(statusUnknown) {
@@ -909,13 +918,32 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     private fun getSupportedRefreshRates(): String = safeGet(statusUnknown) {
-        val rates = context.display.supportedModes
-            .map { it.refreshRate }
-            .distinct()
-            .sorted()
+        val rates = defaultDisplay()?.supportedModes
+            ?.map { it.refreshRate }
+            ?.distinct()
+            ?.sorted()
+            .orEmpty()
         if (rates.isEmpty()) statusUnknown
         else rates.joinToString { "%.0f Hz".format(Locale.US, it) }
     }
+
+    private fun getRefreshRate(): String = safeGet(statusUnknown) {
+        defaultDisplay()?.mode?.refreshRate
+            ?.let { "%.0f Hz".format(Locale.US, it) }
+            ?: statusUnknown
+    }
+
+    /**
+     * 取默认 Display。
+     *
+     * 不能使用 Context.getDisplay()：本类的 Context 由
+     * applicationContext.createConfigurationContext() 派生，不与任何显示关联，
+     * 调用会抛 UnsupportedOperationException，使刷新率/HDR/广色域/支持刷新率
+     * 四个字段永远读不到并静默消失。
+     */
+    private fun defaultDisplay(): Display? =
+        (context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager)
+            ?.getDisplay(Display.DEFAULT_DISPLAY)
 
     // ── STORAGE 补充项 ──
 
@@ -1091,15 +1119,33 @@ class DeviceInfoCollector(private val context: Context) {
             ?: context.getString(R.string.status_sideloaded)
     }
 
-    private fun getInstalledAppCount(): String = safeGet(statusUnknown) {
-        val count = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0)).size
-        } else {
-            @Suppress("DEPRECATION")
-            context.packageManager.getInstalledPackages(0).size
-        }
-        count.toString()
+    /**
+ * 读取当前应用"可见"的已安装包数量。
+ *
+ * 该方法并不等同于"设备总安装数"，原因：
+ *  - Android 11 (API 30) 起引入 package visibility，未在 `<queries>` 中声明或通过
+ *    [PackageManager.QUERY_ALL_PACKAGES] 获取权限的调用者，只能看到「对当前应用可见」的
+ *    包。`getInstalledPackages(...)` 在 30+ 仍返回全集，但 11+ 的策略会决定调用方能感知
+ *    哪些包「可见」，结果可能小于实际安装数。
+ *  - 因此返回值仅适合用于"我应用能感知多少已安装包"这类业务判断；展示文案为「可见应用数」。
+ *
+ * 替代方案的取舍（均未在本项目采用，理由如下）：
+ *  - 声明 `<queries>` 精确匹配：只能拿到声明范围内的包，仍不是总数。
+ *  - 申请 `QUERY_ALL_PACKAGES`：能拿全部，但 Google Play 审核对非 launcher/杀毒/文件管理等
+ *    场景严格，DevInfo 不属于允许该权限的类别。
+ *  - 改用 [android.app.usage.UsageStatsManager] 统计有使用记录的包：能拿到更接近用户真实
+ *    安装情况的子集，但需 `PACKAGE_USAGE_STATS` 特殊权限，且由用户在系统设置中手动授予，
+ *    会破坏"零权限申请"的现状。
+ */
+private fun getVisibleInstalledAppCount(): String = safeGet(statusUnknown) {
+    val count = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        context.packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0)).size
+    } else {
+        @Suppress("DEPRECATION")
+        context.packageManager.getInstalledPackages(0).size
     }
+    count.toString()
+}
 
     private fun infoItem(keyResId: Int, value: String, category: InfoCategory): DeviceInfoItem? {
         val normalizedValue = value.trim()
@@ -1117,87 +1163,4 @@ class DeviceInfoCollector(private val context: Context) {
         const val ROOT_COMMAND_TIMEOUT_MS = 5_000L
         const val MAX_ROOT_OUTPUT_LINES = 512
     }
-}
-
-// 文件内这些解析函数是 core 模块同名函数的本地特化实现（参数与语义不同，
-// 如 calculateCpuUsageFromUptime 需要核数参数），同文件声明会遮蔽同名导入，
-// 因此不要从这里 import core 的同名函数。
-internal fun parseCpuIndexes(value: String?): List<Int> {
-    return value
-        ?.split(',')
-        ?.flatMap { part ->
-            val bounds = part.trim().split('-', limit = 2).map(String::trim)
-            when (bounds.size) {
-                1 -> bounds.single().toIntOrNull()?.let(::listOf).orEmpty()
-                2 -> {
-                    val start = bounds[0].toIntOrNull()
-                    val end = bounds[1].toIntOrNull()
-                    if (start == null || end == null || start < 0 || end < start) {
-                        emptyList()
-                    } else {
-                        (start..end).toList()
-                    }
-                }
-                else -> emptyList()
-            }
-        }
-        ?.distinct()
-        ?.sorted()
-        .orEmpty()
-}
-
-internal fun parseCpuTimes(fields: List<String>): com.fioiu8.devinfo.core.cpu.CpuTimes? {
-    if (fields.size < 5) return null
-    val values = fields.map { it.toLongOrNull() ?: return null }
-    return com.fioiu8.devinfo.core.cpu.CpuTimes(
-        user = values[0], nice = values[1], system = values[2],
-        idle = values[3], iowait = values.getOrElse(4) { 0L },
-        irq = values.getOrElse(5) { 0L },
-        softirq = values.getOrElse(6) { 0L }
-    )
-}
-
-internal fun parseCpuUptime(value: String?): com.fioiu8.devinfo.core.cpu.CpuUptimeTimes? {
-    val fields = value?.trim()?.split(WHITESPACE_SPLIT_REGEX) ?: return null
-    if (fields.size < 2) return null
-    val uptime = fields[0].toDoubleOrNull()?.takeIf { it >= 0.0 } ?: return null
-    val idle = fields[1].toDoubleOrNull()?.takeIf { it >= 0.0 } ?: return null
-    return com.fioiu8.devinfo.core.cpu.CpuUptimeTimes(totalSeconds = uptime, idleSeconds = idle)
-}
-
-internal fun calculateCpuUsageFromUptime(
-    first: com.fioiu8.devinfo.core.cpu.CpuUptimeTimes,
-    second: com.fioiu8.devinfo.core.cpu.CpuUptimeTimes,
-    cpuCount: Int
-): Float? {
-    if (cpuCount <= 0) return null
-    val elapsed = second.totalSeconds - first.totalSeconds
-    val idle = second.idleSeconds - first.idleSeconds
-    if (elapsed <= 0L || idle < 0L) return null
-    val available = elapsed * cpuCount
-    return ((available - idle) / available * 100.0).toFloat().coerceIn(0f, 100f)
-}
-
-internal fun parseTopCpuUsage(line: String): Float? {
-    val match = TOP_CPU_SUMMARY_REGEX.find(line) ?: return null
-    val total = match.groupValues[1].toFloatOrNull() ?: return null
-    val idle = match.groupValues[2].toFloatOrNull() ?: return null
-    if (total <= 0f || idle < 0f || idle > total) return null
-    return ((total - idle) / total * 100f).coerceIn(0f, 100f)
-}
-
-/** Reject Android's restricted top summary, which falsely reports every core as idle. */
-internal fun parseUsableTopCpuUsage(line: String): Float? = parseTopCpuUsage(line)?.takeIf { it > 0f }
-
-private val TOP_CPU_SUMMARY_REGEX = Regex(
-    """^\s*(\d+(?:\.\d+)?)%cpu\b.*?(\d+(?:\.\d+)?)%idle\b"""
-)
-
-internal fun formatCpuFrequency(raw: Long): String? {
-    val mhz = when {
-        raw >= 100_000_000L -> raw / 1_000_000f
-        raw >= 1_000L -> raw / 1_000f
-        else -> raw.toFloat()
-    }
-    return if (mhz > 0f) "%.0f MHz".format(Locale.US, mhz) else null
 }
