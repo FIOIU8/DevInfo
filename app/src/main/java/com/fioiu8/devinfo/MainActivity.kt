@@ -24,6 +24,7 @@ import java.util.Locale
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.CompositionLocalProvider
@@ -68,6 +69,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun attachBaseContext(base: Context) {
+        // 同一 Activity 实例可能被多次 attach；先释放上一个实例注册的
+        // SharedPreferences 监听器，否则旧实例会被监听器强引用而无法回收。
+        attachLanguagePrefs?.close()
         val prefs = LanguagePreferences(base)
         attachLanguagePrefs = prefs
         val tag = prefs.getEffectiveLocaleTag()
@@ -130,6 +134,9 @@ class MainActivity : ComponentActivity() {
                 deviceId = withContext(Dispatchers.IO) {
                     try {
                         DeviceIdManager(this@MainActivity).getOrCreateDeviceId()
+                    } catch (error: CancellationException) {
+                        // 组合被销毁时必须让取消继续传播，不能降级成普通失败状态
+                        throw error
                     } catch (e: Exception) {
                         getString(R.string.device_id_fetch_failed, e.message.orEmpty())
                     }
