@@ -545,6 +545,70 @@ fun UpdateAvailableDialog(
     )
 }
 
+/**
+ * 下载二次确认对话框 — 用户在更新对话框点击"前往下载"后弹出。
+ * 必须再次点击"确认下载"才会真正跳转浏览器离开应用，避免误触。
+ *
+ * @param show 是否显示
+ * @param onConfirm 用户在确认对话框中再次点击"确认下载"的回调，触发跳转浏览器
+ * @param onDismiss 用户关闭对话框（取消或返回）的回调
+ */
+@Composable
+fun DownloadConfirmDialog(
+    show: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (!show) return
+
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixActionDialog(
+            title = stringResource(R.string.download_confirm_title),
+            message = stringResource(R.string.download_confirm_message),
+            confirmLabel = stringResource(R.string.download_confirm),
+            onConfirm = onConfirm,
+            dismissLabel = stringResource(R.string.cancel),
+            onDismiss = onDismiss,
+        )
+        return
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Outlined.OpenInBrowser,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
+        title = {
+            Text(
+                text = stringResource(R.string.download_confirm_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Text(
+                text = stringResource(R.string.download_confirm_message),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.download_confirm))
+            }
+        }
+    )
+}
+
 @Composable
 fun MiuixActionDialog(
     title: String,

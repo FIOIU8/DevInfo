@@ -1,3 +1,5 @@
+// Adapted from compose-miuix-ui example (IosLiquidGlassNavigationBar) — Apache 2.0.
+
 package com.fioiu8.devinfo.ui.kit.animation
 
 import android.annotation.SuppressLint
@@ -66,9 +68,11 @@ class InteractiveHighlight(
                     Color.White.copy(0.06f * progress),
                     blendMode = BlendMode.Plus
                 )
-                shader?.let { shader ->
+                val activeShader = shader
+                val activeBrush = shaderBrush
+                if (activeShader != null && activeBrush != null) {
                     val position = position(size, positionAnimation.value)
-                    shader.apply {
+                    activeShader.apply {
                         setFloatUniform("size", size.width, size.height)
                         setColorUniform(
                             "color",
@@ -82,7 +86,7 @@ class InteractiveHighlight(
                         )
                     }
                     drawRect(
-                        shaderBrush!!,
+                        activeBrush,
                         blendMode = BlendMode.Plus
                     )
                 }
