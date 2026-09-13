@@ -33,11 +33,10 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -60,7 +59,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
@@ -96,7 +94,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -108,14 +105,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -139,7 +135,6 @@ import com.fioiu8.devinfo.ui.kit.FloatingBottomBar
 import com.fioiu8.devinfo.ui.kit.FloatingBottomBarItem
 import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import com.fioiu8.devinfo.ui.theme.isInDarkTheme
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -157,10 +152,15 @@ import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.nav.core.NavController
+import top.yukonga.miuix.kmp.nav.core.NavDisplay
+import top.yukonga.miuix.kmp.nav.core.NavDisplayEffects
+import top.yukonga.miuix.kmp.nav.core.rememberNavController
+import top.yukonga.miuix.kmp.nav.transition.NavSwipeDirection
+import top.yukonga.miuix.kmp.nav.transition.NavTransitions
 import top.yukonga.miuix.kmp.window.WindowDialog
 import com.fioiu8.devinfo.ui.CustomMiuixIcons
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import kotlin.math.roundToInt
 
 internal val LocalFloatingNavigationContentPadding = staticCompositionLocalOf { 0.dp }
 
@@ -215,13 +215,8 @@ fun MainScreen(
         viewModel.onFirstComposition()
     }
 
-    var selectedIndex by rememberSaveable { mutableIntStateOf(INFO_TAB_INDEX) }
-    var showDetailsPage by rememberSaveable { mutableStateOf(false) }
-    var detailCategory by rememberSaveable { mutableStateOf(InfoCategory.DEVICE) }
-    var showAboutPage by rememberSaveable { mutableStateOf(false) }
-    var isAboutVisible by rememberSaveable { mutableStateOf(false) }
-    var showThemeSettingsPage by rememberSaveable { mutableStateOf(false) }
-    var isThemeSettingsVisible by rememberSaveable { mutableStateOf(false) }
+    val navController = rememberNavController<MainRoute>(MainRoute.Overview)
+    val navigator = remember(navController) { MainNavigator(navController) }
     var showExportDialog by rememberSaveable { mutableStateOf(false) }
     var showExportSuccessDialog by rememberSaveable { mutableStateOf(false) }
     var exportedFileUri by rememberSaveable(stateSaver = UriSaver) { mutableStateOf<Uri?>(null) }
@@ -232,11 +227,6 @@ fun MainScreen(
     val useNavigationRail = configuration.screenWidthDp >= TABLET_NAVIGATION_RAIL_MIN_WIDTH_DP
     val navigationRailStartInsets =
         WindowInsets.systemBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Start)
-    val density = LocalDensity.current
-    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
-    val aboutOffsetX = remember { Animatable(0f) }
-    val themeSettingsOffsetX = remember { Animatable(0f) }
-    val detailOffsetX = remember { Animatable(0f) }
     val alreadyLatestMessage = stringResource(R.string.already_latest)
     val exportFailedLabel = stringResource(R.string.export_failed)
     val cannotOpenFileMessage = stringResource(R.string.cannot_open_file)
@@ -315,35 +305,8 @@ fun MainScreen(
         }
     }
 
-    LaunchedEffect(selectedIndex, showDetailsPage, showAboutPage, showThemeSettingsPage, viewModel) {
-        viewModel.onInfoTabChanged(
-            selectedIndex == INFO_TAB_INDEX &&
-                !showDetailsPage &&
-                !showAboutPage &&
-                !showThemeSettingsPage
-        )
-    }
-
-    LaunchedEffect(showAboutPage) {
-        if (showAboutPage) {
-            isAboutVisible = true
-            aboutOffsetX.snapTo(screenWidthPx)
-            aboutOffsetX.animateTo(0f, animationSpec = tween(ABOUT_ANIMATION_DURATION_MS))
-        }
-    }
-
-    LaunchedEffect(showThemeSettingsPage) {
-        if (showThemeSettingsPage) {
-            isThemeSettingsVisible = true
-            themeSettingsOffsetX.snapTo(screenWidthPx)
-            themeSettingsOffsetX.animateTo(0f, animationSpec = tween(ABOUT_ANIMATION_DURATION_MS))
-        }
-    }
-
-    LaunchedEffect(showDetailsPage) {
-        if (!showDetailsPage) {
-            detailOffsetX.snapTo(0f)
-        }
+    LaunchedEffect(navigator.isOverviewVisible, viewModel) {
+        viewModel.onInfoTabChanged(navigator.isOverviewVisible)
     }
 
     LaunchedEffect(updateState) {
@@ -361,25 +324,6 @@ fun MainScreen(
             UpdateState.ERROR -> showUpdateDialog = true
 
             else -> Unit
-        }
-    }
-
-    fun dismissAboutPage() {
-        scope.launch {
-            aboutOffsetX.animateTo(screenWidthPx, animationSpec = tween(ABOUT_ANIMATION_DURATION_MS))
-            showAboutPage = false
-            isAboutVisible = false
-        }
-    }
-
-    fun dismissThemeSettingsPage() {
-        scope.launch {
-            themeSettingsOffsetX.animateTo(
-                screenWidthPx,
-                animationSpec = tween(ABOUT_ANIMATION_DURATION_MS),
-            )
-            showThemeSettingsPage = false
-            isThemeSettingsVisible = false
         }
     }
 
@@ -416,23 +360,7 @@ fun MainScreen(
         )
     }
 
-    fun selectNavigationItem(index: Int) {
-        selectedIndex = index
-        if (index == SETTINGS_TAB_INDEX) showDetailsPage = false
-    }
-
-    val contentPage = when {
-        selectedIndex == SETTINGS_TAB_INDEX -> MainContentPage.SETTINGS
-        showDetailsPage -> MainContentPage.DETAILS
-        else -> MainContentPage.INFO
-    }
-    val topBarTitle = when (contentPage) {
-        MainContentPage.INFO -> stringResource(R.string.overview_title)
-        MainContentPage.DETAILS -> stringResource(R.string.title_device_details)
-        MainContentPage.SETTINGS -> stringResource(R.string.title_settings)
-    }
-    val showTopBarBackButton = contentPage == MainContentPage.DETAILS
-
+    val selectedIndex = navigator.selectedTabIndex
     val rootEnabledMsg = stringResource(R.string.root_mode_enabled)
     val rootFailedMsg = stringResource(R.string.root_mode_failed)
 
@@ -447,170 +375,32 @@ fun MainScreen(
                         MainNavigationRail(
                             items = navigationItems,
                             selectedIndex = selectedIndex,
-                            onItemSelected = ::selectNavigationItem,
+                            onItemSelected = navigator::selectTab,
                             modifier = Modifier.fillMaxHeight(),
                         )
                     }
 
-                    MainScaffold(
+                    MainNavigationHost(
                         modifier = Modifier.weight(1f),
                         consumedStartInsets = if (useNavigationRail) {
                             navigationRailStartInsets
                         } else {
                             WindowInsets(0, 0, 0, 0)
                         },
-                        title = topBarTitle,
-                        showBackButton = showTopBarBackButton,
-                        onBack = { showDetailsPage = false },
+                        navController = navController,
+                        navigator = navigator,
+                        viewModel = viewModel,
+                        uiState = uiState,
+                        settings = settings,
                         items = navigationItems,
-                        selectedIndex = selectedIndex,
-                        onItemSelected = ::selectNavigationItem,
                         showBottomBar = !useNavigationRail,
-                        enableBlur = settings.enableBlur,
-                        enableFloatingBottomBar = settings.enableFloatingBottomBar,
-                        enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
-                    ) { paddingValues ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(paddingValues),
-                        ) {
-                            CompositionLocalProvider(
-                                LocalFloatingNavigationContentPadding provides floatingNavigationContentPadding,
-                            ) {
-                                AnimatedContent(
-                                    modifier = Modifier.offset {
-                                        IntOffset(
-                                            x = if (contentPage == MainContentPage.DETAILS) {
-                                                detailOffsetX.value.roundToInt()
-                                            } else {
-                                                0
-                                            },
-                                            y = 0,
-                                        )
-                                    },
-                                    targetState = contentPage,
-                                    transitionSpec = {
-                                        val direction = when {
-                                            targetState == MainContentPage.DETAILS &&
-                                                initialState != MainContentPage.DETAILS -> FORWARD_DIRECTION
-
-                                            initialState == MainContentPage.DETAILS &&
-                                                targetState != MainContentPage.DETAILS -> BACKWARD_DIRECTION
-
-                                            targetState.navigationOrder > initialState.navigationOrder -> FORWARD_DIRECTION
-                                            else -> BACKWARD_DIRECTION
-                                        }
-                                        (fadeIn(tween(260, easing = FastOutSlowInEasing)) +
-                                            slideInHorizontally(
-                                                animationSpec = tween(320, easing = FastOutSlowInEasing),
-                                            ) { direction * it / 5 })
-                                            .togetherWith(
-                                                fadeOut(tween(180, easing = LinearOutSlowInEasing)) +
-                                                    slideOutHorizontally(
-                                                        animationSpec = tween(240, easing = LinearOutSlowInEasing),
-                                                    ) { -direction * it / 5 },
-                                            )
-                                    },
-                                    label = "mainNavigationTransition",
-                                ) { pageState ->
-                                    when (pageState) {
-                                        MainContentPage.INFO -> {
-                                            DeviceInfoOverviewPage(
-                                                itemsState = uiState.deviceInfoItems,
-                                                isLoading = uiState.isDeviceInfoLoading,
-                                                isOverviewLoading = uiState.isOverviewLoading,
-                                                snapshot = uiState.overviewSnapshot,
-                                                onRefresh = { viewModel.refreshAndAwait() },
-                                                onOpenDetails = { category ->
-                                                    detailCategory = category
-                                                    showDetailsPage = true
-                                                },
-                                            )
-                                        }
-
-                                        MainContentPage.DETAILS -> {
-                                            DeviceInfoPage(
-                                                deviceId = settings.deviceId,
-                                                itemsState = uiState.deviceInfoItems,
-                                                isLoading = uiState.isDeviceInfoLoading,
-                                                overviewSnapshot = uiState.overviewSnapshot,
-                                                onRefresh = { viewModel.refreshAndAwait() },
-                                                initialCategory = detailCategory,
-                                            )
-                                        }
-
-                                        MainContentPage.SETTINGS -> {
-                                            val languageOptions = AppLanguage.entries.map { language ->
-                                                stringResource(language.displayNameResId)
-                                            }
-                                            SettingsPage(
-                                                versionName = viewModel.appVersionName,
-                                                versionCode = viewModel.appVersionCode,
-                                                uiStyle = settings.uiStyle,
-                                                onUiStyleChange = settings.onUiStyleChange,
-                                                onThemeSettingsClick = { showThemeSettingsPage = true },
-                                                onExportClick = { showExportDialog = true },
-                                                onAboutClick = { showAboutPage = true },
-                                                appLanguage = settings.appLanguage,
-                                                checkUpdate = settings.checkUpdate,
-                                                onCheckUpdateChange = settings.onCheckUpdateChange,
-                                                languageOptions = languageOptions,
-                                                onLanguageChange = { index ->
-                                                    settings.onAppLanguageChange(AppLanguage.entries[index])
-                                                },
-                                                customLocaleTag = settings.customLocaleTag,
-                                                onCustomLocaleTagChange = settings.onCustomLocaleTagChange,
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (isAboutVisible) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .offset { IntOffset(aboutOffsetX.value.roundToInt(), 0) },
-                ) {
-                    AboutScreen(
-                        versionName = viewModel.appVersionName,
-                        onBack = { dismissAboutPage() },
-                    )
-                }
-            }
-
-            if (isThemeSettingsVisible) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .offset { IntOffset(themeSettingsOffsetX.value.roundToInt(), 0) },
-                ) {
-                    ThemeSettingsPage(
-                        uiStyle = settings.uiStyle,
-                        themeMode = settings.themeMode,
-                        onThemeModeChange = settings.onThemeModeChange,
-                        themeColor = settings.themeColor,
-                        onThemeColorChange = settings.onThemeColorChange,
-                        paletteStyle = settings.paletteStyle,
-                        onPaletteStyleChange = settings.onPaletteStyleChange,
-                        colorSpec = settings.colorSpec,
-                        onColorSpecChange = settings.onColorSpecChange,
-                        enableBlur = settings.enableBlur,
-                        onEnableBlurChange = settings.onEnableBlurChange,
-                        enableFloatingBottomBar = settings.enableFloatingBottomBar,
-                        onEnableFloatingBottomBarChange = settings.onEnableFloatingBottomBarChange,
-                        enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
-                        onEnableFloatingBottomBarBlurChange = settings.onEnableFloatingBottomBarBlurChange,
-                        pageScale = settings.pageScale,
-                        onPageScaleChange = settings.onPageScaleChange,
+                        floatingNavigationContentPadding = floatingNavigationContentPadding,
+                        rootFabBottomPadding = snackbarBottomPadding,
+                        onExportClick = { showExportDialog = true },
+                        onRootFabClick = {
+                            onRootFabClick(rootEnabledMsg, rootFailedMsg)
+                        },
                         enablePredictiveBack = settings.enablePredictiveBack,
-                        onEnablePredictiveBackChange = settings.onEnablePredictiveBackChange,
-                        onBack = ::dismissThemeSettingsPage,
                     )
                 }
             }
@@ -623,104 +413,8 @@ fun MainScreen(
                     .padding(horizontal = 16.dp)
                     .padding(bottom = snackbarBottomPadding),
             )
-
-            RootModeFab(
-                isRootModeEnabled = uiState.isRootModeEnabled,
-                onClick = { onRootFabClick(rootEnabledMsg, rootFailedMsg) },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp)
-                    .padding(bottom = snackbarBottomPadding + 56.dp),
-                isVisible = selectedIndex == SETTINGS_TAB_INDEX && !showThemeSettingsPage && !showAboutPage && !showDetailsPage,
-            )
         }
     }
-
-    val hasDismissablePage = showThemeSettingsPage || showAboutPage || showDetailsPage
-
-    BackHandler(
-        enabled = hasDismissablePage && !settings.enablePredictiveBack,
-    ) {
-        when {
-            showThemeSettingsPage -> dismissThemeSettingsPage()
-            showAboutPage -> dismissAboutPage()
-            showDetailsPage -> scope.launch {
-                detailOffsetX.animateTo(
-                    screenWidthPx,
-                    animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS),
-                )
-                showDetailsPage = false
-            }
-        }
-    }
-
-    PredictiveBackHandler(
-        enabled = hasDismissablePage && settings.enablePredictiveBack,
-        onBack = { progress ->
-            val dismissThemeSettings = showThemeSettingsPage
-            val dismissAbout = !dismissThemeSettings && showAboutPage
-            val dismissDetails = !dismissThemeSettings && !dismissAbout && showDetailsPage
-            try {
-                progress.collect { event ->
-                    when {
-                        dismissThemeSettings -> themeSettingsOffsetX.snapTo(event.progress * screenWidthPx)
-                        dismissAbout -> aboutOffsetX.snapTo(event.progress * screenWidthPx)
-                        dismissDetails -> detailOffsetX.snapTo(event.progress * screenWidthPx)
-                    }
-                }
-                when {
-                    dismissThemeSettings -> {
-                        themeSettingsOffsetX.animateTo(
-                            screenWidthPx,
-                            animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS),
-                        )
-                        showThemeSettingsPage = false
-                        isThemeSettingsVisible = false
-                    }
-
-                    dismissAbout -> {
-                        aboutOffsetX.animateTo(
-                            screenWidthPx,
-                            animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS)
-                        )
-                        showAboutPage = false
-                        isAboutVisible = false
-                    }
-
-                    dismissDetails -> {
-                        detailOffsetX.animateTo(
-                            screenWidthPx,
-                            animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS)
-                        )
-                        showDetailsPage = false
-                    }
-                }
-            } catch (_: CancellationException) {
-                when {
-                    dismissThemeSettings -> scope.launch {
-                        themeSettingsOffsetX.animateTo(
-                            0f,
-                            animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS),
-                        )
-                    }
-
-                    dismissAbout -> scope.launch {
-                        aboutOffsetX.animateTo(
-                            0f,
-                            animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS)
-                        )
-                    }
-
-                    dismissDetails -> scope.launch {
-                        detailOffsetX.animateTo(
-                            0f,
-                            animationSpec = tween(PREDICTIVE_BACK_ANIMATION_DURATION_MS)
-                        )
-                    }
-                }
-            }
-        }
-    )
 
     UpdateAvailableDialog(
         show = showUpdateDialog,
@@ -775,6 +469,379 @@ fun MainScreen(
     )
 }
 
+@Composable
+private fun MainNavigationHost(
+    modifier: Modifier,
+    consumedStartInsets: WindowInsets,
+    navController: NavController,
+    navigator: MainNavigator,
+    viewModel: MainViewModel,
+    uiState: MainViewModel.MainUiState,
+    settings: MainScreenSettings,
+    items: List<MainNavigationItem>,
+    showBottomBar: Boolean,
+    floatingNavigationContentPadding: androidx.compose.ui.unit.Dp,
+    rootFabBottomPadding: androidx.compose.ui.unit.Dp,
+    onExportClick: () -> Unit,
+    onRootFabClick: () -> Unit,
+    enablePredictiveBack: Boolean,
+) {
+    val hostModifier = modifier
+        .fillMaxHeight()
+        .consumeWindowInsets(consumedStartInsets)
+        .clipToBounds()
+    val hostBackground = when (LocalUiStyle.current) {
+        UiStyle.MATERIAL3 -> MaterialTheme.colorScheme.background
+        UiStyle.MIUIX -> MiuixTheme.colorScheme.background
+    }
+
+    if (enablePredictiveBack) {
+        NavDisplay(
+            navController = navController,
+            modifier = hostModifier,
+            onBack = { navigator.pop() },
+            transition = NavTransitions.MiuixDefault,
+            effects = NavDisplayEffects(
+                dimAmount = 0f,
+                blockInputDuringTransition = true,
+                backdropColor = hostBackground,
+            ),
+        ) {
+            entry<MainRoute.Overview>(swipeDismiss = NavSwipeDirection.None) {
+                MainRouteContent(
+                    route = MainRoute.Overview,
+                    navigator = navigator,
+                    viewModel = viewModel,
+                    uiState = uiState,
+                    settings = settings,
+                    items = items,
+                    showBottomBar = showBottomBar,
+                    floatingNavigationContentPadding = floatingNavigationContentPadding,
+                    rootFabBottomPadding = rootFabBottomPadding,
+                    onExportClick = onExportClick,
+                    onRootFabClick = onRootFabClick,
+                )
+            }
+            entry<MainRoute.Settings>(swipeDismiss = NavSwipeDirection.None) {
+                MainRouteContent(
+                    route = MainRoute.Settings,
+                    navigator = navigator,
+                    viewModel = viewModel,
+                    uiState = uiState,
+                    settings = settings,
+                    items = items,
+                    showBottomBar = showBottomBar,
+                    floatingNavigationContentPadding = floatingNavigationContentPadding,
+                    rootFabBottomPadding = rootFabBottomPadding,
+                    onExportClick = onExportClick,
+                    onRootFabClick = onRootFabClick,
+                )
+            }
+            entry<MainRoute.Details>(swipeDismiss = NavSwipeDirection.None) { route ->
+                MainRouteContent(
+                    route = route,
+                    navigator = navigator,
+                    viewModel = viewModel,
+                    uiState = uiState,
+                    settings = settings,
+                    items = items,
+                    showBottomBar = showBottomBar,
+                    floatingNavigationContentPadding = floatingNavigationContentPadding,
+                    rootFabBottomPadding = rootFabBottomPadding,
+                    onExportClick = onExportClick,
+                    onRootFabClick = onRootFabClick,
+                )
+            }
+            entry<MainRoute.ThemeSettings>(swipeDismiss = NavSwipeDirection.None) {
+                MainRouteContent(
+                    route = MainRoute.ThemeSettings,
+                    navigator = navigator,
+                    viewModel = viewModel,
+                    uiState = uiState,
+                    settings = settings,
+                    items = items,
+                    showBottomBar = showBottomBar,
+                    floatingNavigationContentPadding = floatingNavigationContentPadding,
+                    rootFabBottomPadding = rootFabBottomPadding,
+                    onExportClick = onExportClick,
+                    onRootFabClick = onRootFabClick,
+                )
+            }
+            entry<MainRoute.About>(swipeDismiss = NavSwipeDirection.None) {
+                MainRouteContent(
+                    route = MainRoute.About,
+                    navigator = navigator,
+                    viewModel = viewModel,
+                    uiState = uiState,
+                    settings = settings,
+                    items = items,
+                    showBottomBar = showBottomBar,
+                    floatingNavigationContentPadding = floatingNavigationContentPadding,
+                    rootFabBottomPadding = rootFabBottomPadding,
+                    onExportClick = onExportClick,
+                    onRootFabClick = onRootFabClick,
+                )
+            }
+        }
+    } else {
+        BackHandler(enabled = navController.backStack.size > 1) {
+            navigator.pop()
+        }
+        val stateHolder = rememberSaveableStateHolder()
+        val currentRoute = navigator.currentRoute
+        Box(modifier = hostModifier) {
+            AnimatedContent(
+                targetState = currentRoute,
+                transitionSpec = { mainRouteTransition(initialState, targetState) },
+                label = "mainNavigationTransition",
+            ) { route ->
+                stateHolder.SaveableStateProvider(route) {
+                    MainRouteContent(
+                        route = route,
+                        navigator = navigator,
+                        viewModel = viewModel,
+                        uiState = uiState,
+                        settings = settings,
+                        items = items,
+                        showBottomBar = showBottomBar,
+                        floatingNavigationContentPadding = floatingNavigationContentPadding,
+                        rootFabBottomPadding = rootFabBottomPadding,
+                        onExportClick = onExportClick,
+                        onRootFabClick = onRootFabClick,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MainRouteContent(
+    route: MainRoute,
+    navigator: MainNavigator,
+    viewModel: MainViewModel,
+    uiState: MainViewModel.MainUiState,
+    settings: MainScreenSettings,
+    items: List<MainNavigationItem>,
+    showBottomBar: Boolean,
+    floatingNavigationContentPadding: androidx.compose.ui.unit.Dp,
+    rootFabBottomPadding: androidx.compose.ui.unit.Dp,
+    onExportClick: () -> Unit,
+    onRootFabClick: () -> Unit,
+) {
+    when (route) {
+        MainRoute.Overview -> MainAppScaffold(
+            title = stringResource(R.string.overview_title),
+            showBackButton = false,
+            onBack = {},
+            items = items,
+            selectedIndex = route.rootTabIndex(),
+            showBottomBar = showBottomBar,
+            enableBlur = settings.enableBlur,
+            enableFloatingBottomBar = settings.enableFloatingBottomBar,
+            enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
+            floatingNavigationContentPadding = floatingNavigationContentPadding,
+            showRootFab = false,
+            isRootModeEnabled = uiState.isRootModeEnabled,
+            rootFabBottomPadding = rootFabBottomPadding,
+            onRootFabClick = onRootFabClick,
+            onItemSelected = navigator::selectTab,
+        ) {
+            DeviceInfoOverviewPage(
+                itemsState = uiState.deviceInfoItems,
+                isLoading = uiState.isDeviceInfoLoading,
+                isOverviewLoading = uiState.isOverviewLoading,
+                snapshot = uiState.overviewSnapshot,
+                onRefresh = { viewModel.refreshAndAwait() },
+                onOpenDetails = navigator::openDetails,
+            )
+        }
+
+        MainRoute.Settings -> {
+            val languageOptions = AppLanguage.entries.map { language ->
+                stringResource(language.displayNameResId)
+            }
+            MainAppScaffold(
+                title = stringResource(R.string.title_settings),
+                showBackButton = false,
+                onBack = {},
+                items = items,
+                selectedIndex = route.rootTabIndex(),
+                showBottomBar = showBottomBar,
+                enableBlur = settings.enableBlur,
+                enableFloatingBottomBar = settings.enableFloatingBottomBar,
+                enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
+                floatingNavigationContentPadding = floatingNavigationContentPadding,
+                showRootFab = true,
+                isRootModeEnabled = uiState.isRootModeEnabled,
+                rootFabBottomPadding = rootFabBottomPadding,
+                onRootFabClick = onRootFabClick,
+                onItemSelected = navigator::selectTab,
+            ) {
+                SettingsPage(
+                    versionName = viewModel.appVersionName,
+                    versionCode = viewModel.appVersionCode,
+                    uiStyle = settings.uiStyle,
+                    onUiStyleChange = settings.onUiStyleChange,
+                    onThemeSettingsClick = navigator::openThemeSettings,
+                    onExportClick = onExportClick,
+                    onAboutClick = navigator::openAbout,
+                    appLanguage = settings.appLanguage,
+                    checkUpdate = settings.checkUpdate,
+                    onCheckUpdateChange = settings.onCheckUpdateChange,
+                    languageOptions = languageOptions,
+                    onLanguageChange = { index ->
+                        settings.onAppLanguageChange(AppLanguage.entries[index])
+                    },
+                    customLocaleTag = settings.customLocaleTag,
+                    onCustomLocaleTagChange = settings.onCustomLocaleTagChange,
+                )
+            }
+        }
+
+        is MainRoute.Details -> MainAppScaffold(
+            title = stringResource(R.string.title_device_details),
+            showBackButton = true,
+            onBack = { navigator.pop() },
+            items = items,
+            selectedIndex = route.rootTabIndex(),
+            showBottomBar = showBottomBar,
+            enableBlur = settings.enableBlur,
+            enableFloatingBottomBar = settings.enableFloatingBottomBar,
+            enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
+            floatingNavigationContentPadding = floatingNavigationContentPadding,
+            showRootFab = false,
+            isRootModeEnabled = uiState.isRootModeEnabled,
+            rootFabBottomPadding = rootFabBottomPadding,
+            onRootFabClick = onRootFabClick,
+            onItemSelected = navigator::selectTab,
+        ) {
+            DeviceInfoPage(
+                deviceId = settings.deviceId,
+                itemsState = uiState.deviceInfoItems,
+                isLoading = uiState.isDeviceInfoLoading,
+                overviewSnapshot = uiState.overviewSnapshot,
+                onRefresh = { viewModel.refreshAndAwait() },
+                initialCategory = navigator.detailsCategory(route),
+            )
+        }
+
+        MainRoute.ThemeSettings -> ThemeSettingsPage(
+            uiStyle = settings.uiStyle,
+            themeMode = settings.themeMode,
+            onThemeModeChange = settings.onThemeModeChange,
+            themeColor = settings.themeColor,
+            onThemeColorChange = settings.onThemeColorChange,
+            paletteStyle = settings.paletteStyle,
+            onPaletteStyleChange = settings.onPaletteStyleChange,
+            colorSpec = settings.colorSpec,
+            onColorSpecChange = settings.onColorSpecChange,
+            enableBlur = settings.enableBlur,
+            onEnableBlurChange = settings.onEnableBlurChange,
+            enableFloatingBottomBar = settings.enableFloatingBottomBar,
+            onEnableFloatingBottomBarChange = settings.onEnableFloatingBottomBarChange,
+            enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
+            onEnableFloatingBottomBarBlurChange = settings.onEnableFloatingBottomBarBlurChange,
+            pageScale = settings.pageScale,
+            onPageScaleChange = settings.onPageScaleChange,
+            enablePredictiveBack = settings.enablePredictiveBack,
+            onEnablePredictiveBackChange = settings.onEnablePredictiveBackChange,
+            onBack = { navigator.pop() },
+        )
+
+        MainRoute.About -> AboutScreen(
+            versionName = viewModel.appVersionName,
+            onBack = { navigator.pop() },
+        )
+    }
+}
+
+@Composable
+private fun MainAppScaffold(
+    title: String,
+    showBackButton: Boolean,
+    onBack: () -> Unit,
+    items: List<MainNavigationItem>,
+    selectedIndex: Int,
+    showBottomBar: Boolean,
+    enableBlur: Boolean,
+    enableFloatingBottomBar: Boolean,
+    enableFloatingBottomBarBlur: Boolean,
+    floatingNavigationContentPadding: androidx.compose.ui.unit.Dp,
+    showRootFab: Boolean,
+    isRootModeEnabled: Boolean,
+    rootFabBottomPadding: androidx.compose.ui.unit.Dp,
+    onRootFabClick: () -> Unit,
+    onItemSelected: (Int) -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Box(Modifier.fillMaxSize()) {
+        MainScaffold(
+            modifier = Modifier.fillMaxSize(),
+            consumedStartInsets = WindowInsets(0, 0, 0, 0),
+            title = title,
+            showBackButton = showBackButton,
+            onBack = onBack,
+            items = items,
+            selectedIndex = selectedIndex,
+            onItemSelected = onItemSelected,
+            showBottomBar = showBottomBar,
+            enableBlur = enableBlur,
+            enableFloatingBottomBar = enableFloatingBottomBar,
+            enableFloatingBottomBarBlur = enableFloatingBottomBarBlur,
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+            ) {
+                CompositionLocalProvider(
+                    LocalFloatingNavigationContentPadding provides floatingNavigationContentPadding,
+                ) {
+                    content()
+                }
+            }
+        }
+
+        if (showRootFab) {
+            RootModeFab(
+                isRootModeEnabled = isRootModeEnabled,
+                onClick = onRootFabClick,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp)
+                    .padding(bottom = rootFabBottomPadding + 56.dp),
+            )
+        }
+    }
+}
+
+private fun mainRouteTransition(
+    initialState: MainRoute,
+    targetState: MainRoute,
+): ContentTransform {
+    val initialDepth = initialState.navigationDepth()
+    val targetDepth = targetState.navigationDepth()
+    val direction = when {
+        targetDepth > initialDepth -> FORWARD_DIRECTION
+        targetDepth < initialDepth -> BACKWARD_DIRECTION
+        targetState == MainRoute.Settings && initialState == MainRoute.Overview -> FORWARD_DIRECTION
+        targetState == MainRoute.Overview && initialState == MainRoute.Settings -> BACKWARD_DIRECTION
+        else -> FORWARD_DIRECTION
+    }
+    return (fadeIn(tween(260, easing = FastOutSlowInEasing)) +
+        slideInHorizontally(
+            animationSpec = tween(320, easing = FastOutSlowInEasing),
+        ) { direction * it })
+        .togetherWith(
+            fadeOut(tween(180, easing = LinearOutSlowInEasing)) +
+                slideOutHorizontally(
+                    animationSpec = tween(240, easing = LinearOutSlowInEasing),
+                ) { -direction * it / 4 },
+        )
+}
+
 private typealias MainNavigationItem = DevInfoNavigationItem
 
 @Composable
@@ -782,14 +849,10 @@ private fun MainRootScaffold(
     modifier: Modifier,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val contentStateHolder = rememberSaveableStateHolder()
-
     when (LocalUiStyle.current) {
         UiStyle.MATERIAL3 -> {
             Box(modifier = modifier) {
-                contentStateHolder.SaveableStateProvider(MAIN_CONTENT_STATE_KEY) {
-                    content()
-                }
+                content()
             }
         }
 
@@ -800,9 +863,7 @@ private fun MainRootScaffold(
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    contentStateHolder.SaveableStateProvider(MAIN_CONTENT_STATE_KEY) {
-                        content()
-                    }
+                    content()
                 }
             }
         }
@@ -1400,21 +1461,10 @@ private fun openUrl(
     }
 }
 
-private const val INFO_TAB_INDEX = 0
-private const val SETTINGS_TAB_INDEX = 1
-private const val MAIN_CONTENT_STATE_KEY = "main_content"
 private const val FORWARD_DIRECTION = 1
 private const val BACKWARD_DIRECTION = -1
 private const val TABLET_NAVIGATION_RAIL_MIN_WIDTH_DP = 600
-private const val ABOUT_ANIMATION_DURATION_MS = 300
-private const val PREDICTIVE_BACK_ANIMATION_DURATION_MS = 200
 private const val RELEASES_URL = "https://github.com/FIOIU8/DevInfo/releases"
-
-private enum class MainContentPage(val navigationOrder: Int) {
-    INFO(navigationOrder = 0),
-    DETAILS(navigationOrder = 1),
-    SETTINGS(navigationOrder = 1),
-}
 
 private val UriSaver = Saver<Uri?, String>(
     save = { it?.toString() },
