@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- feature-main UI strings (zh-CN). Keys outside this file belong to data/ui/app modules. -->
+    <!-- feature-main UI strings (en). Keys outside this file belong to data/ui/app modules. -->
 
     <string name="about_app">关于 DevInfo</string>
     <string name="about_source_link" translatable="false">在%1$s 上查看源码</string>
@@ -45,12 +45,12 @@
     <string name="export_summary">导出当前设备信息为改机型模块</string>
     <string name="export_title">导出模块</string>
     <string name="export_tool">导出模块</string>
-    <string name="download_confirm">确认下载</string>
-    <string name="download_confirm_message">将打开外部浏览器跳转到 GitHub Releases 页面下载新版本，是否继续？</string>
-    <string name="download_confirm_title">确认下载</string>
-    <string name="external_link_open_browser">将会打开外部浏览器</string>
-    <string name="footer_tag">设备信息查看器</string>
-    <string name="go_to_download">前往下载</string>
+    <string name="download_confirm">Download</string>
+    <string name="download_confirm_message">Will open an external browser to the GitHub Releases page to download the new version. Continue?</string>
+    <string name="download_confirm_title">Confirm Download</string>
+    <string name="external_link_open_browser">Will open an external browser</string>
+    <string name="footer_tag">Device Info Viewer</string>
+    <string name="go_to_download">Go to Download</string>
     <string name="items_count">%d 项</string>
     <string name="language_setting">语言设置</string>
     <string name="language_system">跟随系统</string>

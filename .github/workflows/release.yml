@@ -175,7 +175,9 @@ jobs:
       - name: Decode release keystore
         run: |
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            umask 077
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+            chmod 600 release.keystore
             echo "Release keystore decoded"
           else
             echo "Error: KEYSTORE_BASE64 secret not found - cannot sign release build"
@@ -204,6 +206,10 @@ jobs:
           cp "$APK_FILE" "$NEW_NAME"
           echo "apk_name=$NEW_NAME" >> $GITHUB_OUTPUT
           ls -lh "$NEW_NAME"
+
+      - name: Remove release keystore
+        if: always()
+        run: rm -f release.keystore
 
       - name: Generate release notes
         run: |
