@@ -290,7 +290,6 @@ private fun MiuixDeviceInfoPage(
         itemsState.groupBy { it.item.category }
     }
     val selectedCategory = categories[selectedCategoryIndex]
-    val selectedItems = itemsByCategory[selectedCategory].orEmpty()
 
     LaunchedEffect(isRefreshing) {
         if (isRefreshing) {
@@ -324,26 +323,48 @@ private fun MiuixDeviceInfoPage(
         ) {
             item {
                 MiuixTabRow(
-                    tabs = categories.map { stringResource(it.displayNameResId()) },
-                    selectedTabIndex = selectedCategoryIndex,
-                    onTabSelected = { selectedCategoryIndex = it },
-                )
+                tabs = categories.map { stringResource(it.displayNameResId()) },
+                selectedTabIndex = selectedCategoryIndex,
+                onTabSelected = { selectedCategoryIndex = it },
+            )
             }
             item {
-                MiuixCategoryCard(
-                    category = selectedCategory,
-                    items = selectedItems,
-                    onItemClick = { item ->
-                        scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(null, item.item.value))) }
-                        showMessage(
-                            resources.getString(
-                                R.string.copied_to_clipboard,
-                                resources.getString(item.item.keyResId),
-                            ),
-                        )
+                AnimatedContent(
+                    targetState = selectedCategory,
+                    transitionSpec = {
+                        val direction = if (
+                            categories.indexOf(targetState) >= categories.indexOf(initialState)
+                        ) {
+                            1
+                        } else {
+                            -1
+                        }
+                        (fadeIn(tween(260)) + slideInHorizontally { direction * it / 4 })
+                            .togetherWith(
+                                fadeOut(tween(180)) + slideOutHorizontally { -direction * it / 4 },
+                            )
                     },
-                    overviewSnapshot = overviewSnapshot,
-                )
+                    label = "miuixCategorySwitch",
+                ) { category ->
+                    MiuixCategoryCard(
+                        category = category,
+                        items = itemsByCategory[category].orEmpty(),
+                        onItemClick = { item ->
+                            scope.launch {
+                                clipboard.setClipEntry(
+                                    ClipEntry(ClipData.newPlainText(null, item.item.value)),
+                                )
+                            }
+                            showMessage(
+                                resources.getString(
+                                    R.string.copied_to_clipboard,
+                                    resources.getString(item.item.keyResId),
+                                ),
+                            )
+                        },
+                        overviewSnapshot = overviewSnapshot,
+                    )
+                }
             }
         }
     }
@@ -458,8 +479,13 @@ private fun MiuixCategoryCard(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                pagedItems.forEach { item ->
+                pagedItems.forEachIndexed { index, item ->
                     key(item.item.key) {
+                        AnimatedVisibility(
+                            visible = item.visible,
+                            enter = fadeIn(tween(220, delayMillis = index * 40)) +
+                                slideInHorizontally(tween(220, delayMillis = index * 40)),
+                        ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -469,9 +495,10 @@ private fun MiuixCategoryCard(
                             ) {
                                 InfoRow(
                                     label = resources.getString(item.item.keyResId) + ":",
-                                value = item.item.value,
-                                icon = itemIconByKey(item.item.key)
-                            )
+                                    value = item.item.value,
+                                    icon = itemIconByKey(item.item.key)
+                                )
+                            }
                         }
                     }
                 }

@@ -206,23 +206,22 @@ jobs:
       # -------------------------------
       - name: Setup keystore for signing
         run: |
-          if [[ "${{ steps.version.outputs.signature_type }}" == "release" ]]; then
-            if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-              echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
-              echo "Release keystore decoded"
-            else
-              echo "Error: KEYSTORE_BASE64 secret not found - cannot sign release build"
-              exit 1
-            fi
+          if [[ "${{ steps.version.outputs.signature_type }}" != "release" ]]; then
+            # debug 构建由 AGP 使用 ~/.android/debug.keystore 自动签名。
+            # 不再解码正式签名密钥：写入 debug.keystore 对构建无效，
+            # 只会在 runner 工作目录留下可被后续步骤误打包的生产密钥。
+            echo "Debug build: using the default debug keystore"
+            exit 0
           fi
 
-          if [[ "${{ steps.version.outputs.signature_type }}" == "debug" ]]; then
-            if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-              echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > debug.keystore
-              echo "Using stored keystore for debug build"
-            else
-              echo "No keystore secret found, using default debug keystore"
-            fi
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            umask 077
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+            chmod 600 release.keystore
+            echo "Release keystore decoded"
+          else
+            echo "Error: KEYSTORE_BASE64 secret not found - cannot sign release build"
+            exit 1
           fi
 
       # -------------------------------
@@ -243,6 +242,13 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      # -------------------------------
+      # 8b. Remove the decoded release keystore before any artifact upload
+      # -------------------------------
+      - name: Remove release keystore
+        if: always()
+        run: rm -f release.keystore
 
       # -------------------------------
       # 9. Rename APK

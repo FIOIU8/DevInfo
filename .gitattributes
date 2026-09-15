@@ -1,0 +1,45 @@
+# Line endings and binary detection policy for the DevInfo repository.
+# See https://git-scm.com/docs/gitattributes for full syntax.
+
+# Default: text files use LF on checkout. Git will still detect CRLF in the
+# index and normalize to LF on commit, while leaving content alone on systems
+# that prefer CRLF locally.
+*               text=auto eol=lf
+
+# Shell scripts, build scripts and YAML must remain LF so they run on Linux
+# CI without translation issues.
+*.sh            text eol=lf
+*.gradle.kts    text eol=lf
+*.kts           text eol=lf
+*.toml          text eol=lf
+*.yaml          text eol=lf
+*.yml           text eol=lf
+
+# Windows-only scripts need CRLF to run natively.
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+*.ps1           text eol=crlf
+
+# Generated and binary resources: never touch line endings.
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.webp          binary
+*.ico           binary
+*.jar           binary
+*.aar           binary
+*.apk           binary
+*.aab           binary
+*.zip           binary
+*.keystore      binary
+*.jks           binary
+*.so            binary
+*.bin           binary
+
+# Markdown keeps LF even on Windows editors.
+*.md            text eol=lf
+
+# XML resources are read by Android build tools that prefer LF on the build
+# side, but UTF-8 BOM is occasionally emitted by translation tools.
+*.xml           text eol=lf

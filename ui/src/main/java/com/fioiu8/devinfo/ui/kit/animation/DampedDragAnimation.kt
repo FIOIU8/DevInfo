@@ -1,3 +1,5 @@
+// Adapted from compose-miuix-ui example (IosLiquidGlassNavigationBar) — Apache 2.0.
+
 package com.fioiu8.devinfo.ui.kit.animation
 
 import androidx.compose.animation.core.Animatable

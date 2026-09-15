@@ -20,12 +20,11 @@ import com.fioiu8.devinfo.data.R
 
 // 导入 Android 相关类
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
-import android.os.Environment
 import com.fioiu8.devinfo.core.model.ItemWithVisibility
 import com.fioiu8.devinfo.core.model.ModuleExportPolicy
 import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 import java.io.OutputStream
 import java.text.SimpleDateFormat
@@ -38,11 +37,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * 模块导出助手类，负责生成 Magisk/KernelSU 模块的 ZIP 包
+ * 模块导出助手类，负责生成 Magisk/KernelSU 模块的 ZIP 包。
  *
- * 生成的模块 ZIP 包结构如下：
+ * 生成的模块 ZIP 包结构如下（文件名由调用方通过系统文件选择器决定）：
  *
- * Device_XXX_20240101_120000.zip              # 模块压缩包
+ * DevInfo_<机型>.zip                          # 模块压缩包
  * │
  * ├── META-INF/                               # Magisk/KernelSU 必需的签名和脚本目录
  * │   └── com/
@@ -52,65 +51,32 @@ import kotlinx.coroutines.withContext
  * │               └── updater-script          # 刷机脚本描述（指向 update-binary）
  * │
  * ├── system/                                 # 系统文件替换目录
- * │   └── (可选的系统文件，用于替换 /system 下的文件)
+ * │   └── placeholder                         # 说明文件，提示可放置需要替换的系统文件
  * │
  * ├── module.prop                             # 模块信息配置文件（必需）
  * ├── system.prop                             # 系统属性配置文件（由 Magisk/KernelSU 自动加载）
- * ├── post-fs-data.sh                         # 文件系统挂载后执行的脚本（early boot）
- * ├── service.sh                              # 系统完全启动后执行的后台服务脚本
  * ├── install.sh                              # 模块安装时的执行脚本
  * └── update-binary                           # 备用 update-binary（根目录版本）
  *
  * Magisk/KernelSU 模块工作原理：
  * 1. 用户通过 Magisk/KernelSU 刷入 ZIP 包
  * 2. 系统首先执行 META-INF/com/google/android/update-binary
- * 3. update-binary 加载模块配置，解压文件到 /data/adb/modules/[module_id]/
- * 4. 应用根目录 system.prop 中的系统属性
- * 5. 根据配置执行 post-fs-data.sh 和 service.sh
- * 6. 重启后模块生效
+ * 3. update-binary 加载 Magisk/KernelSU 工具函数，解压 ZIP 到 /data/adb/modules/[module_id]/
+ * 4. 执行 install.sh 中的安装与权限设置函数
+ * 5. 重启后 Magisk/KernelSU 加载根目录 system.prop，写入 ro.product.* 等系统属性
+ *
+ * 模块只在启动时通过 system.prop 生效，不注册 post-fs-data.sh / service.sh 等启动
+ * 阶段脚本，也不引入任何后台进程。
  */
 class ModuleExportHelper(private val context: Context) {
     private val locale: Locale = context.resources.configuration.locales[0]
 
     /**
-     * 核心导出方法，生成完整的 Magisk/KernelSU 模块 ZIP 包
-     *
-     * @param deviceId 设备唯一标识符
-     * @param itemsState 设备信息项列表（用于获取用户选择的设备信息）
-     * @param onSuccess 成功回调，返回生成的 ZIP 文件路径
-     * @param onError 失败回调，返回错误信息
-     */
-    suspend fun exportModule(
-        deviceId: String,
-        itemsState: List<ItemWithVisibility>,
-        onSuccess: (String) -> Unit,
-        onError: (String) -> Unit,
-        policy: ModuleExportPolicy = ModuleExportPolicy.MINIMAL
-    ) {
-        withContext(Dispatchers.IO) {
-            var directories: ModuleDirectories? = null
-            try {
-                val buildInfo = readDeviceBuildInfo()
-                val metadata = createModuleMetadata(itemsState, buildInfo)
-                directories = createModuleDirectories()
-
-                writeModuleFiles(directories, metadata, buildInfo, deviceId, policy)
-                val zipFile = createModuleArchive(directories.root, buildInfo.model)
-                onSuccess(zipFile.absolutePath)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (e: Exception) {
-                onError(e.message ?: context.getString(R.string.error_unknown))
-            } finally {
-                directories?.root?.deleteRecursively()
-            }
-        }
-    }
-
-    /**
      * 基于 SAF 的导出方法：将 ZIP 写入给定的 OutputStream。
      * 生成过程在 cacheDir 完成临时文件创建，最后写入流式输出。
-     * 调用方负责在 finally 中关闭 outputStream。
+     *
+     * 注意：内部的 ZipOutputStream 会关闭传入的 [outputStream]，因此调用方在
+     * 本方法返回后不应继续写入该流（重复关闭是安全的，但不要依赖它仍可写）。
      *
      * @param deviceId 设备唯一标识符
      * @param itemsState 设备信息项列表
@@ -163,7 +129,13 @@ class ModuleExportHelper(private val context: Context) {
         val name: String,
         val author: String,
         val version: String,
+        val versionCode: Long,
         val description: String
+    )
+
+    private data class AppVersion(
+        val name: String,
+        val code: Long
     )
 
     private data class ModuleDirectories(
@@ -192,7 +164,9 @@ class ModuleExportHelper(private val context: Context) {
         val deviceName = getDeviceDisplayName(itemsState)
         val moduleName = context.getString(R.string.module_export_name, deviceName)
         val author = "DevInfo"
-        val version = "v${buildInfo.versionRelease}"
+        // 模块版本取应用自身的版本名与 versionCode。此前写入的是 Android 版本号且
+        // versionCode 恒为 1，Magisk 既无法比较模块版本，也无法提示模块升级。
+        val appVersion = readAppVersion()
         val generatedAt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", locale).format(Date())
         val description = context.getString(
             R.string.module_export_description,
@@ -204,10 +178,22 @@ class ModuleExportHelper(private val context: Context) {
             id = moduleId,
             name = moduleName,
             author = author,
-            version = version,
+            version = appVersion?.name ?: FALLBACK_MODULE_VERSION,
+            versionCode = appVersion?.code ?: FALLBACK_MODULE_VERSION_CODE,
             description = description
         )
     }
+
+    /** 读取应用自身的版本名与 versionCode，供 module.prop 使用。 */
+    private fun readAppVersion(): AppVersion? = runCatching {
+        val packageInfo = context.packageManager.getPackageInfo(
+            context.packageName,
+            PackageManager.PackageInfoFlags.of(0),
+        )
+        val versionName = packageInfo.versionName?.takeIf { it.isNotBlank() }
+            ?: return@runCatching null
+        AppVersion(name = versionName, code = packageInfo.longVersionCode)
+    }.getOrNull()
 
     private fun createModuleDirectories(): ModuleDirectories {
         val root = java.nio.file.Files.createTempDirectory(
@@ -244,8 +230,6 @@ class ModuleExportHelper(private val context: Context) {
         writeUpdaterScript(directories.metaInf)
         writeMetaUpdateBinary(directories.metaInf)
         writeSystemPlaceholder(directories.system)
-        writePostFsData(directories.root)
-        writeServiceScript(directories.root)
     }
 
     private fun writeModuleProp(directory: File, metadata: ModuleMetadata) {
@@ -255,6 +239,7 @@ class ModuleExportHelper(private val context: Context) {
                 name = metadata.name,
                 author = metadata.author,
                 version = metadata.version,
+                versionCode = metadata.versionCode,
                 description = metadata.description
             )
         )
@@ -306,36 +291,6 @@ class ModuleExportHelper(private val context: Context) {
         )
     }
 
-    private fun writePostFsData(directory: File) {
-        File(directory, "post-fs-data.sh").writeText(
-            buildPostFsDataScript()
-        )
-    }
-
-    private fun writeServiceScript(directory: File) {
-        File(directory, "service.sh").writeText(buildServiceScript())
-    }
-
-    private fun createModuleArchive(tempDir: File, model: String): File {
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", locale).format(Date())
-        val safeModel = sanitizeIdentifier(model)
-        val zipFileName = sanitizeFileName("${safeModel}_${timestamp}.zip")
-        val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            ?: File(context.filesDir, "downloads")
-        createDirectory(downloadDir)
-
-        val zipFile = File(downloadDir, zipFileName)
-        try {
-            FileOutputStream(zipFile).use { outputStream ->
-                writeZipArchive(tempDir, outputStream)
-            }
-        } catch (e: Exception) {
-            zipFile.delete()
-            throw e
-        }
-        return zipFile
-    }
-
     /**
      * 从设备信息列表中提取制造商和型号，组合成可读的设备名称
      *
@@ -353,6 +308,11 @@ class ModuleExportHelper(private val context: Context) {
 
     companion object {
         private const val FALLBACK_FILE_NAME = "module-export"
+
+        /** 读取应用版本失败时写入 module.prop 的兜底版本信息。 */
+        private const val FALLBACK_MODULE_VERSION = "1.0.0"
+        private const val FALLBACK_MODULE_VERSION_CODE = 1L
+
         // 文件名为热路径（每次导出多次调用），正则提为常量避免每行/每次重新编译
         private val FILENAME_SANITIZE_REGEX = Regex("[^a-zA-Z0-9_.-]")
         private val WINDOWS_DRIVE_REGEX = Regex("^[A-Za-z]:.*")
@@ -481,6 +441,7 @@ class ModuleExportHelper(private val context: Context) {
      * @param name 模块显示名称
      * @param author 模块作者
      * @param version 模块版本字符串
+     * @param versionCode 模块版本码，Magisk 用它比较模块版本
      * @param description 模块描述信息
      * @return module.prop 文件内容
      */
@@ -489,13 +450,14 @@ class ModuleExportHelper(private val context: Context) {
         name: String,
         author: String,
         version: String,
+        versionCode: Long,
         description: String
     ): String {
         return """
 id=${escapePropValue(id)}
 name=${escapePropValue(name)}
 version=${escapePropValue(version)}
-versionCode=1
+versionCode=$versionCode
 author=${escapePropValue(author)}
 description=${escapePropValue(description)}
         """.trimIndent()
@@ -579,11 +541,9 @@ ro.product.cpu.abilist64=$supported64BitAbis
 
     /**
      * 构建 install.sh 脚本的内容
-     * 该脚本在模块安装时执行，用于设置模块配置、显示信息等
+     * 该脚本由 update-binary 在解压模块后加载，提供 on_install() 与 set_permissions()
+     * 两个入口，并打印安装信息
      *
-     * @param brand 品牌
-     * @param manufacturer 制造商
-     * @param model 型号
      * @return install.sh 脚本内容
      */
     private fun buildInstallScript(): String {
@@ -596,39 +556,16 @@ ro.product.cpu.abilist64=$supported64BitAbis
 # ============================================
 
 ##########################################################################################
-# Configs（配置选项）
-##########################################################################################
-
-SKIPMOUNT=false          # 是否跳过挂载模块文件到系统分区
-PROPFILE=true            # 是否应用根目录 system.prop 中的系统属性
-POSTFSDATA=false         # 是否在第一阶段启动时执行 post-fs-data.sh
-LATESTARTSERVICE=false   # 是否在系统完全启动后执行 service.sh
-
-##########################################################################################
 # Installation Message（安装信息显示函数）
 ##########################################################################################
 
-# 尝试获取酷安用户名，用于个性化安装问候
-function get_coolapk_user_name(){
-    for i in /data/user/0/com.coolapk.market/shared_prefs/*preferences*.xml
-    do
-        username="${dollar}(grep '<string name="username">' "${dollar}{i}" | sed 's/.*"username">//g;s/<.*//g')"
-        if [[ -n "${dollar}{username}" ]];then
-            echo "${dollar}{username}"
-            break
-        fi
-    done
-}
-
-# 输出个性化的安装信息
-function ALING(){
+# 输出安装信息。原实现会遍历 /data/user/0/com.coolapk.market/shared_prefs 读取第三方
+# 应用的私有 SharedPreferences 提取用户名，属于以 root 身份读取他人私有数据，已移除。
+show_install_banner() {
+    device_name="${dollar}(getprop persist.sys.device_name)"
     echo ""
-    if test -n "${dollar}(getprop persist.sys.device_name)" ;then
-        echo "您好！${dollar}(getprop persist.sys.device_name)！"
-    elif test "${dollar}(get_coolapk_user_name)" != "" ;then
-        echo "您好！${dollar}(get_coolapk_user_name)！"
-    elif test -n "${dollar}(pm list users | cut -d : -f2 )" ;then
-        echo "您好！ ${dollar}(pm list users | cut -d : -f2 )！"
+    if [ -n "${dollar}device_name" ]; then
+        echo "您好！${dollar}{device_name}！"
     fi
     echo "*******************************"
     echo "    全局机型模拟模块"
@@ -639,28 +576,17 @@ function ALING(){
 }
 
 # 显示安装信息
-ALING
-
-##########################################################################################
-# Replace List（替换列表）
-##########################################################################################
-
-# 定义要替换的系统目录列表
-# 格式：每个目录一行，Magisk 会将这些目录替换为模块中的对应目录
-REPLACE="
-"
+show_install_banner
 
 ##########################################################################################
 # Permissions（权限设置）
 ##########################################################################################
 
-# 模块释放函数：解压模块包中的 system 目录到模块安装目录
+# 模块安装函数。模块文件已由 update-binary 解压到 ${dollar}MODPATH，此处只确认属性已就绪，
+# 不再二次解压整个 ZIP。
 on_install() {
-  ui_print "- 正在释放文件..."
   ui_print "- 目标设备属性已写入 system.prop"
-  unzip -o "${dollar}ZIPFILE" 'system/*' -d "${dollar}MODPATH" >&2
-  sleep 1
-  ui_print "- 文件释放完成！"
+  ui_print "- 无需额外文件操作"
 }
 
 # 设置文件和目录权限的函数
@@ -710,6 +636,19 @@ require_new_ksud() {
   exit 1
 }
 
+# 把 "KernelSU v0.9.6" 之类的版本字符串编码为可比较的数字（major*10000+minor*100+patch）。
+# 原实现直接对整串执行 [ -lt 666 ]，非纯数字输入会报 "Illegal number" 并得出错误结论。
+parse_ksud_version_code() {
+  version_text="${dollar}1"
+  major="${dollar}(echo "${dollar}version_text" | sed -n 's/.*[vV]\([0-9][0-9]*\)\..*/\1/p')"
+  minor="${dollar}(echo "${dollar}version_text" | sed -n 's/.*[vV][0-9][0-9]*\.\([0-9][0-9]*\).*/\1/p')"
+  patch="${dollar}(echo "${dollar}version_text" | sed -n 's/.*[vV][0-9][0-9]*\.[0-9][0-9]*\.\([0-9][0-9]*\).*/\1/p')"
+  [ -n "${dollar}major" ] || return 1
+  [ -n "${dollar}minor" ] || minor=0
+  [ -n "${dollar}patch" ] || patch=0
+  echo "${dollar}((major * 10000 + minor * 100 + patch))"
+}
+
 #################
 # Load util_functions
 #################
@@ -733,10 +672,12 @@ fi
 # Main
 #################
 
-# 如果是 KernelSU，检查版本是否足够新
+# 如果是 KernelSU，检查版本是否足够新。0.6.6 编码为 606；
+# 解析失败时跳过校验，避免因版本输出格式未知而阻断安装。
 if [ "${dollar}KSU" = "true" ]; then
   ksud_version="${dollar}(ksud -v 2>/dev/null)"
-  if [ -n "${dollar}ksud_version" ] && [ "${dollar}ksud_version" -lt 666 ]; then
+  ksud_version_code="${dollar}(parse_ksud_version_code "${dollar}ksud_version")"
+  if [ -n "${dollar}ksud_version_code" ] && [ "${dollar}ksud_version_code" -lt 606 ]; then
     require_new_ksud
   fi
   ui_print "- KernelSU 版本检测通过"
@@ -752,14 +693,14 @@ unzip -o "${dollar}ZIPFILE" -d "${dollar}MODPATH" >&2
 if [ -f "${dollar}MODPATH/install.sh" ]; then
   ui_print "- 正在执行安装脚本..."
   . "${dollar}MODPATH/install.sh"
-  
-  # 执行 on_install 函数（如果存在）
-  if type on_install 2>/dev/null | grep -q 'function'; then
+
+  # 用 command -v 判断函数是否存在。原实现依赖 type 的输出文案（grep 'function'），
+  # 在不同 shell 的本地化输出下不可靠。
+  if command -v on_install >/dev/null 2>&1; then
     on_install
   fi
-  
-  # 执行 set_permissions 函数（如果存在）
-  if type set_permissions 2>/dev/null | grep -q 'function'; then
+
+  if command -v set_permissions >/dev/null 2>&1; then
     set_permissions
   fi
 fi
@@ -810,7 +751,7 @@ ui_print "- 请重启设备以使模块生效"
 umask 022
 
 # 输出信息函数
-ui_print() { 
+ui_print() {
     echo "${dollar}1"
 }
 
@@ -821,6 +762,13 @@ ui_print "================================="
 # 确定模块安装路径
 if [ -z "${dollar}{MODPATH:-}" ]; then
     ui_print "! 错误: 安装环境未提供 MODPATH"
+    exit 1
+fi
+
+# ZIPFILE 由 Magisk/KernelSU 安装器提供。原实现只判断文件是否存在，不存在时整段
+# 安装逻辑被跳过却仍输出"安装完成"，属于静默空装。
+if [ -z "${dollar}{ZIPFILE:-}" ] || [ ! -f "${dollar}ZIPFILE" ]; then
+    ui_print "! 错误: 安装环境未提供模块 ZIP 路径"
     exit 1
 fi
 
@@ -837,37 +785,33 @@ else
     exit 1
 fi
 
-# 检查模块根目录是否存在 update-binary，如果存在则调用它
-if [ -f "${dollar}ZIPFILE" ]; then
-    # 临时解压模块根目录的 update-binary 并执行
-    # 创建临时目录
-    TMPDIR="${dollar}(mktemp -d)"
-    
-    # 提取模块根目录的 update-binary
-    unzip -o "${dollar}ZIPFILE" "update-binary" -d "${dollar}TMPDIR" >&2 2>/dev/null
-    
-    if [ -f "${dollar}TMPDIR/update-binary" ]; then
-        ui_print "- 正在执行主安装脚本..."
-        . "${dollar}TMPDIR/update-binary"
-    else
-        # 执行标准安装流程
-        ui_print "- 正在执行标准安装流程..."
-        
-        # 解压所有模块文件
-        unzip -o "${dollar}ZIPFILE" -d "${dollar}MODPATH" >&2
-        
-        # 如果存在 install.sh，执行权限设置
-        if [ -f "${dollar}MODPATH/install.sh" ]; then
-            . "${dollar}MODPATH/install.sh"
-            if type set_permissions 2>/dev/null | grep -q 'function'; then
-                set_permissions
-            fi
+# 优先执行模块根目录的 update-binary（本模块的实际安装脚本）。
+# 变量名不使用 TMPDIR，避免覆盖系统同名环境变量。
+MODULE_TMPDIR="${dollar}(mktemp -d)"
+if [ -z "${dollar}MODULE_TMPDIR" ]; then
+    ui_print "! 错误: 无法创建临时目录"
+    exit 1
+fi
+
+unzip -o "${dollar}ZIPFILE" "update-binary" -d "${dollar}MODULE_TMPDIR" >/dev/null 2>&1
+
+if [ -f "${dollar}MODULE_TMPDIR/update-binary" ]; then
+    ui_print "- 正在执行主安装脚本..."
+    . "${dollar}MODULE_TMPDIR/update-binary"
+else
+    # 兜底：按标准流程解压全部文件并执行 install.sh
+    ui_print "- 正在执行标准安装流程..."
+    unzip -o "${dollar}ZIPFILE" -d "${dollar}MODPATH" >&2
+
+    if [ -f "${dollar}MODPATH/install.sh" ]; then
+        . "${dollar}MODPATH/install.sh"
+        if command -v set_permissions >/dev/null 2>&1; then
+            set_permissions
         fi
     fi
-    
-    # 清理临时目录
-    rm -rf "${dollar}TMPDIR"
 fi
+
+rm -rf "${dollar}MODULE_TMPDIR"
 
 ui_print "================================="
 ui_print "- 模块安装流程完成！"
@@ -876,119 +820,63 @@ ui_print "================================="
         """.trimIndent()
     }
 
-    /**
-     * 构建 post-fs-data.sh 脚本的内容
-     * 该脚本在文件系统挂载后、系统服务启动前执行
-     * 执行时机：早期启动阶段
-     *
-     * @param manufacturer 制造商
-     * @param model 型号
-     * @return post-fs-data.sh 脚本内容
-     */
-    private fun buildPostFsDataScript(): String {
-        return """
-#!/system/bin/sh
-# ============================================
-# post-fs-data.sh
-# 执行时机：文件系统挂载后，系统服务启动前
-# Generated by DeviceInfo App
-# ============================================
-
-# 使用 resetprop 命令可以设置只读系统属性
-# resetprop 比 setprop 更强，可以修改只读属性
-
-# 示例：设置设备型号（如果需要覆盖 system.prop 中的设置）
-# The system.prop file contains the exported device properties.
-
-# 注意：
-# 1. 此脚本在系统启动早期执行，此时部分服务可能尚未启动
-# 2. 脚本执行时间应尽可能短，避免延迟系统启动
-# 3. 除非有特殊需求，否则建议使用根目录 system.prop 设置属性
-
-# 记录脚本执行日志（调试用）
-# echo "post-fs-data.sh executed at \$(date)" >> /data/local/tmp/module_debug.log
-        """.trimIndent()
-    }
-
-    /**
-     * 构建 service.sh 脚本的内容
-     * 该脚本在系统完全启动后以后台服务方式运行
-     * 执行时机：系统启动完成后（后期启动阶段）
-     *
-     * @return service.sh 脚本内容
-     */
-    private fun buildServiceScript(): String {
-        val dollar = '$'
-        return """
-#!/system/bin/sh
-# ============================================
-# service.sh
-# 执行时机：系统完全启动后（后台服务）
-# Generated by DeviceInfo App
-# ============================================
-
-# 等待系统完全启动完成
-# sys.boot_completed=1 表示系统已完全启动
-until [ "${dollar}(getprop sys.boot_completed)" = "1" ]; do
-    sleep 1
-done
-
-# 系统启动完成后再等待几秒，确保所有服务都已就绪
-sleep 3
-
-# 在此处添加需要在系统启动后执行的任务
-# 例如：
-# - 设置额外的系统属性
-# - 启动后台进程
-# - 修改文件权限等
-
-# 示例：记录模块已加载
-# echo "Device simulation module loaded at \$(date)" >> /data/local/tmp/module.log
-
-# 返回 0 表示脚本执行成功
-exit 0
-        """.trimIndent()
-    }
-
     private fun writeZipArchive(root: File, outputStream: OutputStream) {
-        // 单次目录遍历：边写 ZIP 边收集条目名，避免先 collectZipEntryNames 再
-        // zipDirectory 的两次 listFiles 全量扫描。
-        val entryNames = mutableListOf<String>()
+        // 先只收集条目名并校验，再写入目标流。原实现是边写边收集、写完后才校验：
+        // 校验失败时通过 SAF 选中的文件已经写入了完整字节，无法回滚。
+        // 收集名称只做 listFiles 遍历、不读取文件内容，代价可忽略。
+        val entryNames = collectZipEntryNames(root)
+        validateZipEntries(entryNames)
+
         ZipOutputStream(outputStream).use { zipOut ->
-            zipDirectory(root, "", zipOut, entryNames)
+            zipDirectory(root, "", zipOut)
             zipOut.finish()
         }
-        validateZipEntries(entryNames)
     }
 
     /**
-     * 递归地将目录及其所有子文件和子文件夹添加到 ZIP 输出流中，同时把条目名收集到
-     * [entryNames]（单次遍历）。每个条目写入前都会校验名称安全。
+     * 递归收集 ZIP 条目名（目录条目以 "/" 结尾），用于写入前的结构校验。
+     *
+     * @param dir 要收集的目录
+     * @param parentPath ZIP 中的父路径
+     */
+    private fun collectZipEntryNames(dir: File, parentPath: String = ""): List<String> {
+        val children = dir.listFiles()?.sortedBy(File::getName)
+            ?: throw IOException(context.getString(R.string.error_read_export_dir))
+        return buildList {
+            children.forEach { file ->
+                val entryPath = if (parentPath.isEmpty()) file.name else "$parentPath/${file.name}"
+                require(isSafeZipEntryName(entryPath)) { "ZIP entry 名称不安全" }
+                if (file.isDirectory) {
+                    add("$entryPath/")
+                    addAll(collectZipEntryNames(file, entryPath))
+                } else {
+                    add(entryPath)
+                }
+            }
+        }
+    }
+
+    /**
+     * 递归地将目录及其所有子文件和子文件夹写入 ZIP 输出流。每个条目写入前都会再次
+     * 校验名称安全，避免调用方绕过 [collectZipEntryNames] 的预校验。
      *
      * ZIP 文件结构示例：
      * module.zip
-     * ├── META-INF/
-     * │   └── com/
-     * │       └── google/
-     * │           └── android/
-     * │               ├── update-binary
-     * │               └── updater-script
-     * ├── common/
-     * │   ├── system.prop
-     * │   ├── post-fs-data.sh
-     * │   └── service.sh
+     * ├── META-INF/com/google/android/
+     * │   ├── update-binary
+     * │   └── updater-script
      * ├── system/
      * │   └── placeholder
      * ├── module.prop
+     * ├── system.prop
      * ├── install.sh
      * └── update-binary
      *
      * @param dir 要打包的目录
      * @param parentPath ZIP 中的父路径
      * @param zipOut ZIP 输出流
-     * @param entryNames 收集到的 ZIP 条目名（用于事后校验必要文件）
      */
-    private fun zipDirectory(dir: File, parentPath: String, zipOut: ZipOutputStream, entryNames: MutableList<String>) {
+    private fun zipDirectory(dir: File, parentPath: String, zipOut: ZipOutputStream) {
         val children = dir.listFiles()?.sortedBy(File::getName)
             ?: throw IOException(context.getString(R.string.error_read_export_dir))
         children.forEach { file ->
@@ -999,14 +887,12 @@ exit 0
 
             if (file.isDirectory) {
                 // 如果是目录，在 ZIP 中添加目录条目（以 / 结尾）
-                entryNames.add("$entryPath/")
                 zipOut.putNextEntry(ZipEntry("$entryPath/"))
                 zipOut.closeEntry()
                 // 递归处理子目录
-                zipDirectory(file, entryPath, zipOut, entryNames)
+                zipDirectory(file, entryPath, zipOut)
             } else {
                 // 如果是文件，添加到 ZIP 中
-                entryNames.add(entryPath)
                 zipOut.putNextEntry(ZipEntry(entryPath))
                 file.inputStream().use { input ->
                     input.copyTo(zipOut)  // 将文件内容复制到 ZIP 流
