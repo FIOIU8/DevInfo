@@ -16,16 +16,10 @@
  */
 
 package com.fioiu8.devinfo.feature.main
-import com.fioiu8.devinfo.ui.DevInfoNavigationBar
-import com.fioiu8.devinfo.ui.DevInfoLoadingIndicator
-import com.fioiu8.devinfo.ui.MarkdownText
-import com.fioiu8.devinfo.ui.TestVersionWarningCard
 
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -50,16 +44,12 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AlertDialogDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -67,30 +57,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import com.fioiu8.devinfo.core.model.UiStyle
 import com.fioiu8.devinfo.data.GitHubClient
 import com.fioiu8.devinfo.feature.main.R
-import com.fioiu8.devinfo.ui.InfoRow
 import com.fioiu8.devinfo.ui.theme.LocalUiStyle
-import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowDialog
 
 /**
- * 导出确认对话框 — 展示导出摘要（格式、路径、文件名）。
+ * 导出确认对话框 — 展示导出摘要与风险提示，并延迟几秒才允许确认。
  *
  * @param show 是否显示
  * @param onConfirm 确认导出回调
@@ -154,37 +140,28 @@ fun ExportConfirmDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        InfoRow(
-                            label = stringResource(R.string.export_format_label),
-                            value = stringResource(R.string.export_format_value)
-                        )
-                        InfoRow(
-                            label = stringResource(R.string.export_save_location),
-                            value = stringResource(R.string.export_save_location_pending),
-                        )
-                        InfoRow(
-                            label = stringResource(R.string.export_filename),
-                            value = fileName
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.export_filename) + ": " + fileName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = stringResource(R.string.export_confirm),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
+                )
+                // 倒计时放在正文里、按钮文案保持恒定：否则按钮宽度会随「确认导出 (3) → 确认导出」
+                // 变化而跳动。这行始终占位（结束后只剩空白），避免结束后弹窗高度突变。
+                Text(
+                    text = if (countdown > 0) {
+                        stringResource(R.string.export_countdown_hint, countdown)
+                    } else {
+                        " "
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },
@@ -198,13 +175,7 @@ fun ExportConfirmDialog(
                 onClick = onConfirm,
                 enabled = countdown == 0
             ) {
-                Text(
-                    if (countdown > 0) {
-                        stringResource(R.string.confirm_export_countdown, countdown)
-                    } else {
-                        stringResource(R.string.confirm_export)
-                    }
-                )
+                Text(stringResource(R.string.confirm_export))
             }
         }
     )
@@ -480,7 +451,8 @@ fun UpdateAvailableDialog(
                     )
                     if (info.body.isNotBlank()) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        // 可滚动的 Markdown 渲染区域
+                        // 可滚动的发布说明区域。与 Miuix 分支一致，按纯文本渲染：
+                        // release notes 里的 Markdown 标记不值得引入一个解析器。
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -492,7 +464,11 @@ fun UpdateAvailableDialog(
                                 )
                                 .padding(12.dp)
                         ) {
-                            MarkdownText(markdown = info.body)
+                            Text(
+                                text = info.body,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
 
@@ -609,6 +585,12 @@ fun DownloadConfirmDialog(
     )
 }
 
+/**
+ * Miuix 两键弹窗（取消 + 确定）。
+ *
+ * 确定键用主要按钮样式：[MiuixTextButton] 的默认颜色是**次要**样式
+ * （`ButtonDefaults.textButtonColors()`），主次都走默认就会两个按钮同色、看不出哪个是主操作。
+ */
 @Composable
 fun MiuixActionDialog(
     title: String,
@@ -622,18 +604,18 @@ fun MiuixActionDialog(
         show = true,
         title = title,
         onDismissRequest = onDismiss,
+        largeScreen = true,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             if (message.isNotBlank()) {
                 MiuixText(text = message)
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                MiuixTextButton(text = dismissLabel, onClick = onDismiss)
-                MiuixTextButton(text = confirmLabel, onClick = onConfirm)
-            }
+            MiuixDialogActions(
+                listOf(
+                    MiuixDialogAction(label = dismissLabel, onClick = onDismiss),
+                    MiuixDialogAction(label = confirmLabel, onClick = onConfirm, isPrimary = true),
+                ),
+            )
         }
     }
 }
@@ -649,8 +631,11 @@ private fun MiuixExportConfirmDialog(
         show = true,
         title = stringResource(R.string.export_title),
         onDismissRequest = onDismiss,
+        // 居中的「缩放/淡入」形态。默认（largeScreen = null）在手机上判定为底部滑入形态，
+        // 弹窗贴着屏幕下半并随内容长高，视觉上很重；Miuix 的 largeScreen 就是这两个形态的开关。
+        largeScreen = true,
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             MiuixText(
                 text = stringResource(R.string.export_confirm_text),
                 style = MiuixTheme.textStyles.body2,
@@ -660,77 +645,105 @@ private fun MiuixExportConfirmDialog(
                 color = MiuixTheme.colorScheme.error,
                 style = MiuixTheme.textStyles.body2,
             )
-            MiuixCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    MiuixExportSummaryRow(
-                        label = stringResource(R.string.export_format_label),
-                        value = stringResource(R.string.export_format_value),
-                    )
-                    HorizontalDivider(
-                        color = MiuixTheme.colorScheme.onSurfaceSecondary.copy(alpha = 0.2f),
-                    )
-                    MiuixExportSummaryRow(
-                        label = stringResource(R.string.export_save_location),
-                        value = stringResource(R.string.export_save_location_pending),
-                    )
-                    HorizontalDivider(
-                        color = MiuixTheme.colorScheme.onSurfaceSecondary.copy(alpha = 0.2f),
-                    )
-                    MiuixExportSummaryRow(
-                        label = stringResource(R.string.export_filename),
-                        value = fileName,
-                    )
-                }
-            }
+            // 原来这里是一张「格式 / 保存位置 / 文件名」三行表；压成一行文件名即可，
+            // 格式由「导出模块」本身表达，保存位置在下一步的系统选择器里选。
+            MiuixText(
+                text = stringResource(R.string.export_filename) + ": " + fileName,
+                color = MiuixTheme.colorScheme.onSurfaceSecondary,
+                style = MiuixTheme.textStyles.footnote1,
+            )
             MiuixText(
                 text = stringResource(R.string.export_confirm),
                 style = MiuixTheme.textStyles.body2,
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
-            ) {
-                MiuixTextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = onDismiss,
-                )
-                MiuixTextButton(
-                    text = if (countdown > 0) {
-                        stringResource(R.string.confirm_export_countdown, countdown)
-                    } else {
-                        stringResource(R.string.confirm_export)
-                    },
-                    onClick = onConfirm,
-                    enabled = countdown == 0,
-                )
+            // 两个动作横向平分宽度（主要动作在右），宽度由容器决定，倒计时文案变化
+            // （确认导出 (3) → 确认导出）不会改变按钮尺寸。
+            MiuixDialogActions(
+                listOf(
+                    MiuixDialogAction(label = stringResource(R.string.cancel), onClick = onDismiss),
+                    MiuixDialogAction(
+                        label = if (countdown > 0) {
+                            stringResource(R.string.confirm_export_countdown, countdown)
+                        } else {
+                            stringResource(R.string.confirm_export)
+                        },
+                        onClick = onConfirm,
+                        isPrimary = true,
+                        enabled = countdown == 0,
+                    ),
+                ),
+            )
+        }
+    }
+}
+
+/** 弹窗动作区里的一个动作。 */
+@Immutable
+data class MiuixDialogAction(
+    val label: String,
+    val onClick: () -> Unit,
+    /** 主要动作：用主题强调色填充。每个弹窗只应有一个，且在横排时位于右侧。 */
+    val isPrimary: Boolean = false,
+    val enabled: Boolean = true,
+)
+
+/**
+ * Miuix 弹窗的动作区。
+ *
+ * 排布按动作数量决定：
+ * - 1 个：满宽；
+ * - 2 个：横向**平分**宽度，主要动作在右（次要动作在左）；
+ * - 3 个及以上：竖排（横排会把长文案挤成两三行）。
+ *
+ * 宽度一律由容器决定（`weight` / `fillMaxWidth`），**不用**内容宽度，因此按钮文案变化
+ * （例如倒计时「确认导出 (3)」→「确认导出」）不会让按钮尺寸跟着变。
+ */
+@Composable
+fun MiuixDialogActions(actions: List<MiuixDialogAction>) {
+    when {
+        actions.isEmpty() -> Unit
+
+        actions.size == 1 -> MiuixDialogActionButton(
+            action = actions.first(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        actions.size == 2 -> Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            actions.forEach { action ->
+                MiuixDialogActionButton(action = action, modifier = Modifier.weight(1f))
+            }
+        }
+
+        else -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            actions.forEach { action ->
+                MiuixDialogActionButton(action = action, modifier = Modifier.fillMaxWidth())
             }
         }
     }
 }
 
 @Composable
-private fun MiuixExportSummaryRow(
-    label: String,
-    value: String,
+private fun MiuixDialogActionButton(
+    action: MiuixDialogAction,
+    modifier: Modifier,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        MiuixText(
-            text = label,
-            style = MiuixTheme.textStyles.body2,
-            modifier = Modifier.weight(1f),
+    if (action.isPrimary) {
+        MiuixTextButton(
+            text = action.label,
+            onClick = action.onClick,
+            enabled = action.enabled,
+            colors = ButtonDefaults.textButtonColorsPrimary(),
+            modifier = modifier,
         )
-        Spacer(modifier = Modifier.width(12.dp))
-        MiuixText(
-            text = value,
-            color = MiuixTheme.colorScheme.onSurfaceSecondary,
-            style = MiuixTheme.textStyles.body2,
-            modifier = Modifier.weight(1f),
+    } else {
+        MiuixTextButton(
+            text = action.label,
+            onClick = action.onClick,
+            enabled = action.enabled,
+            modifier = modifier,
         )
     }
 }
@@ -746,51 +759,48 @@ private fun MiuixExportSuccessDialog(
         show = true,
         title = stringResource(R.string.export_success),
         onDismissRequest = onDismiss,
+        largeScreen = true,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             MiuixText(text = stringResource(R.string.export_saved_to))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                MiuixTextButton(
-                    text = stringResource(R.string.open),
-                    enabled = fileUri != null,
-                    onClick = {
-                        fileUri?.let { uri ->
-                            val intent = Intent(Intent.ACTION_VIEW).apply {
-                                setDataAndType(uri, "application/zip")
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // 三个动作 → 竖排（见 MiuixDialogActions）
+            MiuixDialogActions(
+                listOf(
+                    MiuixDialogAction(
+                        label = stringResource(R.string.open),
+                        enabled = fileUri != null,
+                        onClick = {
+                            fileUri?.let { uri ->
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(uri, "application/zip")
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                // 无 zip 查看器的设备会抛 ActivityNotFoundException
+                                runCatching { context.startActivity(intent) }
                             }
-                            // 无 zip 查看器的设备会抛 ActivityNotFoundException
-                            runCatching { context.startActivity(intent) }
-                        }
-                    },
-                )
-                MiuixTextButton(
-                    text = stringResource(R.string.share),
-                    enabled = fileUri != null,
-                    onClick = {
-                        fileUri?.let { uri ->
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "application/zip"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        },
+                    ),
+                    MiuixDialogAction(
+                        label = stringResource(R.string.share),
+                        enabled = fileUri != null,
+                        onClick = {
+                            fileUri?.let { uri ->
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "application/zip"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                runCatching { context.startActivity(Intent.createChooser(intent, null)) }
                             }
-                            runCatching { context.startActivity(Intent.createChooser(intent, null)) }
-                        }
-                    },
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                MiuixTextButton(
-                    text = stringResource(R.string.confirm),
-                    onClick = onDismiss,
-                )
-            }
+                        },
+                    ),
+                    MiuixDialogAction(
+                        label = stringResource(R.string.confirm),
+                        onClick = onDismiss,
+                        isPrimary = true,
+                    ),
+                ),
+            )
         }
     }
 }
