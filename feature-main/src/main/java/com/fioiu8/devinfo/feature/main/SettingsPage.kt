@@ -18,7 +18,6 @@
 package com.fioiu8.devinfo.feature.main
 import com.fioiu8.devinfo.ui.DevInfoExpressiveSwitch
 import com.fioiu8.devinfo.ui.DevInfoSegmentedDropdownItem
-import com.fioiu8.devinfo.ui.rememberDevInfoMessageHandler
 import com.fioiu8.devinfo.ui.CategoryHeader
 import com.fioiu8.devinfo.feature.main.R
 
@@ -44,6 +43,7 @@ import androidx.compose.material.icons.outlined.Info
 
 import androidx.compose.material.icons.outlined.Palette
 
+import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.Translate
@@ -74,7 +74,6 @@ import com.fioiu8.devinfo.core.model.UiStyle
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
-import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
@@ -91,6 +90,7 @@ fun SettingsPage(
     onThemeSettingsClick: () -> Unit,
     onExportClick: () -> Unit,
     onAboutClick: () -> Unit,
+    onRootHelpClick: () -> Unit,
     checkUpdate: Boolean,
     onCheckUpdateChange: (Boolean) -> Unit,
     appLanguage: AppLanguage = AppLanguage.SYSTEM,
@@ -108,6 +108,7 @@ fun SettingsPage(
             onThemeSettingsClick = onThemeSettingsClick,
             onExportClick = onExportClick,
             onAboutClick = onAboutClick,
+            onRootHelpClick = onRootHelpClick,
             checkUpdate = checkUpdate,
             onCheckUpdateChange = onCheckUpdateChange,
             appLanguage = appLanguage,
@@ -125,6 +126,7 @@ fun SettingsPage(
             onThemeSettingsClick = onThemeSettingsClick,
             onExportClick = onExportClick,
             onAboutClick = onAboutClick,
+            onRootHelpClick = onRootHelpClick,
             checkUpdate = checkUpdate,
             onCheckUpdateChange = onCheckUpdateChange,
             appLanguage = appLanguage,
@@ -145,6 +147,7 @@ private fun MaterialSettingsPage(
     onThemeSettingsClick: () -> Unit,
     onExportClick: () -> Unit,
     onAboutClick: () -> Unit,
+    onRootHelpClick: () -> Unit,
     checkUpdate: Boolean,
     onCheckUpdateChange: (Boolean) -> Unit,
     appLanguage: AppLanguage,
@@ -319,6 +322,14 @@ private fun MaterialSettingsPage(
                 onClick = onExportClick,
             )
         }
+        item {
+            MaterialPreferenceAction(
+                icon = Icons.Outlined.Security,
+                title = stringResource(R.string.root_help_title),
+                summary = stringResource(R.string.root_help_settings_summary),
+                onClick = onRootHelpClick,
+            )
+        }
 
         item {
             Spacer(Modifier.height(8.dp))
@@ -369,6 +380,7 @@ private fun MiuixSettingsPage(
     onThemeSettingsClick: () -> Unit,
     onExportClick: () -> Unit,
     onAboutClick: () -> Unit,
+    onRootHelpClick: () -> Unit,
     checkUpdate: Boolean,
     onCheckUpdateChange: (Boolean) -> Unit,
     appLanguage: AppLanguage,
@@ -391,6 +403,7 @@ private fun MiuixSettingsPage(
             show = true,
             title = stringResource(R.string.custom_locale_title),
             onDismissRequest = { showCustomLocaleDialog = false },
+            largeScreen = true,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 MiuixText(
@@ -419,26 +432,27 @@ private fun MiuixSettingsPage(
                         color = MiuixTheme.colorScheme.error,
                     )
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    MiuixTextButton(
-                        text = stringResource(R.string.cancel),
-                        onClick = { showCustomLocaleDialog = false },
-                    )
-                    MiuixTextButton(
-                        text = stringResource(R.string.custom_locale_apply),
-                        onClick = {
-                            if (PreferenceValidators.isValidLocaleTag(customLocaleInput)) {
-                                onCustomLocaleTagChange(customLocaleInput.trim())
-                                showCustomLocaleDialog = false
-                            } else {
-                                customLocaleError = true
-                            }
-                        },
-                    )
-                }
+                // 两个动作横向平分宽度，主要动作在右（见 MiuixDialogActions）
+                MiuixDialogActions(
+                    listOf(
+                        MiuixDialogAction(
+                            label = stringResource(R.string.cancel),
+                            onClick = { showCustomLocaleDialog = false },
+                        ),
+                        MiuixDialogAction(
+                            label = stringResource(R.string.custom_locale_apply),
+                            isPrimary = true,
+                            onClick = {
+                                if (PreferenceValidators.isValidLocaleTag(customLocaleInput)) {
+                                    onCustomLocaleTagChange(customLocaleInput.trim())
+                                    showCustomLocaleDialog = false
+                                } else {
+                                    customLocaleError = true
+                                }
+                            },
+                        ),
+                    ),
+                )
             }
         }
     }
@@ -540,6 +554,8 @@ private fun MiuixSettingsPage(
 
         item { MiuixCategoryHeader(stringResource(R.string.category_tools)) }
         item {
+            // 同一分类放进同一张 Card（与「外观」区、以及 Miuix 文档里的分组写法一致）：
+            // 每个条目各起一张卡会让同一分类看起来像两个互不相干的组。
             MiuixCard(modifier = Modifier.fillMaxWidth()) {
                 ArrowPreference(
                     title = stringResource(R.string.export_tool),
@@ -548,6 +564,19 @@ private fun MiuixSettingsPage(
                     startAction = {
                         MiuixIcon(
                             imageVector = Icons.Outlined.FileDownload,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 6.dp),
+                            tint = MiuixTheme.colorScheme.onBackground,
+                        )
+                    },
+                )
+                ArrowPreference(
+                    title = stringResource(R.string.root_help_title),
+                    summary = stringResource(R.string.root_help_settings_summary),
+                    onClick = onRootHelpClick,
+                    startAction = {
+                        MiuixIcon(
+                            imageVector = Icons.Outlined.Security,
                             contentDescription = null,
                             modifier = Modifier.padding(end = 6.dp),
                             tint = MiuixTheme.colorScheme.onBackground,

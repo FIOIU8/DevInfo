@@ -41,6 +41,21 @@ class MainNavigatorTest {
     }
 
     @Test
+    fun `root help pushes once, keeps the settings tab and pops back`() {
+        val navigator = navigator()
+
+        navigator.openRootHelp()
+        navigator.openRootHelp()
+
+        assertEquals(MainRoute.RootHelp, navigator.currentRoute)
+        assertEquals(2, navigator.backStack.size)
+        assertEquals(SETTINGS_TAB_INDEX, navigator.selectedTabIndex)
+        assertTrue(navigator.pop())
+        assertFalse(navigator.pop())
+        assertEquals(MainRoute.Settings, navigator.currentRoute)
+    }
+
+    @Test
     fun `repeated details clicks replace instead of duplicating`() {
         val navigator = navigator()
 
@@ -79,6 +94,16 @@ class MainNavigatorTest {
         val restored = json.decodeFromString(MainRoute.serializer(), encoded)
 
         assertEquals(route, restored)
+    }
+
+    @Test
+    fun `root help route round trips through serialization`() {
+        val json = Json
+
+        val encoded = json.encodeToString(MainRoute.serializer(), MainRoute.RootHelp)
+        val restored = json.decodeFromString(MainRoute.serializer(), encoded)
+
+        assertEquals(MainRoute.RootHelp, restored)
     }
 
     private fun navigator(): MainNavigator {

@@ -17,15 +17,10 @@
 
 package com.fioiu8.devinfo.feature.main
 import com.fioiu8.devinfo.ui.DevInfoFeedbackScope
-import com.fioiu8.devinfo.core.model.CpuUsageSample
 import com.fioiu8.devinfo.feature.main.R
-import com.fioiu8.devinfo.ui.DevInfoExpressiveSwitch
-import com.fioiu8.devinfo.ui.DevInfoLoadingIndicator
 import com.fioiu8.devinfo.ui.DevInfoNavigationBar
 import com.fioiu8.devinfo.ui.DevInfoNavigationItem
-import com.fioiu8.devinfo.ui.DevInfoSegmentedDropdownItem
 import com.fioiu8.devinfo.ui.DevInfoSnackbarHost
-import com.fioiu8.devinfo.ui.MarkdownText
 import com.fioiu8.devinfo.ui.TestVersionWarningCard
 import com.fioiu8.devinfo.ui.rememberDevInfoMessageHandler
 
@@ -123,8 +118,8 @@ import com.fioiu8.devinfo.feature.main.BuildConfig
 import com.fioiu8.devinfo.data.GitHubClient
 import com.fioiu8.devinfo.data.ModuleExportHelper
 import com.fioiu8.devinfo.core.model.UpdateState
+import com.fioiu8.devinfo.core.root.RootAccess
 import com.fioiu8.devinfo.data.AppLanguage
-import com.fioiu8.devinfo.core.model.InfoCategory
 import com.fioiu8.devinfo.core.model.PaletteStyle
 import com.fioiu8.devinfo.core.model.ThemeColor
 import com.fioiu8.devinfo.core.model.ThemeMode
@@ -132,13 +127,15 @@ import com.fioiu8.devinfo.core.model.UiStyle
 import com.fioiu8.devinfo.ui.BlurredBar
 import com.fioiu8.devinfo.ui.rememberBlurBackdrop
 import com.fioiu8.devinfo.feature.main.screen.about.AboutScreen
+import com.fioiu8.devinfo.feature.main.screen.roothelp.RootHelpScreen
 import com.fioiu8.devinfo.ui.kit.FloatingBottomBar
 import com.fioiu8.devinfo.ui.kit.FloatingBottomBarItem
 import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import com.fioiu8.devinfo.ui.theme.isInDarkTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.FloatingActionButton as MiuixFloatingActionButton
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
@@ -147,7 +144,6 @@ import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHostState as MiuixSnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
-import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
@@ -167,7 +163,6 @@ internal val LocalFloatingNavigationContentPadding = staticCompositionLocalOf { 
 
 /** App-owned settings and callbacks required by the main UI. */
 data class MainScreenSettings(
-    val deviceId: String,
     val themeMode: ThemeMode,
     val onThemeModeChange: (ThemeMode) -> Unit,
     val themeColor: ThemeColor,
@@ -225,6 +220,13 @@ fun MainScreen(
     var showDownloadConfirmDialog by rememberSaveable { mutableStateOf(false) }
     var showRootRequiredDialog by rememberSaveable { mutableStateOf(false) }
 
+    // Root 授权的瞬态状态：它们只对「本次请求」有意义，进程或配置重建后重新发起比恢复更真实，
+    // 因此用 remember 而不是 rememberSaveable（重建会取消请求，弹窗随之消失）。
+    var rootRequestJob by remember { mutableStateOf<Job?>(null) }
+    var rootRequestInFlight by remember { mutableStateOf(false) }
+    var showRootLoadingDialog by remember { mutableStateOf(false) }
+    var rootFailure by remember { mutableStateOf<RootAccess?>(null) }
+
     val configuration = LocalConfiguration.current
     val useNavigationRail = configuration.screenWidthDp >= TABLET_NAVIGATION_RAIL_MIN_WIDTH_DP
     val navigationRailStartInsets =
@@ -262,10 +264,8 @@ fun MainScreen(
                 }
                 outputStream.use { stream ->
                     exportHelper.exportModuleToStream(
-                        deviceId = settings.deviceId,
                         itemsState = uiState.deviceInfoItems,
                         outputStream = stream,
-                        policy = com.fioiu8.devinfo.core.model.ModuleExportPolicy.MINIMAL,
                         onSuccess = {
                             scope.launch {
                                 exportedFileUri = uri
@@ -332,22 +332,6 @@ fun MainScreen(
         }
     }
 
-    fun onRootFabClick(
-        rootEnabledMsg: String,
-        rootFailedMsg: String,
-    ) {
-        if (uiState.isRootModeEnabled) return
-        scope.launch {
-            val hasRoot = withContext(Dispatchers.IO) { viewModel.checkRootAvailable() }
-            if (!hasRoot) {
-                showRootRequiredDialog = true
-                return@launch
-            }
-            val success = withContext(Dispatchers.IO) { viewModel.enableRootMode() }
-            showMessage(if (success) rootEnabledMsg else rootFailedMsg)
-        }
-    }
-
     val navInfoLabel = stringResource(R.string.nav_info)
     val navSettingsLabel = stringResource(R.string.nav_settings)
     val navigationItems = remember(navInfoLabel, navSettingsLabel) {
@@ -367,7 +351,43 @@ fun MainScreen(
 
     val selectedIndex = navigator.selectedTabIndex
     val rootEnabledMsg = stringResource(R.string.root_mode_enabled)
-    val rootFailedMsg = stringResource(R.string.root_mode_failed)
+
+    // Root 授权流程：FAB 只负责「先告知」，真正的请求由 startRootRequest 发起。
+    // 失败弹窗的「重试」也直接走 startRootRequest，因此不会重复展示风险告知——用户在本轮流程里
+    // 已经确认过一次。次序决策见交接文档 §4 #1（选「先告知再申请」）。
+    fun startRootRequest() {
+        if (rootRequestInFlight) return
+        rootFailure = null
+        rootRequestJob?.cancel()
+        rootRequestJob = scope.launch {
+            rootRequestInFlight = true
+            try {
+                val access = viewModel.requestRootMode()
+                if (access == RootAccess.Granted) {
+                    showMessage(rootEnabledMsg)
+                } else {
+                    rootFailure = access
+                }
+            } finally {
+                rootRequestInFlight = false
+            }
+        }
+    }
+
+    fun onRootFabClick() {
+        if (uiState.isRootModeEnabled) return
+        showRootRequiredDialog = true
+    }
+
+    // 延迟显示加载弹窗：快路径（最坏 291 ms）不该闪一个又立刻消失的弹窗，依据见常量 KDoc。
+    LaunchedEffect(rootRequestInFlight) {
+        if (!rootRequestInFlight) {
+            showRootLoadingDialog = false
+            return@LaunchedEffect
+        }
+        delay(ROOT_LOADING_DIALOG_DELAY_MS)
+        showRootLoadingDialog = true
+    }
 
     DevInfoFeedbackScope(
         materialHostState = materialSnackbarHostState,
@@ -402,9 +422,7 @@ fun MainScreen(
                         floatingNavigationContentPadding = floatingNavigationContentPadding,
                         rootFabBottomPadding = snackbarBottomPadding,
                         onExportClick = { showExportDialog = true },
-                        onRootFabClick = {
-                            onRootFabClick(rootEnabledMsg, rootFailedMsg)
-                        },
+                        onRootFabClick = { onRootFabClick() },
                         enablePredictiveBack = settings.enablePredictiveBack,
                     )
                 }
@@ -441,17 +459,36 @@ fun MainScreen(
         }
     )
 
+    // 风险告知只负责「同意后才发起请求」：实际请求交给 startRootRequest。
     RootRequiredDialog(
         show = showRootRequiredDialog,
         onDismiss = { showRootRequiredDialog = false },
         onConfirm = {
             showRootRequiredDialog = false
-            scope.launch {
-                val success = withContext(Dispatchers.IO) { viewModel.enableRootMode() }
-                showMessage(if (success) rootEnabledMsg else rootFailedMsg)
-            }
+            startRootRequest()
         }
     )
+
+    // 加载弹窗与失败弹窗互斥：请求仍在进行时只可能是加载弹窗，结束后才轮到失败弹窗。
+    RootRequestLoadingDialog(
+        show = showRootLoadingDialog && rootRequestInFlight,
+        onCancel = { rootRequestJob?.cancel() },
+    )
+
+    // 取消请求不是失败：协程被取消后 rootFailure 从未被赋值，所以这里不会弹失败弹窗。
+    rootFailure?.let { failure ->
+        if (!rootRequestInFlight) {
+            RootRequestFailureDialog(
+                access = failure,
+                onRetry = { startRootRequest() },
+                onOpenHelp = {
+                    rootFailure = null
+                    navigator.openRootHelp()
+                },
+                onDismiss = { rootFailure = null },
+            )
+        }
+    }
 
     // 下载二次确认：用户必须在弹出对话框中再次点击"确认下载"才会跳转浏览器。
     // 这样设计是为了避免单次点击立即触发离开应用的行为（用户的实际意图可能是查看 release notes）。
@@ -512,6 +549,24 @@ private fun MainNavigationHost(
         UiStyle.MIUIX -> MiuixTheme.colorScheme.background
     }
 
+    // 所有路由入口渲染的是同一个内容函数，只有路由不同。此前把这一串参数在每个
+    // entry 里各抄一遍，任何一处漏改都会让某个页面拿到过期的状态。
+    val routeContent: @Composable (MainRoute) -> Unit = { route ->
+        MainRouteContent(
+            route = route,
+            navigator = navigator,
+            viewModel = viewModel,
+            uiState = uiState,
+            settings = settings,
+            items = items,
+            showBottomBar = showBottomBar,
+            floatingNavigationContentPadding = floatingNavigationContentPadding,
+            rootFabBottomPadding = rootFabBottomPadding,
+            onExportClick = onExportClick,
+            onRootFabClick = onRootFabClick,
+        )
+    }
+
     if (enablePredictiveBack) {
         NavDisplay(
             navController = navController,
@@ -525,79 +580,22 @@ private fun MainNavigationHost(
             ),
         ) {
             entry<MainRoute.Overview>(swipeDismiss = NavSwipeDirection.None) {
-                MainRouteContent(
-                    route = MainRoute.Overview,
-                    navigator = navigator,
-                    viewModel = viewModel,
-                    uiState = uiState,
-                    settings = settings,
-                    items = items,
-                    showBottomBar = showBottomBar,
-                    floatingNavigationContentPadding = floatingNavigationContentPadding,
-                    rootFabBottomPadding = rootFabBottomPadding,
-                    onExportClick = onExportClick,
-                    onRootFabClick = onRootFabClick,
-                )
+                routeContent(MainRoute.Overview)
             }
             entry<MainRoute.Settings>(swipeDismiss = NavSwipeDirection.None) {
-                MainRouteContent(
-                    route = MainRoute.Settings,
-                    navigator = navigator,
-                    viewModel = viewModel,
-                    uiState = uiState,
-                    settings = settings,
-                    items = items,
-                    showBottomBar = showBottomBar,
-                    floatingNavigationContentPadding = floatingNavigationContentPadding,
-                    rootFabBottomPadding = rootFabBottomPadding,
-                    onExportClick = onExportClick,
-                    onRootFabClick = onRootFabClick,
-                )
+                routeContent(MainRoute.Settings)
             }
             entry<MainRoute.Details>(swipeDismiss = NavSwipeDirection.None) { route ->
-                MainRouteContent(
-                    route = route,
-                    navigator = navigator,
-                    viewModel = viewModel,
-                    uiState = uiState,
-                    settings = settings,
-                    items = items,
-                    showBottomBar = showBottomBar,
-                    floatingNavigationContentPadding = floatingNavigationContentPadding,
-                    rootFabBottomPadding = rootFabBottomPadding,
-                    onExportClick = onExportClick,
-                    onRootFabClick = onRootFabClick,
-                )
+                routeContent(route)
             }
             entry<MainRoute.ThemeSettings>(swipeDismiss = NavSwipeDirection.None) {
-                MainRouteContent(
-                    route = MainRoute.ThemeSettings,
-                    navigator = navigator,
-                    viewModel = viewModel,
-                    uiState = uiState,
-                    settings = settings,
-                    items = items,
-                    showBottomBar = showBottomBar,
-                    floatingNavigationContentPadding = floatingNavigationContentPadding,
-                    rootFabBottomPadding = rootFabBottomPadding,
-                    onExportClick = onExportClick,
-                    onRootFabClick = onRootFabClick,
-                )
+                routeContent(MainRoute.ThemeSettings)
             }
             entry<MainRoute.About>(swipeDismiss = NavSwipeDirection.None) {
-                MainRouteContent(
-                    route = MainRoute.About,
-                    navigator = navigator,
-                    viewModel = viewModel,
-                    uiState = uiState,
-                    settings = settings,
-                    items = items,
-                    showBottomBar = showBottomBar,
-                    floatingNavigationContentPadding = floatingNavigationContentPadding,
-                    rootFabBottomPadding = rootFabBottomPadding,
-                    onExportClick = onExportClick,
-                    onRootFabClick = onRootFabClick,
-                )
+                routeContent(MainRoute.About)
+            }
+            entry<MainRoute.RootHelp>(swipeDismiss = NavSwipeDirection.None) {
+                routeContent(MainRoute.RootHelp)
             }
         }
     } else {
@@ -613,19 +611,7 @@ private fun MainNavigationHost(
                 label = "mainNavigationTransition",
             ) { route ->
                 stateHolder.SaveableStateProvider(route) {
-                    MainRouteContent(
-                        route = route,
-                        navigator = navigator,
-                        viewModel = viewModel,
-                        uiState = uiState,
-                        settings = settings,
-                        items = items,
-                        showBottomBar = showBottomBar,
-                        floatingNavigationContentPadding = floatingNavigationContentPadding,
-                        rootFabBottomPadding = rootFabBottomPadding,
-                        onExportClick = onExportClick,
-                        onRootFabClick = onRootFabClick,
-                    )
+                    routeContent(route)
                 }
             }
         }
@@ -704,6 +690,7 @@ private fun MainRouteContent(
                     onThemeSettingsClick = navigator::openThemeSettings,
                     onExportClick = onExportClick,
                     onAboutClick = navigator::openAbout,
+                    onRootHelpClick = navigator::openRootHelp,
                     appLanguage = settings.appLanguage,
                     checkUpdate = settings.checkUpdate,
                     onCheckUpdateChange = settings.onCheckUpdateChange,
@@ -735,7 +722,6 @@ private fun MainRouteContent(
             onItemSelected = navigator::selectTab,
         ) {
             DeviceInfoPage(
-                deviceId = settings.deviceId,
                 itemsState = uiState.deviceInfoItems,
                 isLoading = uiState.isDeviceInfoLoading,
                 overviewSnapshot = uiState.overviewSnapshot,
@@ -769,6 +755,10 @@ private fun MainRouteContent(
 
         MainRoute.About -> AboutScreen(
             versionName = viewModel.appVersionName,
+            onBack = { navigator.pop() },
+        )
+
+        MainRoute.RootHelp -> RootHelpScreen(
             onBack = { navigator.pop() },
         )
     }
@@ -1410,19 +1400,25 @@ private fun RootRequiredDialog(
             show = show,
             title = stringResource(R.string.root_required_title),
             onDismissRequest = onDismiss,
+            // 居中形态（默认在手机上会走底部滑入，长文时贴住下半屏）
+            largeScreen = true,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 MiuixText(text = stringResource(R.string.root_required_message))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
-                ) {
-                    MiuixTextButton(text = stringResource(R.string.cancel), onClick = onDismiss)
-                    MiuixTextButton(
-                        text = stringResource(R.string.root_fab_confirm),
-                        onClick = onConfirm,
-                    )
-                }
+                // 两个动作横向平分宽度，主要动作在右（见 MiuixDialogActions）
+                MiuixDialogActions(
+                    listOf(
+                        MiuixDialogAction(
+                            label = stringResource(R.string.cancel),
+                            onClick = onDismiss,
+                        ),
+                        MiuixDialogAction(
+                            label = stringResource(R.string.root_fab_confirm),
+                            onClick = onConfirm,
+                            isPrimary = true,
+                        ),
+                    ),
+                )
             }
         }
         return
