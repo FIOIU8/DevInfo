@@ -11,11 +11,6 @@ package com.fioiu8.devinfo.data
 
 import java.util.Locale
 
-internal inline fun <reified T : Enum<T>> enumValueOrDefault(
-    storedValue: String?,
-    defaultValue: T,
-): T = storedValue?.let { value -> enumValues<T>().firstOrNull { it.name == value } } ?: defaultValue
-
 object PreferenceValidators {
 
     const val MIN_PAGE_SCALE = 0.8f

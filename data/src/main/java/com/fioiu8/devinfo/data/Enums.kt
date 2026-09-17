@@ -19,8 +19,6 @@ package com.fioiu8.devinfo.data
 
 import com.fioiu8.devinfo.data.R
 
-// InfoCategory, ThemeMode, ThemeColor moved to com.fioiu8.devinfo.core.model
-
 /**
  * App language selection mode.
  *

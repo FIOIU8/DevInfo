@@ -123,16 +123,3 @@ data class ItemWithVisibility(
     val item: DeviceInfoItem,
     val visible: Boolean = false
 )
-
-/**
- * Controls which optional fields can be included in an exported module.
- */
-data class ModuleExportPolicy(
-    val includeDeviceIdentifier: Boolean = false,
-    val includeBuildFingerprint: Boolean = false,
-    val includeSecurityPatch: Boolean = false,
-) {
-    companion object {
-        val MINIMAL = ModuleExportPolicy()
-    }
-}

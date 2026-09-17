@@ -58,44 +58,6 @@ class ModuleExportHelperTest {
         assertEquals("SM-S9080", ModuleExportHelper.escapePropValue("SM-S9080"))
     }
 
-    // ── escapeShellValue ─────────────────────────────────────────────
-
-    @Test
-    fun `escapeShellValue should escape single quotes`() {
-        // "it's" -> "it'\''s"
-        assertEquals("it'\\''s", ModuleExportHelper.escapeShellValue("it's"))
-    }
-
-    @Test
-    fun `escapeShellValue should escape dollar sign`() {
-        assertEquals("price is 5 dollars", ModuleExportHelper.escapeShellValue("price is 5 dollars"))
-    }
-
-    @Test
-    fun `escapeShellValue should escape backticks`() {
-        assertEquals("\\`ls\\`", ModuleExportHelper.escapeShellValue("`ls`"))
-    }
-
-    @Test
-    fun `escapeShellValue should replace newlines with spaces`() {
-        assertEquals("a b", ModuleExportHelper.escapeShellValue("a\nb"))
-    }
-
-    @Test
-    fun `escapeShellValue should remove carriage returns`() {
-        assertEquals("a b", ModuleExportHelper.escapeShellValue("a\rb"))
-    }
-
-    @Test
-    fun `escapeShellValue should handle empty string`() {
-        assertEquals("", ModuleExportHelper.escapeShellValue(""))
-    }
-
-    @Test
-    fun `quoteShellValue should create a safe single quoted literal`() {
-        assertEquals("'a'\\''b c'", ModuleExportHelper.quoteShellValue("a'b\nc"))
-    }
-
     // ── sanitizeFileName ─────────────────────────────────────────────
 
     @Test
@@ -156,8 +118,6 @@ class ModuleExportHelperTest {
         val entries = listOf(
             "module.prop",
             "system.prop",
-            "META-INF/com/google/android/update-binary",
-            "META-INF/com/google/android/updater-script",
             "system/"
         )
 
@@ -169,8 +129,7 @@ class ModuleExportHelperTest {
         ModuleExportHelper.validateZipEntries(
             listOf(
                 "module.prop",
-                "system.prop",
-                "META-INF/com/google/android/update-binary"
+                "system/"
             )
         )
     }
@@ -182,8 +141,7 @@ class ModuleExportHelperTest {
             listOf(
                 "module.prop",
                 "system.prop",
-                "META-INF/com/google/android/update-binary",
-                "META-INF/com/google/android/updater-script"
+                "system/placeholder"
             ).forEach { name ->
                 zip.putNextEntry(ZipEntry(name))
                 zip.closeEntry()

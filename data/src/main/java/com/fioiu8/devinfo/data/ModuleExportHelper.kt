@@ -23,7 +23,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import com.fioiu8.devinfo.core.model.ItemWithVisibility
-import com.fioiu8.devinfo.core.model.ModuleExportPolicy
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
@@ -43,30 +42,24 @@ import kotlinx.coroutines.withContext
  *
  * DevInfo_<机型>.zip                          # 模块压缩包
  * │
- * ├── META-INF/                               # Magisk/KernelSU 必需的签名和脚本目录
- * │   └── com/
- * │       └── google/
- * │           └── android/
- * │               ├── update-binary           # 刷机脚本（实际执行逻辑）
- * │               └── updater-script          # 刷机脚本描述（指向 update-binary）
- * │
  * ├── system/                                 # 系统文件替换目录
  * │   └── placeholder                         # 说明文件，提示可放置需要替换的系统文件
  * │
  * ├── module.prop                             # 模块信息配置文件（必需）
- * ├── system.prop                             # 系统属性配置文件（由 Magisk/KernelSU 自动加载）
- * ├── install.sh                              # 模块安装时的执行脚本
- * └── update-binary                           # 备用 update-binary（根目录版本）
+ * └── system.prop                             # 系统属性配置文件（由 Magisk/KernelSU 自动加载）
  *
- * Magisk/KernelSU 模块工作原理：
- * 1. 用户通过 Magisk/KernelSU 刷入 ZIP 包
- * 2. 系统首先执行 META-INF/com/google/android/update-binary
- * 3. update-binary 加载 Magisk/KernelSU 工具函数，解压 ZIP 到 /data/adb/modules/[module_id]/
- * 4. 执行 install.sh 中的安装与权限设置函数
- * 5. 重启后 Magisk/KernelSU 加载根目录 system.prop，写入 ro.product.* 等系统属性
+ * 刻意不产出任何安装脚本（既无 META-INF/com/google/android/update-binary，也无 install.sh）：
+ * 本模块只需要 module.prop 与 system.prop，Magisk 与 KernelSU 的内置安装器
+ * （KernelSU 为 ksud module install）已经能完整处理这种模块。
  *
- * 模块只在启动时通过 system.prop 生效，不注册 post-fs-data.sh / service.sh 等启动
- * 阶段脚本，也不引入任何后台进程。
+ * 此前的实现内嵌了三份 shell 脚本，环境探测依赖 /data/adb/ksu/util_functions.sh。
+ * KernelSU 3.x 已不再提供该文件，模块因此在 KernelSU 上必然报「未检测到 Magisk 或
+ * KernelSU」并零解压退出，功能完全不可用（已在 KernelSU 3.2.5 实机复现）。改为不产出
+ * 安装脚本后，安装交由各 root 方案自身的安装器，不再依赖特定版本的文件布局。
+ *
+ * 重启后 Magisk/KernelSU 加载模块根目录的 system.prop，写入 ro.product.* 等系统属性。
+ * 模块只在启动时生效，不注册 post-fs-data.sh / service.sh 等启动阶段脚本，
+ * 也不引入任何后台进程。
  */
 class ModuleExportHelper(private val context: Context) {
     private val locale: Locale = context.resources.configuration.locales[0]
@@ -78,19 +71,16 @@ class ModuleExportHelper(private val context: Context) {
      * 注意：内部的 ZipOutputStream 会关闭传入的 [outputStream]，因此调用方在
      * 本方法返回后不应继续写入该流（重复关闭是安全的，但不要依赖它仍可写）。
      *
-     * @param deviceId 设备唯一标识符
      * @param itemsState 设备信息项列表
      * @param outputStream 目标输出流（由 SAF ContentResolver 提供）
      * @param onSuccess 成功回调
      * @param onError 失败回调，返回错误信息
      */
     suspend fun exportModuleToStream(
-        deviceId: String,
         itemsState: List<ItemWithVisibility>,
         outputStream: OutputStream,
         onSuccess: () -> Unit,
         onError: (String) -> Unit,
-        policy: ModuleExportPolicy = ModuleExportPolicy.MINIMAL
     ) {
         withContext(Dispatchers.IO) {
             var directories: ModuleDirectories? = null
@@ -99,7 +89,7 @@ class ModuleExportHelper(private val context: Context) {
                 val metadata = createModuleMetadata(itemsState, buildInfo)
                 directories = createModuleDirectories()
 
-                writeModuleFiles(directories, metadata, buildInfo, deviceId, policy)
+                writeModuleFiles(directories, metadata, buildInfo)
                 writeZipArchive(directories.root, outputStream)
                 onSuccess()
             } catch (error: CancellationException) {
@@ -118,10 +108,8 @@ class ModuleExportHelper(private val context: Context) {
         val brand: String,
         val device: String,
         val product: String,
-        val fingerprint: String,
         val versionRelease: String,
-        val versionSdk: String,
-        val securityPatch: String
+        val versionSdk: String
     )
 
     private data class ModuleMetadata(
@@ -140,7 +128,6 @@ class ModuleExportHelper(private val context: Context) {
 
     private data class ModuleDirectories(
         val root: File,
-        val metaInf: File,
         val system: File
     )
 
@@ -150,10 +137,8 @@ class ModuleExportHelper(private val context: Context) {
         brand = Build.BRAND,
         device = Build.DEVICE,
         product = Build.PRODUCT,
-        fingerprint = Build.FINGERPRINT,
         versionRelease = Build.VERSION.RELEASE,
-        versionSdk = Build.VERSION.SDK_INT.toString(),
-        securityPatch = Build.VERSION.SECURITY_PATCH.orEmpty()
+        versionSdk = Build.VERSION.SDK_INT.toString()
     )
 
     private fun createModuleMetadata(
@@ -201,9 +186,8 @@ class ModuleExportHelper(private val context: Context) {
             "module-export-"
         ).toFile()
         try {
-            val metaInf = File(root, "META-INF/com/google/android").also(::createDirectory)
             val system = File(root, "system").also(::createDirectory)
-            return ModuleDirectories(root, metaInf, system)
+            return ModuleDirectories(root, system)
         } catch (e: Exception) {
             root.deleteRecursively()
             throw e
@@ -219,21 +203,9 @@ class ModuleExportHelper(private val context: Context) {
     private fun writeModuleFiles(
         directories: ModuleDirectories,
         metadata: ModuleMetadata,
-        buildInfo: DeviceBuildInfo,
-        deviceId: String,
-        policy: ModuleExportPolicy
+        buildInfo: DeviceBuildInfo
     ) {
-        writeModuleProp(directories.root, metadata)
-        writeSystemProp(directories.root, buildInfo, deviceId, policy)
-        writeInstallScript(directories.root)
-        writeRootUpdateBinary(directories.root)
-        writeUpdaterScript(directories.metaInf)
-        writeMetaUpdateBinary(directories.metaInf)
-        writeSystemPlaceholder(directories.system)
-    }
-
-    private fun writeModuleProp(directory: File, metadata: ModuleMetadata) {
-        File(directory, "module.prop").writeText(
+        File(directories.root, "module.prop").writeText(
             buildModuleProp(
                 id = metadata.id,
                 name = metadata.name,
@@ -243,52 +215,18 @@ class ModuleExportHelper(private val context: Context) {
                 description = metadata.description
             )
         )
-    }
-
-    private fun writeSystemProp(
-        directory: File,
-        buildInfo: DeviceBuildInfo,
-        deviceId: String,
-        policy: ModuleExportPolicy
-    ) {
-        File(directory, "system.prop").writeText(
+        File(directories.root, "system.prop").writeText(
             buildSystemProp(
                 brand = buildInfo.brand,
                 manufacturer = buildInfo.manufacturer,
                 model = buildInfo.model,
                 device = buildInfo.device,
                 product = buildInfo.product,
-                fingerprint = buildInfo.fingerprint,
                 versionRelease = buildInfo.versionRelease,
-                versionSdk = buildInfo.versionSdk,
-                securityPatch = buildInfo.securityPatch,
-                deviceId = deviceId,
-                policy = policy
+                versionSdk = buildInfo.versionSdk
             )
         )
-    }
-
-    private fun writeInstallScript(directory: File) {
-        File(directory, "install.sh").writeText(buildInstallScript())
-    }
-
-    private fun writeRootUpdateBinary(directory: File) {
-        File(directory, "update-binary").writeText(buildUpdateBinary())
-    }
-
-    private fun writeUpdaterScript(directory: File) {
-        File(directory, "updater-script").writeText(buildUpdaterScript())
-    }
-
-    private fun writeMetaUpdateBinary(directory: File) {
-        File(directory, "update-binary").writeText(buildMetaUpdateBinary())
-    }
-
-    private fun writeSystemPlaceholder(directory: File) {
-        File(directory, "placeholder").writeText(
-            "# 此目录用于存放需要替换的系统文件\n" +
-                "# 例如：将文件放在 system/build.prop 会替换 /system/build.prop"
-        )
+        File(directories.system, "placeholder").writeText(SYSTEM_PLACEHOLDER)
     }
 
     /**
@@ -309,6 +247,11 @@ class ModuleExportHelper(private val context: Context) {
     companion object {
         private const val FALLBACK_FILE_NAME = "module-export"
 
+        /** system/ 目录的占位说明，提示该目录用于替换系统文件。 */
+        private const val SYSTEM_PLACEHOLDER =
+            "# 此目录用于存放需要替换的系统文件\n" +
+                "# 例如：将文件放在 system/build.prop 会替换 /system/build.prop"
+
         /** 读取应用版本失败时写入 module.prop 的兜底版本信息。 */
         private const val FALLBACK_MODULE_VERSION = "1.0.0"
         private const val FALLBACK_MODULE_VERSION_CODE = 1L
@@ -318,9 +261,7 @@ class ModuleExportHelper(private val context: Context) {
         private val WINDOWS_DRIVE_REGEX = Regex("^[A-Za-z]:.*")
         private val REQUIRED_ZIP_ENTRIES = setOf(
             "module.prop",
-            "system.prop",
-            "META-INF/com/google/android/update-binary",
-            "META-INF/com/google/android/updater-script"
+            "system.prop"
         )
 
         /**
@@ -340,43 +281,6 @@ class ModuleExportHelper(private val context: Context) {
                     }
                 }
             }
-        }
-
-        /**
-         * 转义 shell 字符串值。
-         */
-        internal fun escapeShellValue(value: String): String {
-            return buildString(value.length) {
-                value.forEach { character ->
-                    when (character) {
-                        '\\' -> append("\\\\")
-                        '\'' -> append("'\\''")
-                        '\$' -> append("\\$")
-                        '`' -> append("\\`")
-                        '"' -> append("\\\"")
-                        '\n', '\r', '\t' -> append(' ')
-                        in '\u0000'..'\u001F', '\u007F' -> append(' ')
-                        else -> append(character)
-                    }
-                }
-            }
-        }
-
-        /**
-         * Returns a complete single-quoted shell literal for callers that must
-         * place a dynamic value in a script.
-         */
-        internal fun quoteShellValue(value: String): String {
-            val normalized = buildString(value.length) {
-                value.forEach { character ->
-                    when (character) {
-                        '\n', '\r', '\t' -> append(' ')
-                        in '\u0000'..'\u001F', '\u007F' -> append(' ')
-                        else -> append(character)
-                    }
-                }
-            }
-            return "'${normalized.replace("'", "'\\''")}'"
         }
 
         /**
@@ -472,10 +376,8 @@ description=${escapePropValue(description)}
      * @param model 型号
      * @param device 设备代号
      * @param product 产品名称
-     * @param fingerprint 构建指纹
      * @param versionRelease Android 版本
      * @param versionSdk SDK 版本
-     * @param securityPatch 安全补丁日期
      * @return system.prop 文件内容
      */
     private fun buildSystemProp(
@@ -484,24 +386,9 @@ description=${escapePropValue(description)}
         model: String,
         device: String,
         product: String,
-        fingerprint: String,
         versionRelease: String,
-        versionSdk: String,
-        securityPatch: String,
-        deviceId: String,
-        policy: ModuleExportPolicy
+        versionSdk: String
     ): String {
-        val optionalProperties = buildString {
-            if (policy.includeBuildFingerprint) {
-                append("ro.build.fingerprint=${escapePropValue(fingerprint)}\n")
-            }
-            if (policy.includeSecurityPatch) {
-                append("ro.build.version.security_patch=${escapePropValue(securityPatch)}\n")
-            }
-            if (policy.includeDeviceIdentifier) {
-                append("devinfo.device_id=${escapePropValue(deviceId)}\n")
-            }
-        }.trimEnd()
         val supportedAbis = Build.SUPPORTED_ABIS.joinToString(",") { escapePropValue(it) }
         val supported32BitAbis = Build.SUPPORTED_32_BIT_ABIS.joinToString(",") { escapePropValue(it) }
         val supported64BitAbis = Build.SUPPORTED_64_BIT_ABIS.joinToString(",") { escapePropValue(it) }
@@ -522,9 +409,6 @@ ro.product.model=${escapePropValue(model)}
 ro.product.device=${escapePropValue(device)}
 ro.product.name=${escapePropValue(product)}
 
-# Build Fingerprint（构建指纹）
-$optionalProperties
-
 # Version Info（版本信息）
 ro.build.version.release=${escapePropValue(versionRelease)}
 ro.build.version.sdk=${escapePropValue(versionSdk)}
@@ -536,287 +420,6 @@ ro.product.cpu.abi=${escapePropValue(Build.SUPPORTED_ABIS.firstOrNull().orEmpty(
 ro.product.cpu.abilist=$supportedAbis
 ro.product.cpu.abilist32=$supported32BitAbis
 ro.product.cpu.abilist64=$supported64BitAbis
-        """.trimIndent()
-    }
-
-    /**
-     * 构建 install.sh 脚本的内容
-     * 该脚本由 update-binary 在解压模块后加载，提供 on_install() 与 set_permissions()
-     * 两个入口，并打印安装信息
-     *
-     * @return install.sh 脚本内容
-     */
-    private fun buildInstallScript(): String {
-        val dollar = '$'
-        return """
-#!/system/bin/sh
-# ============================================
-# Magisk/KernelSU Module Install Script
-# Generated by DeviceInfo App
-# ============================================
-
-##########################################################################################
-# Installation Message（安装信息显示函数）
-##########################################################################################
-
-# 输出安装信息。原实现会遍历 /data/user/0/com.coolapk.market/shared_prefs 读取第三方
-# 应用的私有 SharedPreferences 提取用户名，属于以 root 身份读取他人私有数据，已移除。
-show_install_banner() {
-    device_name="${dollar}(getprop persist.sys.device_name)"
-    echo ""
-    if [ -n "${dollar}device_name" ]; then
-        echo "您好！${dollar}{device_name}！"
-    fi
-    echo "*******************************"
-    echo "    全局机型模拟模块"
-    echo "    设备属性来源: system.prop"
-    echo "*******************************"
-    echo "  注意: 刷入后请重启设备以生效！"
-    echo "*******************************"
-}
-
-# 显示安装信息
-show_install_banner
-
-##########################################################################################
-# Permissions（权限设置）
-##########################################################################################
-
-# 模块安装函数。模块文件已由 update-binary 解压到 ${dollar}MODPATH，此处只确认属性已就绪，
-# 不再二次解压整个 ZIP。
-on_install() {
-  ui_print "- 目标设备属性已写入 system.prop"
-  ui_print "- 无需额外文件操作"
-}
-
-# 设置文件和目录权限的函数
-set_permissions() {
-  # 递归设置模块目录的权限：所有者 root，组 root，目录 755，文件 644
-  set_perm_recursive ${dollar}MODPATH 0 0 0755 0644
-  
-  # 示例：为特定可执行文件设置执行权限
-  # set_perm ${dollar}MODPATH/system/bin/some_binary 0 0 0755
-}
-        """.trimIndent()
-    }
-
-    /**
-     * 构建 update-binary 文件的内容（根目录版本）
-     * 这是一个安装脚本，负责模块的安装流程
-     *
-     * @return update-binary 脚本内容
-     */
-    private fun buildUpdateBinary(): String {
-        val dollar = '$'
-        return """
-#!/sbin/sh
-
-# ============================================
-# Update Binary Script
-# Generated by DeviceInfo App
-# ============================================
-
-#################
-# Initialization
-#################
-
-umask 022  # 设置默认文件权限掩码
-
-# 定义用于输出信息给用户的函数
-ui_print() { 
-    echo "${dollar}1"
-}
-
-# 检查 KernelSU 版本是否满足要求
-require_new_ksud() {
-  ui_print "*******************************"
-  ui_print " 错误: 需要 KernelSU v0.6.6+！"
-  ui_print " 请升级您的 KernelSU 版本"
-  ui_print "*******************************"
-  exit 1
-}
-
-# 把 "KernelSU v0.9.6" 之类的版本字符串编码为可比较的数字（major*10000+minor*100+patch）。
-# 原实现直接对整串执行 [ -lt 666 ]，非纯数字输入会报 "Illegal number" 并得出错误结论。
-parse_ksud_version_code() {
-  version_text="${dollar}1"
-  major="${dollar}(echo "${dollar}version_text" | sed -n 's/.*[vV]\([0-9][0-9]*\)\..*/\1/p')"
-  minor="${dollar}(echo "${dollar}version_text" | sed -n 's/.*[vV][0-9][0-9]*\.\([0-9][0-9]*\).*/\1/p')"
-  patch="${dollar}(echo "${dollar}version_text" | sed -n 's/.*[vV][0-9][0-9]*\.[0-9][0-9]*\.\([0-9][0-9]*\).*/\1/p')"
-  [ -n "${dollar}major" ] || return 1
-  [ -n "${dollar}minor" ] || minor=0
-  [ -n "${dollar}patch" ] || patch=0
-  echo "${dollar}((major * 10000 + minor * 100 + patch))"
-}
-
-#################
-# Load util_functions
-#################
-
-# 加载 Magisk 或 KernelSU 的工具函数库
-if [ -f /data/adb/ksu/util_functions.sh ]; then
-  # KernelSU 环境
-  . /data/adb/ksu/util_functions.sh
-  KSU=true
-elif [ -f /data/adb/magisk/util_functions.sh ]; then
-  # Magisk 环境
-  . /data/adb/magisk/util_functions.sh
-  KSU=false
-else
-  ui_print "! 错误: 找不到 Magisk/KernelSU 工具函数库"
-  ui_print "! 请确保您已安装 Magisk 或 KernelSU"
-  exit 1
-fi
-
-#################
-# Main
-#################
-
-# 如果是 KernelSU，检查版本是否足够新。0.6.6 编码为 606；
-# 解析失败时跳过校验，避免因版本输出格式未知而阻断安装。
-if [ "${dollar}KSU" = "true" ]; then
-  ksud_version="${dollar}(ksud -v 2>/dev/null)"
-  ksud_version_code="${dollar}(parse_ksud_version_code "${dollar}ksud_version")"
-  if [ -n "${dollar}ksud_version_code" ] && [ "${dollar}ksud_version_code" -lt 606 ]; then
-    require_new_ksud
-  fi
-  ui_print "- KernelSU 版本检测通过"
-else
-  ui_print "- Magisk 环境检测通过"
-fi
-
-# 解压模块文件到目标路径
-ui_print "- 正在解压模块文件..."
-unzip -o "${dollar}ZIPFILE" -d "${dollar}MODPATH" >&2
-
-# 如果存在 install.sh，则加载并执行其中的配置和权限设置函数
-if [ -f "${dollar}MODPATH/install.sh" ]; then
-  ui_print "- 正在执行安装脚本..."
-  . "${dollar}MODPATH/install.sh"
-
-  # 用 command -v 判断函数是否存在。原实现依赖 type 的输出文案（grep 'function'），
-  # 在不同 shell 的本地化输出下不可靠。
-  if command -v on_install >/dev/null 2>&1; then
-    on_install
-  fi
-
-  if command -v set_permissions >/dev/null 2>&1; then
-    set_permissions
-  fi
-fi
-
-ui_print "- 模块安装完成！"
-ui_print "- 请重启设备以使模块生效"
-        """.trimIndent()
-    }
-
-    /**
-     * 构建 updater-script 文件的内容（META-INF 目录）
-     * 这是刷机脚本的描述文件，通常只是注释
-     *
-     * @return updater-script 文件内容
-     */
-    private fun buildUpdaterScript(): String {
-        return """
-#MAGISK
-# ============================================
-# Magisk/KernelSU Module Updater Script
-# Generated by DeviceInfo App
-# ============================================
-# 
-# 此文件为兼容性文件，实际安装逻辑由 update-binary 处理
-# Magisk/KernelSU 会自动执行同目录下的 update-binary
-#
-# ============================================
-        """.trimIndent()
-    }
-
-    /**
-     * 构建 META-INF 目录中的 update-binary
-     * 这是 Magisk/KernelSU 首先执行的主脚本
-     *
-     * @return update-binary 脚本内容
-     */
-    private fun buildMetaUpdateBinary(): String {
-        val dollar = '$'
-        return """
-#!/sbin/sh
-
-# ============================================
-# META-INF Update Binary
-# Magisk/KernelSU Module Entry Point
-# Generated by DeviceInfo App
-# ============================================
-
-umask 022
-
-# 输出信息函数
-ui_print() {
-    echo "${dollar}1"
-}
-
-ui_print "================================="
-ui_print "    DeviceInfo 机型模拟模块"
-ui_print "================================="
-
-# 确定模块安装路径
-if [ -z "${dollar}{MODPATH:-}" ]; then
-    ui_print "! 错误: 安装环境未提供 MODPATH"
-    exit 1
-fi
-
-# ZIPFILE 由 Magisk/KernelSU 安装器提供。原实现只判断文件是否存在，不存在时整段
-# 安装逻辑被跳过却仍输出"安装完成"，属于静默空装。
-if [ -z "${dollar}{ZIPFILE:-}" ] || [ ! -f "${dollar}ZIPFILE" ]; then
-    ui_print "! 错误: 安装环境未提供模块 ZIP 路径"
-    exit 1
-fi
-
-# 检查并加载工具函数
-if [ -f /data/adb/ksu/util_functions.sh ]; then
-    ui_print "- 检测到 KernelSU 环境"
-    . /data/adb/ksu/util_functions.sh
-elif [ -f /data/adb/magisk/util_functions.sh ]; then
-    ui_print "- 检测到 Magisk 环境"
-    . /data/adb/magisk/util_functions.sh
-else
-    ui_print "! 错误: 未检测到 Magisk 或 KernelSU"
-    ui_print "! 请确保您的设备已正确安装 Magisk/KernelSU"
-    exit 1
-fi
-
-# 优先执行模块根目录的 update-binary（本模块的实际安装脚本）。
-# 变量名不使用 TMPDIR，避免覆盖系统同名环境变量。
-MODULE_TMPDIR="${dollar}(mktemp -d)"
-if [ -z "${dollar}MODULE_TMPDIR" ]; then
-    ui_print "! 错误: 无法创建临时目录"
-    exit 1
-fi
-
-unzip -o "${dollar}ZIPFILE" "update-binary" -d "${dollar}MODULE_TMPDIR" >/dev/null 2>&1
-
-if [ -f "${dollar}MODULE_TMPDIR/update-binary" ]; then
-    ui_print "- 正在执行主安装脚本..."
-    . "${dollar}MODULE_TMPDIR/update-binary"
-else
-    # 兜底：按标准流程解压全部文件并执行 install.sh
-    ui_print "- 正在执行标准安装流程..."
-    unzip -o "${dollar}ZIPFILE" -d "${dollar}MODPATH" >&2
-
-    if [ -f "${dollar}MODPATH/install.sh" ]; then
-        . "${dollar}MODPATH/install.sh"
-        if command -v set_permissions >/dev/null 2>&1; then
-            set_permissions
-        fi
-    fi
-fi
-
-rm -rf "${dollar}MODULE_TMPDIR"
-
-ui_print "================================="
-ui_print "- 模块安装流程完成！"
-ui_print "- 请重启设备以使修改生效"
-ui_print "================================="
         """.trimIndent()
     }
 
@@ -862,15 +465,10 @@ ui_print "================================="
      *
      * ZIP 文件结构示例：
      * module.zip
-     * ├── META-INF/com/google/android/
-     * │   ├── update-binary
-     * │   └── updater-script
      * ├── system/
      * │   └── placeholder
      * ├── module.prop
-     * ├── system.prop
-     * ├── install.sh
-     * └── update-binary
+     * └── system.prop
      *
      * @param dir 要打包的目录
      * @param parentPath ZIP 中的父路径

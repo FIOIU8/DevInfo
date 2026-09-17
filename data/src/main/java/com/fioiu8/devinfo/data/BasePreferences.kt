@@ -42,18 +42,23 @@ abstract class BasePreferences<T : CharSequence>(
     private val registeredListeners =
         mutableListOf<SharedPreferences.OnSharedPreferenceChangeListener>()
 
+    /**
+     * 枚举偏好。[defaultValue] 的声明类即取值域，因此调用方不必再传一遍 entries
+     * ——传错时 deserialize 会静默退回默认值。
+     */
     protected fun <V : Enum<V>> enumPreference(
         key: T,
         defaultValue: V,
-        values: Iterable<V>,
-    ): PersistentValue<V> =
-        persistentValue(
+    ): PersistentValue<V> {
+        val values = defaultValue.declaringJavaClass.enumConstants
+        return persistentValue(
             key = key,
             deserialize = { storedValue ->
                 values.firstOrNull { it.name == storedValue } ?: defaultValue
             },
             serialize = { it.name },
         )
+    }
 
     protected fun stringPreference(
         key: T,

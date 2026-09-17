@@ -31,7 +31,6 @@ class LanguagePreferences(context: Context) : BasePreferences<String>(context, P
         enumPreference(
             key = KEY_APP_LANGUAGE,
             defaultValue = AppLanguage.SYSTEM,
-            values = AppLanguage.entries,
         )
 
     private val customLocaleTagPreference =
@@ -54,10 +53,6 @@ class LanguagePreferences(context: Context) : BasePreferences<String>(context, P
         customLocaleTagPreference.set(normalizedTag)
         return true
     }
-
-    fun getAppLanguageSnapshot(): AppLanguage = appLanguagePreference.snapshot
-
-    fun getCustomLocaleTagSnapshot(): String = customLocaleTagPreference.snapshot
 
     fun getEffectiveLocaleTag(): String? {
         val lang = appLanguagePreference.snapshot

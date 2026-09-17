@@ -1,25 +1,12 @@
 package com.fioiu8.devinfo.data
 
 import com.fioiu8.devinfo.data.PreferenceValidators
-import com.fioiu8.devinfo.data.enumValueOrDefault
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PreferenceValidatorsTest {
-
-    private enum class Mode {
-        DEFAULT,
-        ACTIVE,
-    }
-
-    @Test
-    fun `unknown enum values use the default`() {
-        assertEquals(Mode.DEFAULT, enumValueOrDefault(null, Mode.DEFAULT))
-        assertEquals(Mode.DEFAULT, enumValueOrDefault("missing", Mode.DEFAULT))
-        assertEquals(Mode.ACTIVE, enumValueOrDefault("ACTIVE", Mode.DEFAULT))
-    }
 
     @Test
     fun `page scale rejects non finite and out of range values`() {
