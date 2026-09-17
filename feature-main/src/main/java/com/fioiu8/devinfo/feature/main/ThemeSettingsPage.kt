@@ -19,7 +19,6 @@ package com.fioiu8.devinfo.feature.main
 import com.fioiu8.devinfo.feature.main.R
 import com.fioiu8.devinfo.ui.DevInfoExpressiveSwitch
 import com.fioiu8.devinfo.ui.DevInfoSegmentedDropdownItem
-import com.fioiu8.devinfo.ui.rememberDevInfoMessageHandler
 import com.fioiu8.devinfo.ui.displayNameResId
 
 import androidx.compose.animation.AnimatedVisibility
@@ -60,8 +59,6 @@ import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.Card as MaterialCard
 import androidx.compose.material3.CardDefaults as MaterialCardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon as MaterialIcon
 import androidx.compose.material3.IconButton as MaterialIconButton
@@ -77,9 +74,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
