@@ -11,12 +11,10 @@ android {
 
     defaultConfig {
         minSdk = 33
-        // IS_OFFICIAL / BUILD_TYPE_NAME 的最终值由 buildTypes 覆盖，
-        // 逻辑必须与 app/build.gradle.kts 保持同步（读取相同的环境变量），
-        // 否则更新检查会依据过期的硬编码值提前返回。
-        buildConfigField("boolean", "IS_OFFICIAL", "false")
+        // VERSION_NAME 只在 defaultConfig 声明（两个 buildType 都不覆盖它）。
+        // 必须与 app/build.gradle.kts 读取同一个环境变量，否则更新检查会依据
+        // 过期的硬编码版本号提前返回。
         buildConfigField("String", "VERSION_NAME", "\"${System.getenv("VERSION_NAME") ?: "1.0.0"}\"")
-        buildConfigField("String", "BUILD_TYPE_NAME", "\"debug\"")
     }
 
     buildTypes {
