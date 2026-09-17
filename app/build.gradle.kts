@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ktlint)
-    id("com.github.ben-manes.versions") version "0.52.0"
 }
 
 val signatureType = System.getenv("SIGNATURE_TYPE")
@@ -73,9 +72,6 @@ android {
         versionName = configuredVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        buildConfigField("boolean", "IS_OFFICIAL", "false")
-        buildConfigField("String", "BUILD_TYPE_NAME", "\"dev\"")
 
         // D1: 仅保留主流 ABI，减少 APK 体积
         ndk {
