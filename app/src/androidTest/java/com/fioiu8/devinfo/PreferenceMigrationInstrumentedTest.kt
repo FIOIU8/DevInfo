@@ -5,6 +5,7 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.fioiu8.devinfo.data.DataStorePreferenceRepository
+import com.fioiu8.devinfo.data.PreferenceValue
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -51,7 +52,9 @@ class PreferenceMigrationInstrumentedTest {
             assertEquals("https://example.com/release-1", rollbackPreferences.getString("release_url", null))
             assertEquals("https://example.com/release-1.apk", rollbackPreferences.getString("release_download_url", null))
 
-            assertTrue(repository.writeLong("last_check_time", 84L))
+            assertTrue(
+                repository.writeBatch(mapOf("last_check_time" to PreferenceValue.LongValue(84L)))
+            )
             assertEquals(84L, rollbackPreferences.getLong("last_check_time", 0L))
 
             context.deleteSharedPreferences(preferenceName)

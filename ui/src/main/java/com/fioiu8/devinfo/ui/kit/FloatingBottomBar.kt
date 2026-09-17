@@ -64,6 +64,7 @@ import com.fioiu8.devinfo.ui.kit.liquid.rememberCombinedBackdrop
 import com.fioiu8.devinfo.ui.kit.liquid.vibrancy
 import com.fioiu8.devinfo.ui.theme.isInDarkTheme
 import top.yukonga.miuix.kmp.blur.Backdrop
+import top.yukonga.miuix.kmp.blur.BackdropEffectScope
 import top.yukonga.miuix.kmp.blur.blur
 import top.yukonga.miuix.kmp.blur.drawBackdrop
 import top.yukonga.miuix.kmp.blur.highlight.BloomStroke
@@ -143,6 +144,20 @@ private fun rememberGravityRotatedHighlight(
     return remember(base, rotatedPrimary) {
         base.copy(style = baseStyle.copy(primaryLight = rotatedPrimary))
     }
+}
+
+/**
+ * 悬浮栏面板与标签层共用的玻璃底：增艳 + 轻微模糊 + 24dp 边缘折射。
+ *
+ * 这两层必须使用同一组参数，否则面板与图标层会出现可见的折射错位，因此只保留一份定义。
+ */
+private fun BackdropEffectScope.glassSurface() {
+    vibrancy()
+    blur(4.dp.toPx(), 4.dp.toPx())
+    lens(
+        refractionHeight = 24.dp.toPx(),
+        refractionAmount = 24.dp.toPx(),
+    )
 }
 
 @Composable
@@ -326,14 +341,7 @@ fun FloatingBottomBar(
                         Modifier.drawBackdrop(
                             backdrop = backdrop,
                             shape = { pillShape },
-                            effects = {
-                                vibrancy()
-                                blur(4.dp.toPx(), 4.dp.toPx())
-                                lens(
-                                    refractionHeight = 24.dp.toPx(),
-                                    refractionAmount = 24.dp.toPx(),
-                                )
-                            },
+                            effects = { glassSurface() },
                             highlight = { baseHighlight.copy(alpha = 0.75f) },
                             layerBlock = {
                                 val width = size.width.coerceAtLeast(1f)
@@ -370,14 +378,7 @@ fun FloatingBottomBar(
                         .drawBackdrop(
                             backdrop = backdrop,
                             shape = { pillShape },
-                            effects = {
-                                vibrancy()
-                                blur(4.dp.toPx(), 4.dp.toPx())
-                                lens(
-                                    refractionHeight = 24.dp.toPx(),
-                                    refractionAmount = 24.dp.toPx(),
-                                )
-                            },
+                            effects = { glassSurface() },
                             onDrawSurface = { drawRect(containerColor) },
                         )
                         .then(interactiveHighlight.modifier)
