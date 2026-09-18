@@ -19,11 +19,9 @@ package com.fioiu8.devinfo.feature.main
 
 import androidx.annotation.MainThread
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.fioiu8.devinfo.core.model.CpuCoreMetric
 import com.fioiu8.devinfo.core.model.CpuUsageSample
 import com.fioiu8.devinfo.core.model.CpuUsageReading
 import com.fioiu8.devinfo.core.model.ItemWithVisibility
@@ -31,6 +29,7 @@ import com.fioiu8.devinfo.core.model.LiveHardwareSnapshot
 import com.fioiu8.devinfo.core.model.OverviewSnapshot
 import com.fioiu8.devinfo.core.model.SecuritySnapshot
 import com.fioiu8.devinfo.core.model.UpdateState
+import com.fioiu8.devinfo.core.root.RootAccess
 import com.fioiu8.devinfo.data.BatteryObserver
 import com.fioiu8.devinfo.data.CpuUsageSampler
 import com.fioiu8.devinfo.data.DeviceInfoCollector
@@ -141,22 +140,36 @@ class MainViewModel(
         updateMonitoring()
     }
 
-    /** 检测 Root 权限是否可用 */
-    suspend fun checkRootAvailable(): Boolean {
-        return try {
-            withContext(Dispatchers.IO) { collector.isRootAvailable() }
+    /**
+     * 用户主动发起的 Root 授权：向管理器请求一次 `su`，成功则直接启用增强 CPU 监控。
+     *
+     * 失败原因原样透传（见 [RootAccess] 的五态模型），因为 UI 需要按原因给出不同的下一步；
+     * 这里没有「先探测再申请」的两段式——探测本身就是一次真实的 `su` 往返。
+     *
+     * 取消由调用方负责（用户点「取消」时取消承载本方法的协程），取消时 `su` 进程会被强杀，
+     * 且本方法原样抛出 [CancellationException]，不把它当成失败原因。
+     *
+     * @return [RootAccess.Granted] 表示已启用 Root 监控模式；其它取值表示失败原因
+     */
+    suspend fun requestRootMode(): RootAccess {
+        val access = try {
+            withContext(Dispatchers.IO) { collector.requestRootAccess() }
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            false
+            return RootAccess.Unknown
         }
+        if (access != RootAccess.Granted) return access
+        return enableRootMode()
     }
 
     /**
-     * 尝试启用 Root 监控模式。
-     * @return Root 模式是否成功启用
+     * 尝试用已获得的 Root 权限读取 CPU 数据并启用 Root 监控模式。
+     *
+     * @return 读取成功为 [RootAccess.Granted]；`su` 通了但读不到数据时无从判断原因（底层读取
+     *   按契约返回空列表而不带原因），因此返回 [RootAccess.Unknown]。
      */
-    suspend fun enableRootMode(): Boolean {
+    suspend fun enableRootMode(): RootAccess {
         val metrics = try {
             withContext(Dispatchers.IO) { collector.getCpuCoreMetricsWithRoot() }
         } catch (error: CancellationException) {
@@ -164,7 +177,7 @@ class MainViewModel(
         } catch (_: Exception) {
             emptyList()
         }
-        if (metrics.isEmpty()) return false
+        if (metrics.isEmpty()) return RootAccess.Unknown
         _uiState.update { it.copy(isRootModeEnabled = true) }
         val overallUsage = metrics.mapNotNull { it.usagePercent }
             .takeIf { it.isNotEmpty() }
@@ -173,7 +186,7 @@ class MainViewModel(
         val cpuReading = CpuUsageReading(metrics, overallUsage)
         updateOverview { snapshot -> snapshot.withCpuUsageReading(cpuReading) }
         if (dynamicMetricsJob?.isActive == true) startCpuSampling()
-        return true
+        return RootAccess.Granted
     }
 
     /** 概览页是否为当前可见的根页面；参数名与 [monitorModeFor] 保持一致。 */

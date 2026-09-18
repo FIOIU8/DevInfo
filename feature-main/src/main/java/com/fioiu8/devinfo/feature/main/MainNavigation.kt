@@ -40,6 +40,9 @@ internal sealed interface MainRoute : NavKey {
 
     @Serializable
     data object About : MainRoute
+
+    @Serializable
+    data object RootHelp : MainRoute
 }
 
 /** Owns route mutations so every navigation path has the same stack semantics. */
@@ -53,13 +56,7 @@ internal class MainNavigator(
 
     /** Returns the selected root tab even while a child route is visible. */
     val selectedTabIndex: Int
-        get() = when (backStack.firstOrNull()) {
-            MainRoute.Settings,
-            MainRoute.ThemeSettings,
-            MainRoute.About -> SETTINGS_TAB_INDEX
-
-            else -> INFO_TAB_INDEX
-        }
+        get() = ((backStack.firstOrNull() as? MainRoute) ?: MainRoute.Overview).rootTabIndex()
 
     val isOverviewVisible: Boolean
         get() = currentRoute == MainRoute.Overview
@@ -97,6 +94,21 @@ internal class MainNavigator(
         }
     }
 
+    /**
+     * 打开 Root 授权帮助页。
+     *
+     * 两个入口（设置页「工具」区、授权失败弹窗）都走这里：失败弹窗是从设置页的 Root FAB 触发的，
+     * 但这里仍按 [openAbout] 的写法兜底切回设置页，避免未来从别处调用时把帮助页压在错误栈上。
+     */
+    fun openRootHelp() {
+        if (currentRoute != MainRoute.RootHelp) {
+            if (selectedTabIndex != SETTINGS_TAB_INDEX || backStack.size != 1) {
+                selectTab(SETTINGS_TAB_INDEX)
+            }
+            controller.push(MainRoute.RootHelp)
+        }
+    }
+
     fun pop(): Boolean = controller.pop()
 
     fun detailsCategory(route: MainRoute.Details): InfoCategory =
@@ -111,7 +123,8 @@ internal class MainNavigator(
 internal fun MainRoute.rootTabIndex(): Int = when (this) {
     MainRoute.Settings,
     MainRoute.ThemeSettings,
-    MainRoute.About -> SETTINGS_TAB_INDEX
+    MainRoute.About,
+    MainRoute.RootHelp -> SETTINGS_TAB_INDEX
 
     else -> INFO_TAB_INDEX
 }
@@ -122,5 +135,6 @@ internal fun MainRoute.navigationDepth(): Int = when (this) {
 
     is MainRoute.Details,
     MainRoute.ThemeSettings,
-    MainRoute.About -> 1
+    MainRoute.About,
+    MainRoute.RootHelp -> 1
 }

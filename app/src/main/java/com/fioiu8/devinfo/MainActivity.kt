@@ -24,22 +24,15 @@ import java.util.Locale
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fioiu8.devinfo.data.BatteryObserver
-import com.fioiu8.devinfo.data.DeviceIdManager
 import com.fioiu8.devinfo.data.DeviceInfoCollector
 import com.fioiu8.devinfo.data.LanguagePreferences
 import com.fioiu8.devinfo.data.LiveHardwareMonitor
@@ -127,21 +120,6 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
-            // 设备 ID 首次读取涉及 SharedPreferences 磁盘加载与 ANDROID_ID binder
-            // 调用，移出主线程 onCreate，在组合后异步加载
-            var deviceId by remember { mutableStateOf("") }
-            LaunchedEffect(Unit) {
-                deviceId = withContext(Dispatchers.IO) {
-                    try {
-                        DeviceIdManager(this@MainActivity).getOrCreateDeviceId()
-                    } catch (error: CancellationException) {
-                        // 组合被销毁时必须让取消继续传播，不能降级成普通失败状态
-                        throw error
-                    } catch (e: Exception) {
-                        getString(R.string.device_id_fetch_failed, e.message.orEmpty())
-                    }
-                }
-            }
             val themeMode by themePrefs.themeMode.collectAsStateWithLifecycle()
             val themeColor by themePrefs.themeColor.collectAsStateWithLifecycle()
             val uiStyle by themePrefs.uiStyle.collectAsStateWithLifecycle()
@@ -168,7 +146,6 @@ class MainActivity : ComponentActivity() {
                 )
             }
             val mainScreenSettings = remember(
-                deviceId,
                 themeMode,
                 themeColor,
                 uiStyle,
@@ -184,7 +161,6 @@ class MainActivity : ComponentActivity() {
                 enablePredictiveBack,
             ) {
                 MainScreenSettings(
-                    deviceId = deviceId,
                     themeMode = themeMode,
                     onThemeModeChange = themePrefs::setThemeMode,
                     themeColor = themeColor,

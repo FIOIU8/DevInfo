@@ -37,6 +37,8 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.SwitchDefaults
@@ -70,6 +72,7 @@ import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem as MiuixNavigationBarItem
+import top.yukonga.miuix.kmp.basic.PullToRefresh as MiuixPullToRefresh
 import top.yukonga.miuix.kmp.basic.SnackbarHost as MiuixSnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState as MiuixSnackbarHostState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -255,6 +258,39 @@ fun DevInfoLoadingIndicator(modifier: Modifier = Modifier) {
             modifier = modifier,
             color = MiuixTheme.colorScheme.primary,
         )
+    }
+}
+
+/**
+ * 下拉刷新容器 — 按当前 UI 风格分派。
+ *
+ * 两套实现的刷新状态来源不同：Miuix 直接接收 isRefreshing，Material3 需要外部持有的
+ * state，因此这里统一暴露 isRefreshing/onRefresh 两个参数，由本组件负责创建 state。
+ */
+@Composable
+fun DevInfoPullToRefresh(
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    when (LocalUiStyle.current) {
+        UiStyle.MATERIAL3 -> PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            state = rememberPullToRefreshState(),
+            modifier = modifier,
+        ) {
+            content()
+        }
+
+        UiStyle.MIUIX -> MiuixPullToRefresh(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            modifier = modifier,
+        ) {
+            content()
+        }
     }
 }
 

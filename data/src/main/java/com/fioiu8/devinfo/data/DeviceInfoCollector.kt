@@ -53,6 +53,10 @@ import com.fioiu8.devinfo.core.cpu.parseCpuTimes
 import com.fioiu8.devinfo.core.cpu.parseCpuUptime
 import com.fioiu8.devinfo.core.cpu.parseTopCpuUsage
 import com.fioiu8.devinfo.core.model.CpuCoreMetric
+import com.fioiu8.devinfo.core.root.ROOT_AUTHORIZATION_TIMEOUT_MS
+import com.fioiu8.devinfo.core.root.ROOT_PROBE_COMMAND
+import com.fioiu8.devinfo.core.root.RootAccess
+import com.fioiu8.devinfo.core.root.parseRootProbe
 import com.fioiu8.devinfo.core.model.SecuritySnapshot
 import com.fioiu8.devinfo.core.model.DeviceInfoItem
 import com.fioiu8.devinfo.core.model.InfoCategory
@@ -67,6 +71,7 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 // 热路径（每 2 秒采样）中逐行解析 /proc 使用，提为顶层常量避免每行重复分配
@@ -413,27 +418,154 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     /**
-     * 检测设备是否已 Root（su 命令是否可用）。
-     * 每次调用都重新验证，避免 Root 权限在运行期间撤销后仍使用旧状态。
+     * 用户主动发起的授权请求：等待用户在管理器里操作期间可被取消。
+     *
+     * 它是唯一的 Root 探测入口——「已授权」这件事只能由一次真实的 `su` 往返证明，因此没有
+     * 单独的「快速探测」方法：那只会多出一次无意义的 su 调用。
+     *
+     * 与 [runSu] 的两点差异都是有意的：
+     * - 等待退出用轮询 + `ensureActive()`，因此协程取消在 [PROCESS_POLL_INTERVAL_MS] 内生效
+     *   （`waitFor` 的阻塞调用无法被协程取消打断）；
+     * - 超时用 [ROOT_AUTHORIZATION_TIMEOUT_MS]（30 秒）而不是 5 秒，因为这里可能一直在等用户
+     *   去管理器里确认。
+     *
+     * 取消不算失败：进程在这里被强杀，[CancellationException] 原样向上抛，由调用方决定 UI 行为。
      */
-    suspend fun isRootAvailable(): Boolean {
-        val result = runCatching {
-            val process = ProcessBuilder("su", "-c", "echo", "test")
-                .redirectErrorStream(true)
-                .start()
-            try {
-                // 先限时等待进程退出再读输出：readText() 是纯阻塞调用，
-                // 协程超时无法将其中断，su 挂起时会无限占用线程
-                if (!process.waitFor(ROOT_COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
-                    process.destroyForcibly()
-                    return@runCatching false
-                }
-                process.inputStream.bufferedReader().use { it.readLine()?.trim() == "test" }
-            } finally {
-                if (process.isAlive) process.destroyForcibly()
+    suspend fun requestRootAccess(timeoutMs: Long = ROOT_AUTHORIZATION_TIMEOUT_MS): RootAccess {
+        val process = spawnSu(ROOT_PROBE_COMMAND)
+            ?: return parseRootProbe(spawnFailed = true, timedOut = false, exitCode = -1, output = "")
+
+        val lines = mutableListOf<String>()
+        val readerDone = CountDownLatch(1)
+        startOutputDrain(process, lines, readerDone)
+
+        return try {
+            val exited = awaitExitCancellable(process, timeoutMs)
+            if (exited) {
+                // 进程已退出，读取线程只剩收尾，无需再等一个完整超时
+                readerDone.await(READER_DRAIN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
             }
-        }.getOrDefault(false)
-        return result
+            parseRootProbe(
+                spawnFailed = false,
+                timedOut = !exited,
+                exitCode = if (exited) process.exitValue() else -1,
+                output = synchronized(lines) { lines.joinToString("\n") },
+            )
+        } finally {
+            // 取消与超时都经过这里：离开前不给设备留下一个挂着的 su 进程
+            if (process.isAlive) process.destroyForcibly()
+        }
+    }
+
+    /**
+     * 分片等待进程退出，使协程取消有明确上界。
+     *
+     * 每次只等一小段并在片段之间检查取消；若直接 `waitFor(整个超时)`，取消要等到它返回才可能
+     * 被察觉，30 秒的授权上限会变成 30 秒不可中断的阻塞。
+     *
+     * @return true 表示进程已退出；false 表示到期限仍未退出
+     */
+    private suspend fun awaitExitCancellable(process: Process, timeoutMs: Long): Boolean =
+        withContext(Dispatchers.IO) {
+            val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs)
+            var exited = false
+            while (!exited) {
+                val remainingMs = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime())
+                if (remainingMs <= 0L) break
+                if (process.waitFor(minOf(PROCESS_POLL_INTERVAL_MS, remainingMs), TimeUnit.MILLISECONDS)) {
+                    exited = true
+                } else {
+                    coroutineContext.ensureActive()
+                }
+            }
+            exited
+        }
+
+    /** 一次 su 调用的原始观察结果，交 [parseRootProbe] 判定。 */
+    private data class SuRunResult(
+        val spawnFailed: Boolean,
+        val timedOut: Boolean,
+        val exitCode: Int,
+        val lines: List<String>,
+    ) {
+        val output: String get() = lines.joinToString("\n")
+    }
+
+    /**
+     * 以 root 执行一条命令并收集原始结果。
+     *
+     * 本方法不抛异常——失败以 [SuRunResult] 表达，保持调用方「读不到就返回空」的契约。
+     *
+     * 不可取消：调用方是已经授过权的内部读取（5 秒上限），不需要等用户操作。需要可取消的授权
+     * 路径用 [requestRootAccess]。
+     */
+    private fun runSu(command: String, timeoutMs: Long): SuRunResult {
+        val process = spawnSu(command)
+            ?: return SuRunResult(spawnFailed = true, timedOut = false, exitCode = -1, lines = emptyList())
+
+        val lines = mutableListOf<String>()
+        val readerDone = CountDownLatch(1)
+        val readerThread = startOutputDrain(process, lines, readerDone)
+
+        return try {
+            if (!process.waitFor(timeoutMs, TimeUnit.MILLISECONDS)) {
+                process.destroyForcibly()
+                readerThread.interrupt()
+                SuRunResult(
+                    spawnFailed = false,
+                    timedOut = true,
+                    exitCode = -1,
+                    lines = synchronized(lines) { lines.toList() },
+                )
+            } else {
+                // 进程已退出，读取线程只剩收尾，无需再等一个完整超时
+                readerDone.await(READER_DRAIN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                SuRunResult(
+                    spawnFailed = false,
+                    timedOut = false,
+                    exitCode = process.exitValue(),
+                    lines = synchronized(lines) { lines.toList() },
+                )
+            }
+        } catch (_: Exception) {
+            SuRunResult(spawnFailed = false, timedOut = false, exitCode = -1, lines = emptyList())
+        } finally {
+            if (process.isAlive) process.destroyForcibly()
+        }
+    }
+
+    /** 启动 `su -c <command>`；返回 null 表示进程未能启动（典型为 ENOENT）。 */
+    private fun spawnSu(command: String): Process? = try {
+        ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
+    } catch (_: Exception) {
+        // 典型为 ENOENT：su 不存在，或对调用者不可见（KernelSU 未授权时即如此）
+        null
+    }
+
+    /**
+     * 另起线程读取合并后的 stdout + stderr。
+     *
+     * 必须是独立线程：`readLine()`/`useLines()` 是阻塞调用，协程超时无法中断它们，su 挂起时
+     * 会永久占住调用线程。行数上限 [MAX_ROOT_OUTPUT_LINES] 避免无界增长。
+     */
+    private fun startOutputDrain(
+        process: Process,
+        lines: MutableList<String>,
+        done: CountDownLatch,
+    ): Thread = Thread {
+        runCatching {
+            process.inputStream.bufferedReader().useLines { output ->
+                output.forEach { line ->
+                    synchronized(lines) {
+                        if (lines.size < MAX_ROOT_OUTPUT_LINES) lines += line
+                    }
+                }
+            }
+        }
+        done.countDown()
+    }.apply {
+        isDaemon = true
+        start()
     }
 
     /** 通过 Root 权限读取 /proc/stat 并计算每核心占用率 */
@@ -474,39 +606,9 @@ class DeviceInfoCollector(private val context: Context) {
         return result
     }
 
-    private fun readLinesWithRoot(path: String): List<String> = runCatching {
-        val process = ProcessBuilder("su", "-c", "cat $path")
-            .redirectErrorStream(true)
-            .start()
-        val lines = mutableListOf<String>()
-        val readerDone = CountDownLatch(1)
-        val readerThread = Thread {
-            runCatching {
-                process.inputStream.bufferedReader().useLines { output ->
-                    output.forEach { line ->
-                        synchronized(lines) {
-                            if (lines.size < MAX_ROOT_OUTPUT_LINES) lines += line
-                        }
-                    }
-                }
-            }
-            readerDone.countDown()
-        }.apply {
-            isDaemon = true
-            start()
-        }
-        try {
-            if (!process.waitFor(ROOT_COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
-                process.destroyForcibly()
-                readerThread.interrupt()
-                return@runCatching emptyList()
-            }
-            readerDone.await(ROOT_COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-            synchronized(lines) { lines.toList() }
-        } finally {
-            if (process.isAlive) process.destroyForcibly()
-        }
-    }.getOrDefault(emptyList())
+    /** 通过 root 读取一个文件的内容行；读不到时返回空列表，失败原因由 [runSu] 记录。 */
+    private fun readLinesWithRoot(path: String): List<String> =
+        runSu("cat $path", ROOT_COMMAND_TIMEOUT_MS).lines
 
     fun getGpuFrequency(): String? = readFrequency(
         "/sys/class/kgsl/kgsl-3d0/gpuclk",
@@ -1160,7 +1262,24 @@ private fun getVisibleInstalledAppCount(): String = safeGet(statusUnknown) {
 
     private companion object {
         const val TOP_COMMAND_TIMEOUT_MS = 1_500L
+
+        /**
+         * 已授权后读取 /proc、/sys 的上限。实测 su 往返 40–49 ms（max 72 ms），
+         * 因此这里有数量级以上的余量。
+         */
         const val ROOT_COMMAND_TIMEOUT_MS = 5_000L
+
+        /** 进程已退出后等待读取线程收尾的时间。 */
+        const val READER_DRAIN_TIMEOUT_MS = 1_000L
+
+        /**
+         * 可取消等待的检查间隔。
+         *
+         * 它是「点取消后多久真正停手」的上界：实测授权失败 5–19 ms、成功往返 40–49 ms，因此
+         * 100 ms 的粒度不会让用户感到延迟，同时避免忙等。
+         */
+        const val PROCESS_POLL_INTERVAL_MS = 100L
+
         const val MAX_ROOT_OUTPUT_LINES = 512
     }
 }
