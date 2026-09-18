@@ -16,12 +16,9 @@
  */
 
 package com.fioiu8.devinfo.feature.main
-import com.fioiu8.devinfo.ui.DevInfoFeedbackScope
 import com.fioiu8.devinfo.ui.theme.isInDarkTheme
-import com.fioiu8.devinfo.ui.DevInfoNavigationBar
 import com.fioiu8.devinfo.ui.DevInfoLoadingIndicator
-import com.fioiu8.devinfo.ui.MarkdownText
-import com.fioiu8.devinfo.ui.TestVersionWarningCard
+import com.fioiu8.devinfo.ui.DevInfoPullToRefresh
 import com.fioiu8.devinfo.feature.main.R
 
 import android.content.Intent
@@ -46,8 +43,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items as lazyItems
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -72,8 +67,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -101,15 +94,10 @@ import com.fioiu8.devinfo.core.model.InfoCategory
 import com.fioiu8.devinfo.core.model.ItemWithVisibility
 import com.fioiu8.devinfo.core.model.UiStyle
 import com.fioiu8.devinfo.ui.theme.LocalUiStyle
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import top.yukonga.miuix.kmp.basic.BasicComponent as MiuixBasicComponent
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
-import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator as MiuixLinearProgressIndicator
-import top.yukonga.miuix.kmp.basic.PullToRefresh as MiuixPullToRefresh
 import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -190,20 +178,7 @@ fun DeviceInfoOverviewPage(
     onRefresh: suspend () -> Unit,
     onOpenDetails: (InfoCategory) -> Unit
 ) {
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixDeviceInfoOverviewPage(
-            itemsState = itemsState,
-            isLoading = isLoading,
-            isOverviewLoading = isOverviewLoading,
-            snapshot = snapshot,
-            onRefresh = onRefresh,
-            onOpenDetails = onOpenDetails,
-        )
-        return
-    }
-
     var isRefreshing by remember { mutableStateOf(false) }
-    val pullToRefreshState = rememberPullToRefreshState()
 
     LaunchedEffect(isRefreshing) {
         if (isRefreshing) {
@@ -224,10 +199,9 @@ fun DeviceInfoOverviewPage(
             val compactLayout = maxWidth < 600.dp
             val useSingleColumn = maxWidth < 320.dp
 
-            PullToRefreshBox(
+            DevInfoPullToRefresh(
                 isRefreshing = isRefreshing,
                 onRefresh = { isRefreshing = true },
-                state = pullToRefreshState,
                 modifier = Modifier.fillMaxSize()
             ) {
                 LazyVerticalGrid(
@@ -287,104 +261,6 @@ fun DeviceInfoOverviewPage(
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         SecuritySummaryCard(snapshot)
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MiuixDeviceInfoOverviewPage(
-    itemsState: List<ItemWithVisibility>,
-    isLoading: Boolean,
-    isOverviewLoading: Boolean,
-    snapshot: OverviewSnapshot,
-    onRefresh: suspend () -> Unit,
-    onOpenDetails: (InfoCategory) -> Unit,
-) {
-    var isRefreshing by remember { mutableStateOf(false) }
-    val metrics = remember(snapshot) { buildOverviewMetrics(snapshot) }
-    val staticCards = remember(itemsState) { buildStaticInfoCards(itemsState) }
-
-    LaunchedEffect(isRefreshing) {
-        if (isRefreshing) {
-            onRefresh()
-            isRefreshing = false
-        }
-    }
-
-    if ((isLoading && itemsState.isEmpty()) || (isOverviewLoading && metrics.isEmpty())) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            InfiniteProgressIndicator(color = MiuixTheme.colorScheme.primary)
-        }
-        return
-    }
-
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val compactLayout = maxWidth < 600.dp
-        val useSingleColumn = maxWidth < 320.dp
-
-        // 参数依次为 isRefreshing / onRefresh / modifier，其余取默认值
-        MiuixPullToRefresh(
-            isRefreshing,
-            { isRefreshing = true },
-            Modifier.fillMaxSize()
-        ) {
-            LazyVerticalGrid(
-                columns = if (useSingleColumn) {
-                    GridCells.Fixed(1)
-                } else if (compactLayout) {
-                    GridCells.Fixed(2)
-                } else {
-                    GridCells.Adaptive(minSize = 148.dp)
-                },
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = if (compactLayout) 12.dp else 20.dp,
-                    top = if (compactLayout) 12.dp else 20.dp,
-                    end = if (compactLayout) 12.dp else 20.dp,
-                    bottom = (if (compactLayout) 12.dp else 20.dp) +
-                        LocalFloatingNavigationContentPadding.current,
-                ),
-                horizontalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp),
-                verticalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp)
-            ) {
-                items(
-                    items = metrics,
-                    key = { metric -> metric.id },
-                    span = { metric ->
-                        GridItemSpan(
-                            if (useSingleColumn || (!compactLayout && metric.id == OverviewMetricId.REALTIME_CPU)) {
-                                maxLineSpan
-                            } else {
-                                metric.size.span
-                            }
-                        )
-                    }
-                ) { metric ->
-                    MiuixMetricCard(
-                        metric = metric,
-                        onClick = { onOpenDetails(metric.category) }
-                    )
-                }
-                items(
-                    items = staticCards,
-                    key = { card -> card.keyResId },
-                    span = { GridItemSpan(1) }
-                ) { card ->
-                    MiuixStaticInfoCard(
-                        card = card,
-                        onClick = { onOpenDetails(card.category) }
-                    )
-                }
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    MiuixHardwareSensorsCard(
-                        snapshot = snapshot.hardware,
-                        stackValues = useSingleColumn
-                    )
-                }
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    MiuixSecuritySummaryCard(snapshot)
                 }
             }
         }
@@ -788,6 +664,10 @@ private fun OverviewMetricCard(
     wideLayout: Boolean,
     onClick: () -> Unit
 ) {
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixMetricCard(metric = metric, onClick = onClick)
+        return
+    }
     val titleResId = metric.titleResId
     val title = if (titleResId == null) metric.title.orEmpty() else stringResource(titleResId)
     val supportingTextResId = metric.supportingTextResId
@@ -1034,6 +914,10 @@ private fun CpuCoreSelectionSlot(
 /** 静态信息小卡片：图标 + 标题 + 值，点击跳转到对应分类详情 */
 @Composable
 private fun StaticInfoCard(card: StaticInfoCardData, onClick: () -> Unit) {
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixStaticInfoCard(card = card, onClick = onClick)
+        return
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1294,6 +1178,10 @@ private fun HardwareSensorsCard(
     snapshot: LiveHardwareSnapshot,
     stackValues: Boolean
 ) {
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixHardwareSensorsCard(snapshot = snapshot, stackValues = stackValues)
+        return
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -1350,6 +1238,10 @@ private fun SensorValue(icon: androidx.compose.ui.graphics.vector.ImageVector, l
 
 @Composable
 private fun SecuritySummaryCard(snapshot: OverviewSnapshot) {
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixSecuritySummaryCard(snapshot)
+        return
+    }
     val context = LocalContext.current
     var showUsbDialog by remember { mutableStateOf(false) }
     Card(

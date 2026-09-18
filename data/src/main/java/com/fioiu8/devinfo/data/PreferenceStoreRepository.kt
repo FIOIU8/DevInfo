@@ -30,6 +30,19 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 
+/**
+ * 更新缓存使用的键。迁移路径、DataStore 读写与 [UpdateChecker] 必须共用同一组字面量，
+ * 否则缓存与旧版回滚数据会静默错位。
+ */
+internal object UpdateCacheKeys {
+    const val LAST_CHECK = "last_check_time"
+    const val CACHED_TAG = "cached_tag"
+    const val RELEASE_NAME = "release_name"
+    const val RELEASE_BODY = "release_body"
+    const val RELEASE_URL = "release_url"
+    const val RELEASE_DOWNLOAD_URL = "release_download_url"
+}
+
 /** SharedPreferences implementation retained as a rollback and compatibility path. */
 class SharedPreferencesPreferenceRepository(
     context: Context,
@@ -47,16 +60,6 @@ class SharedPreferencesPreferenceRepository(
 
     override suspend fun readString(key: String): String? = withContext(Dispatchers.IO) {
         runCatching { preferences.getString(key, null) }.getOrNull()
-    }
-
-    override suspend fun writeLong(key: String, value: Long): Boolean = withContext(Dispatchers.IO) {
-        runCatching { preferences.edit().putLong(key, value).commit() }
-            .getOrDefault(false)
-    }
-
-    override suspend fun writeString(key: String, value: String): Boolean = withContext(Dispatchers.IO) {
-        runCatching { preferences.edit().putString(key, value).commit() }
-            .getOrDefault(false)
     }
 
     override suspend fun writeBatch(values: Map<String, PreferenceValue>): Boolean = withContext(Dispatchers.IO) {
@@ -95,14 +98,6 @@ class DataStorePreferenceRepository(
         readDataStoreValue { preferences -> preferences[stringPreferencesKey(key)] }
             ?: legacyRepository.readString(key)
 
-    override suspend fun writeLong(key: String, value: Long): Boolean {
-        return writeBatch(mapOf(key to PreferenceValue.LongValue(value)))
-    }
-
-    override suspend fun writeString(key: String, value: String): Boolean {
-        return writeBatch(mapOf(key to PreferenceValue.StringValue(value)))
-    }
-
     override suspend fun writeBatch(values: Map<String, PreferenceValue>): Boolean {
         val dataStoreResult = writeDataStoreValue { preferences ->
             values.forEach { (key, value) ->
@@ -133,15 +128,15 @@ class DataStorePreferenceRepository(
         migrationMutex.withLock {
             if (migrationDone.get()) return
             val legacyValues = buildMap {
-                legacyRepository.readLong(KEY_LAST_CHECK)?.let {
-                    put(KEY_LAST_CHECK, PreferenceValue.LongValue(it))
+                legacyRepository.readLong(UpdateCacheKeys.LAST_CHECK)?.let {
+                    put(UpdateCacheKeys.LAST_CHECK, PreferenceValue.LongValue(it))
                 }
                 listOf(
-                    KEY_CACHED_TAG,
-                    KEY_RELEASE_NAME,
-                    KEY_RELEASE_BODY,
-                    KEY_RELEASE_URL,
-                    KEY_RELEASE_DOWNLOAD_URL,
+                    UpdateCacheKeys.CACHED_TAG,
+                    UpdateCacheKeys.RELEASE_NAME,
+                    UpdateCacheKeys.RELEASE_BODY,
+                    UpdateCacheKeys.RELEASE_URL,
+                    UpdateCacheKeys.RELEASE_DOWNLOAD_URL,
                 ).forEach { key ->
                     legacyRepository.readString(key)?.let { value ->
                         put(key, PreferenceValue.StringValue(value))
@@ -187,12 +182,6 @@ class DataStorePreferenceRepository(
     private companion object {
         const val LEGACY_PREFERENCE_NAME = "devinfo_update"
         const val DATASTORE_FILE_NAME = "devinfo_update.preferences_pb"
-        const val KEY_LAST_CHECK = "last_check_time"
-        const val KEY_CACHED_TAG = "cached_tag"
-        const val KEY_RELEASE_NAME = "release_name"
-        const val KEY_RELEASE_BODY = "release_body"
-        const val KEY_RELEASE_URL = "release_url"
-        const val KEY_RELEASE_DOWNLOAD_URL = "release_download_url"
 
         // 同一文件的 DataStore 必须全局唯一。仓库实例随 Activity 重建而反复创建，
         // 若每次都新建 DataStore 会连带泄漏一个永不取消的 IO 协程作用域，

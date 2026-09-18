@@ -27,7 +27,7 @@ DevInfo is an Android device information viewer built with Kotlin and Jetpack Co
 - Details are grouped into nine categories: device, identifiers, system, locale, display, storage, battery, network, and apps.
 - Fields include Android version, SDK, ABI, kernel, security patch, display, memory/storage, battery, network, sensors, and app information.
 - The overview provides static information, pull-to-refresh, and live metrics. CPU/GPU, memory, storage, battery, motion, brightness, storage read speed, and Wi-Fi signal are shown when supported.
-- CPU statistics may be restricted in normal mode. Optional Root mode asks for user confirmation before attempting more complete CPU data.
+- CPU statistics may be restricted in normal mode. Optional Root mode shows a risk notice first and only requests root permission after you confirm; when it fails, it explains the reason and offers in-app authorization help.
 
 ### Export and updates
 

@@ -4,7 +4,6 @@
 package com.fioiu8.devinfo.ui.kit.liquid
 
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.BlurEffect
@@ -16,7 +15,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.layer.CompositingStrategy
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -35,13 +33,7 @@ data class InnerShadow(
     val offset: DpOffset = DpOffset(0.dp, radius),
     val color: Color = Color.Black.copy(alpha = 0.15f),
     val alpha: Float = 1f,
-    val blendMode: BlendMode = DrawScope.DefaultBlendMode,
-) {
-    companion object {
-        @Stable
-        val Default: InnerShadow = InnerShadow()
-    }
-}
+)
 
 fun Modifier.innerShadow(
     shape: Shape,
@@ -67,19 +59,11 @@ private class InnerShadowElement(
         properties["shadow"] = shadow
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is InnerShadowElement) return false
-        if (shape != other.shape) return false
-        if (shadow != other.shadow) return false
-        return true
-    }
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (other is InnerShadowElement && shape == other.shape && shadow == other.shadow)
 
-    override fun hashCode(): Int {
-        var result = shape.hashCode()
-        result = 31 * result + shadow.hashCode()
-        return result
-    }
+    override fun hashCode(): Int = 31 * shape.hashCode() + shadow.hashCode()
 }
 
 private class InnerShadowNode(
@@ -115,7 +99,6 @@ private class InnerShadowNode(
 
         paint.color = shadow.color
         layer.alpha = shadow.alpha
-        layer.blendMode = shadow.blendMode
         if (prevRadius != radius) {
             layer.renderEffect = if (radius > 0f) BlurEffect(radius, radius, TileMode.Decal) else null
             prevRadius = radius

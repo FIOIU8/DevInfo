@@ -36,21 +36,18 @@ class ThemePreferences private constructor(context: Context) :
         enumPreference(
             key = KEY_THEME_MODE,
             defaultValue = ThemeMode.SYSTEM,
-            values = ThemeMode.entries,
         )
 
     private val themeColorPreference =
         enumPreference(
             key = KEY_THEME_COLOR,
             defaultValue = ThemeColor.DEFAULT,
-            values = ThemeColor.entries,
         )
 
     private val uiStylePreference =
         enumPreference(
             key = KEY_UI_STYLE,
             defaultValue = UiStyle.MIUIX,
-            values = UiStyle.entries,
         )
 
     private val checkUpdatePreference =
@@ -63,14 +60,12 @@ class ThemePreferences private constructor(context: Context) :
         enumPreference(
             key = KEY_PALETTE_STYLE,
             defaultValue = PaletteStyle.DEFAULT,
-            values = PaletteStyle.entries,
         )
 
     private val colorSpecPreference =
         enumPreference(
             key = KEY_COLOR_SPEC,
             defaultValue = com.fioiu8.devinfo.core.model.ColorSpec.DEFAULT,
-            values = com.fioiu8.devinfo.core.model.ColorSpec.entries,
         )
 
     private val enableBlurPreference =
@@ -156,10 +151,6 @@ class ThemePreferences private constructor(context: Context) :
 
     /** 同步读取当前主题模式（非响应式，用于组合上下文之外） */
     fun getThemeModeSnapshot(): ThemeMode = themeModePreference.snapshot
-
-    fun getThemeColorSnapshot(): ThemeColor = themeColorPreference.snapshot
-
-    fun getUiStyleSnapshot(): UiStyle = uiStylePreference.snapshot
 
     fun getCheckUpdateSnapshot(): Boolean = checkUpdatePreference.snapshot
 

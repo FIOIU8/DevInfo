@@ -33,11 +33,9 @@ class UpdateChecker(
     private val isOfficialBuild: Boolean
 ) {
 
-    private val cacheRepository: PreferenceRepository = runCatching {
-        DataStorePreferenceRepository(context)
-    }.getOrElse {
-        SharedPreferencesPreferenceRepository(context, LEGACY_PREFERENCE_NAME)
-    }
+    // 构造 DataStore 仓库不做任何 I/O（I/O 失败已在仓库内部按读/写分别兜底），
+    // 因此这里无需额外的降级分支。
+    private val cacheRepository: PreferenceRepository = DataStorePreferenceRepository(context)
 
     private val _state = MutableStateFlow(UpdateState.IDLE)
     val state: StateFlow<UpdateState> = _state.asStateFlow()
@@ -46,9 +44,6 @@ class UpdateChecker(
     val releaseInfo: StateFlow<GitHubClient.ReleaseInfo?> = _releaseInfo.asStateFlow()
 
     private val checkMutex = Mutex()
-
-    /** 当前是否正在检查 */
-    val isChecking: Boolean get() = _state.value == UpdateState.CHECKING
 
     /** 开始异步检查 */
     suspend fun check(currentVersion: String): Unit = checkMutex.withLock {
@@ -59,11 +54,11 @@ class UpdateChecker(
         // 12小时缓存
         val now = System.currentTimeMillis()
         val lastCheck = PreferenceValidators.validLastCheckTimeOrZero(
-            cacheRepository.readLong(KEY_LAST_CHECK) ?: 0L,
+            cacheRepository.readLong(UpdateCacheKeys.LAST_CHECK) ?: 0L,
             now,
         )
         if (now - lastCheck < CACHE_DURATION_MS) {
-            val cachedTag = cacheRepository.readString(KEY_CACHED_TAG) ?: currentVersion
+            val cachedTag = cacheRepository.readString(UpdateCacheKeys.CACHED_TAG) ?: currentVersion
             if (!GitHubClient.isNewerVersion(cachedTag, currentVersion)) {
                 _state.value = UpdateState.UP_TO_DATE
                 return
@@ -84,12 +79,12 @@ class UpdateChecker(
                 _releaseInfo.value = info
                 cacheRepository.writeBatch(
                     mapOf(
-                        KEY_LAST_CHECK to PreferenceValue.LongValue(now),
-                        KEY_CACHED_TAG to PreferenceValue.StringValue(info.tagName),
-                        KEY_RELEASE_NAME to PreferenceValue.StringValue(info.name),
-                        KEY_RELEASE_BODY to PreferenceValue.StringValue(info.body),
-                        KEY_RELEASE_URL to PreferenceValue.StringValue(info.htmlUrl),
-                        KEY_RELEASE_DOWNLOAD_URL to PreferenceValue.StringValue(info.downloadUrl.orEmpty()),
+                        UpdateCacheKeys.LAST_CHECK to PreferenceValue.LongValue(now),
+                        UpdateCacheKeys.CACHED_TAG to PreferenceValue.StringValue(info.tagName),
+                        UpdateCacheKeys.RELEASE_NAME to PreferenceValue.StringValue(info.name),
+                        UpdateCacheKeys.RELEASE_BODY to PreferenceValue.StringValue(info.body),
+                        UpdateCacheKeys.RELEASE_URL to PreferenceValue.StringValue(info.htmlUrl),
+                        UpdateCacheKeys.RELEASE_DOWNLOAD_URL to PreferenceValue.StringValue(info.downloadUrl.orEmpty()),
                     ),
                 )
                 _state.value = if (info.tagName.isNotBlank() &&
@@ -109,14 +104,14 @@ class UpdateChecker(
     private suspend fun readCachedReleaseInfo(
         cachedTag: String
     ): GitHubClient.ReleaseInfo? {
-        val name = cacheRepository.readString(KEY_RELEASE_NAME) ?: return null
-        val htmlUrl = cacheRepository.readString(KEY_RELEASE_URL)?.takeIf { it.isNotBlank() } ?: return null
+        val name = cacheRepository.readString(UpdateCacheKeys.RELEASE_NAME) ?: return null
+        val htmlUrl = cacheRepository.readString(UpdateCacheKeys.RELEASE_URL)?.takeIf { it.isNotBlank() } ?: return null
         return GitHubClient.ReleaseInfo(
             tagName = cachedTag,
             name = name,
-            body = cacheRepository.readString(KEY_RELEASE_BODY).orEmpty(),
+            body = cacheRepository.readString(UpdateCacheKeys.RELEASE_BODY).orEmpty(),
             htmlUrl = htmlUrl,
-            downloadUrl = cacheRepository.readString(KEY_RELEASE_DOWNLOAD_URL)?.takeIf { it.isNotBlank() }
+            downloadUrl = cacheRepository.readString(UpdateCacheKeys.RELEASE_DOWNLOAD_URL)?.takeIf { it.isNotBlank() }
         )
     }
 
@@ -126,15 +121,6 @@ class UpdateChecker(
     // ── 常量 ──
 
     companion object {
-        private const val LEGACY_PREFERENCE_NAME = "devinfo_update"
-        private const val KEY_LAST_CHECK = "last_check_time"
-        private const val KEY_CACHED_TAG = "cached_tag"
-        private const val KEY_RELEASE_NAME = "release_name"
-        private const val KEY_RELEASE_BODY = "release_body"
-        private const val KEY_RELEASE_URL = "release_url"
-        private const val KEY_RELEASE_DOWNLOAD_URL = "release_download_url"
         private const val CACHE_DURATION_MS = 12 * 60 * 60 * 1000L // 12 小时
     }
 }
-
-// UpdateState moved to com.fioiu8.devinfo.core.model.UpdateState

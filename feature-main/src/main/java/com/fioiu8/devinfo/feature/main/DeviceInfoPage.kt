@@ -17,17 +17,13 @@
 
 package com.fioiu8.devinfo.feature.main
 import android.content.ClipData
-import com.fioiu8.devinfo.ui.DevInfoNavigationBar
 import com.fioiu8.devinfo.ui.theme.isInDarkTheme
 import com.fioiu8.devinfo.ui.DevInfoLoadingIndicator
-import com.fioiu8.devinfo.ui.MarkdownText
-import com.fioiu8.devinfo.ui.TestVersionWarningCard
+import com.fioiu8.devinfo.ui.DevInfoPullToRefresh
 import com.fioiu8.devinfo.ui.InfoRow
 import com.fioiu8.devinfo.core.model.CpuCoreMetric
 import com.fioiu8.devinfo.core.model.OverviewSnapshot
 import com.fioiu8.devinfo.feature.main.R
-import com.fioiu8.devinfo.ui.DevInfoExpressiveSwitch
-import com.fioiu8.devinfo.ui.DevInfoSegmentedDropdownItem
 import com.fioiu8.devinfo.ui.rememberDevInfoMessageHandler
 import com.fioiu8.devinfo.ui.descriptionResId
 import com.fioiu8.devinfo.ui.displayNameResId
@@ -70,8 +66,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.Icons
@@ -94,8 +88,6 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.core.model.InfoCategory
 import com.fioiu8.devinfo.core.model.ItemWithVisibility
@@ -106,10 +98,8 @@ import top.yukonga.miuix.kmp.basic.BasicComponent as MiuixBasicComponent
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
-import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator as MiuixLinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
-import top.yukonga.miuix.kmp.basic.PullToRefresh as MiuixPullToRefresh
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -123,31 +113,18 @@ private fun List<ItemWithVisibility>.pageCount(): Int =
 /**
  * 设备信息页 — 分类浏览 + 下拉刷新。
  *
- * @param deviceId 设备唯一标识
  * @param itemsState 已加载的设备信息列表（含可见性状态）
  * @param isLoading 是否正在首次加载
  * @param onRefresh 下拉刷新回调
  */
 @Composable
 fun DeviceInfoPage(
-    deviceId: String,
     itemsState: List<ItemWithVisibility>,
     isLoading: Boolean,
     overviewSnapshot: OverviewSnapshot,
     onRefresh: suspend () -> Unit,
     initialCategory: InfoCategory = InfoCategory.DEVICE
 ) {
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixDeviceInfoPage(
-            itemsState = itemsState,
-            isLoading = isLoading,
-            overviewSnapshot = overviewSnapshot,
-            onRefresh = onRefresh,
-            initialCategory = initialCategory,
-        )
-        return
-    }
-
     val resources = LocalResources.current
     val clipboard = LocalClipboard.current
     val showMessage = rememberDevInfoMessageHandler()
@@ -178,10 +155,6 @@ fun DeviceInfoPage(
     }
     var previousCategoryIndex by remember { mutableIntStateOf(0) }
     var currentPage by rememberSaveable(selectedCategoryIndex) { mutableIntStateOf(0) }
-    val pullToRefreshState = rememberPullToRefreshState()
-
-    val storagePercent = overviewSnapshot.storagePercent
-    val memoryPercent = overviewSnapshot.memoryPercent
 
     LaunchedEffect(isRefreshing) {
         if (isRefreshing) {
@@ -199,22 +172,22 @@ fun DeviceInfoPage(
         val selectedCategoryItems = itemsByCategory[selectedCategory].orEmpty()
         val totalPages = selectedCategoryItems.pageCount()
 
-        PullToRefreshBox(
+        DevInfoPullToRefresh(
             isRefreshing = isRefreshing,
             onRefresh = { isRefreshing = true },
-            state = pullToRefreshState,
             modifier = Modifier.fillMaxSize()
         ) {
+            // Miuix 的 TabRow 自带水平内边距，Material3 的 ScrollableTabRow 需要外层补 16dp，
+            // 因此只把水平内边距作为风格差异参数，其余布局共用。
+            val horizontalInset = if (LocalUiStyle.current == UiStyle.MIUIX) 12.dp else 16.dp
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(
+                    start = horizontalInset,
                     top = 12.dp,
+                    end = horizontalInset,
                     bottom = 12.dp + LocalFloatingNavigationContentPadding.current,
-                    start = 0.dp,
-                    end = 0.dp,
                 )
             ) {
                 // Category Tab Row
@@ -254,117 +227,12 @@ fun DeviceInfoPage(
                             totalPages = visibleTotalPages,
                             onPageChange = { currentPage = it },
                             onItemCopy = onItemCopy,
-                            storagePercent = storagePercent,
-                            memoryPercent = memoryPercent,
-                            batteryLevel = overviewSnapshot.batteryLevel,
-                            batteryCharging = overviewSnapshot.batteryCharging,
-                            cpuCoreMetrics = overviewSnapshot.cpuCoreMetrics
+                            overviewSnapshot = overviewSnapshot
                         )
                     }
                 }
 
                 item { Spacer(modifier = Modifier.height(4.dp)) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MiuixDeviceInfoPage(
-    itemsState: List<ItemWithVisibility>,
-    isLoading: Boolean,
-    overviewSnapshot: OverviewSnapshot,
-    onRefresh: suspend () -> Unit,
-    initialCategory: InfoCategory,
-) {
-    val resources = LocalResources.current
-    val clipboard = LocalClipboard.current
-    val showMessage = rememberDevInfoMessageHandler()
-    val scope = rememberCoroutineScope()
-    val categories = InfoCategory.entries
-    var selectedCategoryIndex by rememberSaveable(initialCategory) {
-        mutableIntStateOf(categories.indexOf(initialCategory).coerceAtLeast(0))
-    }
-    var isRefreshing by remember { mutableStateOf(false) }
-    val itemsByCategory = remember(itemsState) {
-        itemsState.groupBy { it.item.category }
-    }
-    val selectedCategory = categories[selectedCategoryIndex]
-
-    LaunchedEffect(isRefreshing) {
-        if (isRefreshing) {
-            onRefresh()
-            isRefreshing = false
-        }
-    }
-
-    if (isLoading && itemsState.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            InfiniteProgressIndicator(color = MiuixTheme.colorScheme.primary)
-        }
-        return
-    }
-
-    // 参数依次为 isRefreshing / onRefresh / modifier，其余取默认值
-    MiuixPullToRefresh(
-        isRefreshing,
-        { isRefreshing = true },
-        Modifier.fillMaxSize()
-    ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = 12.dp,
-                top = 12.dp,
-                end = 12.dp,
-                bottom = 12.dp + LocalFloatingNavigationContentPadding.current,
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
-                MiuixTabRow(
-                tabs = categories.map { stringResource(it.displayNameResId()) },
-                selectedTabIndex = selectedCategoryIndex,
-                onTabSelected = { selectedCategoryIndex = it },
-            )
-            }
-            item {
-                AnimatedContent(
-                    targetState = selectedCategory,
-                    transitionSpec = {
-                        val direction = if (
-                            categories.indexOf(targetState) >= categories.indexOf(initialState)
-                        ) {
-                            1
-                        } else {
-                            -1
-                        }
-                        (fadeIn(tween(260)) + slideInHorizontally { direction * it / 4 })
-                            .togetherWith(
-                                fadeOut(tween(180)) + slideOutHorizontally { -direction * it / 4 },
-                            )
-                    },
-                    label = "miuixCategorySwitch",
-                ) { category ->
-                    MiuixCategoryCard(
-                        category = category,
-                        items = itemsByCategory[category].orEmpty(),
-                        onItemClick = { item ->
-                            scope.launch {
-                                clipboard.setClipEntry(
-                                    ClipEntry(ClipData.newPlainText(null, item.item.value)),
-                                )
-                            }
-                            showMessage(
-                                resources.getString(
-                                    R.string.copied_to_clipboard,
-                                    resources.getString(item.item.keyResId),
-                                ),
-                            )
-                        },
-                        overviewSnapshot = overviewSnapshot,
-                    )
-                }
             }
         }
     }
@@ -762,6 +630,15 @@ private fun CategoryTabRow(
     selectedIndex: Int,
     onCategorySelected: (Int) -> Unit
 ) {
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixTabRow(
+            tabs = categories.map { stringResource(it.displayNameResId()) },
+            selectedTabIndex = selectedIndex,
+            onTabSelected = onCategorySelected,
+        )
+        return
+    }
+
     PrimaryScrollableTabRow(
         selectedTabIndex = selectedIndex,
         edgePadding = 0.dp,
@@ -787,12 +664,24 @@ private fun CategoryCard(
     totalPages: Int,
     onPageChange: (Int) -> Unit,
     onItemCopy: (ItemWithVisibility) -> Unit,
-    storagePercent: Float? = null,
-    memoryPercent: Float? = null,
-    batteryLevel: Int? = null,
-    batteryCharging: Boolean = false,
-    cpuCoreMetrics: List<CpuCoreMetric> = emptyList()
+    overviewSnapshot: OverviewSnapshot,
 ) {
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixCategoryCard(
+            category = category,
+            items = items,
+            onItemClick = onItemCopy,
+            overviewSnapshot = overviewSnapshot,
+        )
+        return
+    }
+
+    val storagePercent = overviewSnapshot.storagePercent
+    val memoryPercent = overviewSnapshot.memoryPercent
+    val batteryLevel = overviewSnapshot.batteryLevel
+    val batteryCharging = overviewSnapshot.batteryCharging
+    val cpuCoreMetrics = overviewSnapshot.cpuCoreMetrics
+
     // 分页切片
     val pagedItems = remember(items, currentPage) {
         items.drop(currentPage * ITEMS_PER_PAGE).take(ITEMS_PER_PAGE)
