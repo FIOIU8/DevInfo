@@ -21,7 +21,6 @@ import com.fioiu8.devinfo.ui.DevInfoExpressiveSwitch
 import com.fioiu8.devinfo.ui.DevInfoSegmentedDropdownItem
 import com.fioiu8.devinfo.ui.displayNameResId
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -29,11 +28,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.add
-import androidx.compose.foundation.layout.displayCutout
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -51,11 +45,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.MenuOpen
 import androidx.compose.material.icons.rounded.AspectRatio
-import androidx.compose.material.icons.rounded.BlurOn
-import androidx.compose.material.icons.rounded.CallToAction
-import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.Card as MaterialCard
 import androidx.compose.material3.CardDefaults as MaterialCardDefaults
@@ -80,37 +70,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fioiu8.devinfo.core.model.PaletteStyle
 import com.fioiu8.devinfo.core.model.ThemeColor
 import com.fioiu8.devinfo.core.model.ThemeMode
-import com.fioiu8.devinfo.core.model.UiStyle
 import com.fioiu8.devinfo.ui.theme.color
 import com.fioiu8.devinfo.ui.theme.displayNameResId
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.Slider as MiuixSlider
-import top.yukonga.miuix.kmp.basic.TabRow
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TopAppBar
-import com.fioiu8.devinfo.ui.CustomMiuixIcons
-import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
-import top.yukonga.miuix.kmp.preference.SwitchPreference
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 /** 圆形颜色按钮（参�?KernelSU-Style-UI-Kit �?ColorButtonMaterial�?*/
 @Composable
@@ -159,7 +129,6 @@ private fun MaterialColorCircle(
 /** Theme settings rendered with the active UI component system. */
 @Composable
 fun ThemeSettingsPage(
-    uiStyle: UiStyle,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     themeColor: ThemeColor,
@@ -168,63 +137,27 @@ fun ThemeSettingsPage(
     onPaletteStyleChange: (PaletteStyle) -> Unit,
     colorSpec: com.fioiu8.devinfo.core.model.ColorSpec,
     onColorSpecChange: (com.fioiu8.devinfo.core.model.ColorSpec) -> Unit,
-    enableBlur: Boolean,
-    onEnableBlurChange: (Boolean) -> Unit,
-    enableFloatingBottomBar: Boolean,
-    onEnableFloatingBottomBarChange: (Boolean) -> Unit,
-    enableFloatingBottomBarBlur: Boolean,
-    onEnableFloatingBottomBarBlurChange: (Boolean) -> Unit,
     pageScale: Float,
     onPageScaleChange: (Float) -> Unit,
     enablePredictiveBack: Boolean,
     onEnablePredictiveBackChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
-    when (uiStyle) {
-        UiStyle.MATERIAL3 -> MaterialThemeSettingsPage(
-            themeMode = themeMode,
-            onThemeModeChange = onThemeModeChange,
-            themeColor = themeColor,
-            onThemeColorChange = onThemeColorChange,
-            paletteStyle = paletteStyle,
-            onPaletteStyleChange = onPaletteStyleChange,
-            colorSpec = colorSpec,
-            onColorSpecChange = onColorSpecChange,
-            enableBlur = enableBlur,
-            onEnableBlurChange = onEnableBlurChange,
-            enableFloatingBottomBar = enableFloatingBottomBar,
-            onEnableFloatingBottomBarChange = onEnableFloatingBottomBarChange,
-            enableFloatingBottomBarBlur = enableFloatingBottomBarBlur,
-            onEnableFloatingBottomBarBlurChange = onEnableFloatingBottomBarBlurChange,
-            pageScale = pageScale,
-            onPageScaleChange = onPageScaleChange,
-            enablePredictiveBack = enablePredictiveBack,
-            onEnablePredictiveBackChange = onEnablePredictiveBackChange,
-            onBack = onBack,
-        )
-
-        UiStyle.MIUIX -> MiuixThemeSettingsPage(
-            themeMode = themeMode,
-            onThemeModeChange = onThemeModeChange,
-            themeColor = themeColor,
-            onThemeColorChange = onThemeColorChange,
-            paletteStyle = paletteStyle,
-            onPaletteStyleChange = onPaletteStyleChange,
-            colorSpec = colorSpec,
-            onColorSpecChange = onColorSpecChange,
-            enableBlur = enableBlur,
-            onEnableBlurChange = onEnableBlurChange,
-            enableFloatingBottomBar = enableFloatingBottomBar,
-            onEnableFloatingBottomBarChange = onEnableFloatingBottomBarChange,
-            enableFloatingBottomBarBlur = enableFloatingBottomBarBlur,
-            onEnableFloatingBottomBarBlurChange = onEnableFloatingBottomBarBlurChange,
-            pageScale = pageScale,
-            onPageScaleChange = onPageScaleChange,
-            enablePredictiveBack = enablePredictiveBack,
-            onEnablePredictiveBackChange = onEnablePredictiveBackChange,
-            onBack = onBack,
-        )
-    }
+    MaterialThemeSettingsPage(
+        themeMode = themeMode,
+        onThemeModeChange = onThemeModeChange,
+        themeColor = themeColor,
+        onThemeColorChange = onThemeColorChange,
+        paletteStyle = paletteStyle,
+        onPaletteStyleChange = onPaletteStyleChange,
+        colorSpec = colorSpec,
+        onColorSpecChange = onColorSpecChange,
+        pageScale = pageScale,
+        onPageScaleChange = onPageScaleChange,
+        enablePredictiveBack = enablePredictiveBack,
+        onEnablePredictiveBackChange = onEnablePredictiveBackChange,
+        onBack = onBack,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -238,12 +171,6 @@ private fun MaterialThemeSettingsPage(
     onPaletteStyleChange: (PaletteStyle) -> Unit,
     colorSpec: com.fioiu8.devinfo.core.model.ColorSpec,
     onColorSpecChange: (com.fioiu8.devinfo.core.model.ColorSpec) -> Unit,
-    enableBlur: Boolean,
-    onEnableBlurChange: (Boolean) -> Unit,
-    enableFloatingBottomBar: Boolean,
-    onEnableFloatingBottomBarChange: (Boolean) -> Unit,
-    enableFloatingBottomBarBlur: Boolean,
-    onEnableFloatingBottomBarBlurChange: (Boolean) -> Unit,
     pageScale: Float,
     onPageScaleChange: (Float) -> Unit,
     enablePredictiveBack: Boolean,
@@ -392,14 +319,8 @@ private fun MaterialThemeSettingsPage(
 
             item {
                 MaterialThemeSwitchGroup(
-                    enableBlur = enableBlur,
-                    onEnableBlurChange = onEnableBlurChange,
                     enablePredictiveBack = enablePredictiveBack,
                     onEnablePredictiveBackChange = onEnablePredictiveBackChange,
-                    enableFloatingBottomBar = enableFloatingBottomBar,
-                    onEnableFloatingBottomBarChange = onEnableFloatingBottomBarChange,
-                    enableFloatingBottomBarBlur = enableFloatingBottomBarBlur,
-                    onEnableFloatingBottomBarBlurChange = onEnableFloatingBottomBarBlurChange,
                 )
             }
             item {
@@ -442,14 +363,8 @@ private fun MaterialThemeSettingsPage(
 
 @Composable
 private fun MaterialThemeSwitchGroup(
-    enableBlur: Boolean,
-    onEnableBlurChange: (Boolean) -> Unit,
     enablePredictiveBack: Boolean,
     onEnablePredictiveBackChange: (Boolean) -> Unit,
-    enableFloatingBottomBar: Boolean,
-    onEnableFloatingBottomBarChange: (Boolean) -> Unit,
-    enableFloatingBottomBarBlur: Boolean,
-    onEnableFloatingBottomBarBlurChange: (Boolean) -> Unit,
 ) {
     MaterialCard(
         modifier = Modifier.fillMaxWidth(),
@@ -460,31 +375,11 @@ private fun MaterialThemeSwitchGroup(
     ) {
         Column {
             MaterialThemeSwitchRow(
-                title = stringResource(R.string.theme_blur),
-                summary = stringResource(R.string.theme_blur_summary),
-                checked = enableBlur,
-                onCheckedChange = onEnableBlurChange,
-            )
-            MaterialThemeSwitchRow(
                 title = stringResource(R.string.theme_predictive_back),
                 summary = stringResource(R.string.theme_predictive_back_summary),
                 checked = enablePredictiveBack,
                 onCheckedChange = onEnablePredictiveBackChange,
             )
-            MaterialThemeSwitchRow(
-                title = stringResource(R.string.theme_floating_navigation_bar),
-                summary = stringResource(R.string.theme_floating_navigation_bar_summary),
-                checked = enableFloatingBottomBar,
-                onCheckedChange = onEnableFloatingBottomBarChange,
-            )
-            if (enableFloatingBottomBar) {
-                MaterialThemeSwitchRow(
-                    title = stringResource(R.string.theme_floating_navigation_bar_blur),
-                    summary = stringResource(R.string.theme_floating_navigation_bar_blur_summary),
-                    checked = enableFloatingBottomBarBlur,
-                    onCheckedChange = onEnableFloatingBottomBarBlurChange,
-                )
-            }
         }
     }
 }
@@ -638,336 +533,6 @@ private fun MaterialThemePreviewCard(
     }
 }
 
-/** Miuix theme settings interaction adapted from KernelSU-Style-UI-Kit. */
-@Composable
-private fun MiuixThemeSettingsPage(
-    themeMode: ThemeMode,
-    onThemeModeChange: (ThemeMode) -> Unit,
-    themeColor: ThemeColor,
-    onThemeColorChange: (ThemeColor) -> Unit,
-    paletteStyle: PaletteStyle,
-    onPaletteStyleChange: (PaletteStyle) -> Unit,
-    colorSpec: com.fioiu8.devinfo.core.model.ColorSpec,
-    onColorSpecChange: (com.fioiu8.devinfo.core.model.ColorSpec) -> Unit,
-    enableBlur: Boolean,
-    onEnableBlurChange: (Boolean) -> Unit,
-    enableFloatingBottomBar: Boolean,
-    onEnableFloatingBottomBarChange: (Boolean) -> Unit,
-    enableFloatingBottomBarBlur: Boolean,
-    onEnableFloatingBottomBarBlurChange: (Boolean) -> Unit,
-    pageScale: Float,
-    onPageScaleChange: (Float) -> Unit,
-    enablePredictiveBack: Boolean,
-    onEnablePredictiveBackChange: (Boolean) -> Unit,
-    onBack: () -> Unit,
-) {
-    val scrollBehavior = MiuixScrollBehavior()
-    val selectedThemeIndex = themeMode.baseIndex
-    val themeTabs = listOf(
-        stringResource(R.string.theme_mode_system),
-        stringResource(R.string.theme_mode_light),
-        stringResource(R.string.theme_mode_dark),
-    )
-    val colorItems = ThemeColor.entries.map { stringResource(it.displayNameResId()) }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = stringResource(R.string.theme_settings_title),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        val layoutDirection = LocalLayoutDirection.current
-                        Icon(
-                            imageVector = CustomMiuixIcons.Back,
-                            contentDescription = stringResource(R.string.back),
-                            modifier = Modifier.graphicsLayer {
-                                if (layoutDirection == LayoutDirection.Rtl) scaleX = -1f
-                            },
-                            tint = MiuixTheme.colorScheme.onBackground,
-                        )
-                    }
-                },
-                scrollBehavior = scrollBehavior,
-            )
-        },
-        popupHost = {},
-        contentWindowInsets = WindowInsets.systemBars
-            .add(WindowInsets.displayCutout)
-            .only(WindowInsetsSides.Horizontal),
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxHeight()
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .scrollEndHaptic()
-                .overScrollVertical()
-                .padding(horizontal = 12.dp),
-            contentPadding = innerPadding,
-            overscrollEffect = null,
-        ) {
-            item {
-                Spacer(Modifier.height(28.dp))
-                MiuixThemePreviewCard(themeMode = themeMode, themeColor = themeColor)
-                Spacer(Modifier.height(20.dp))
-
-                TabRow(
-                    tabs = themeTabs,
-                    selectedTabIndex = selectedThemeIndex,
-                    onTabSelected = { index ->
-                        onThemeModeChange(themeMode.withBaseIndex(index))
-                    },
-                    height = 48.dp,
-                )
-
-                Card(
-                    modifier = Modifier
-                        .padding(top = 12.dp)
-                        .fillMaxWidth(),
-                ) {
-                    SwitchPreference(
-                        title = stringResource(R.string.theme_monet),
-                        summary = stringResource(R.string.theme_monet_summary),
-                        checked = themeMode.isDynamic,
-                        onCheckedChange = { enabled ->
-                            onThemeModeChange(themeMode.withMonet(enabled))
-                        },
-                        startAction = {
-                            Icon(
-                                imageVector = Icons.Rounded.Wallpaper,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 6.dp),
-                                tint = MiuixTheme.colorScheme.onBackground,
-                            )
-                        },
-                    )
-
-                    AnimatedVisibility(visible = themeMode.isDynamic) {
-                        Column {
-                            OverlayDropdownPreference(
-                                title = stringResource(R.string.theme_key_color),
-                                items = colorItems,
-                                selectedIndex = ThemeColor.entries.indexOf(themeColor).coerceAtLeast(0),
-                                onSelectedIndexChange = { index ->
-                                    ThemeColor.entries.getOrNull(index)?.let(onThemeColorChange)
-                                },
-                                startAction = {
-                                    Box(
-                                        modifier = Modifier
-                                            .padding(end = 12.dp)
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(themeColor.color),
-                                    )
-                                },
-                            )
-                            OverlayDropdownPreference(
-                                title = stringResource(R.string.theme_palette_style),
-                                items = PaletteStyle.entries.map { it.name },
-                                selectedIndex = PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0),
-                                onSelectedIndexChange = { index ->
-                                    PaletteStyle.entries.getOrNull(index)?.let(onPaletteStyleChange)
-                                },
-                            )
-                            OverlayDropdownPreference(
-                                title = stringResource(R.string.theme_color_spec),
-                                items = com.fioiu8.devinfo.core.model.ColorSpec.entries.map { it.name },
-                                selectedIndex = com.fioiu8.devinfo.core.model.ColorSpec.entries.indexOf(colorSpec).coerceAtLeast(0),
-                                onSelectedIndexChange = { index ->
-                                    com.fioiu8.devinfo.core.model.ColorSpec.entries.getOrNull(index)?.let(onColorSpecChange)
-                                },
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    SwitchPreference(
-                        title = stringResource(R.string.theme_blur),
-                        summary = stringResource(R.string.theme_blur_summary),
-                        checked = enableBlur,
-                        onCheckedChange = onEnableBlurChange,
-                        startAction = {
-                            Icon(
-                                imageVector = Icons.Rounded.BlurOn,
-                                contentDescription = stringResource(R.string.theme_blur),
-                                modifier = Modifier.padding(end = 6.dp),
-                                tint = MiuixTheme.colorScheme.onBackground,
-                            )
-                        },
-                    )
-                    SwitchPreference(
-                        title = stringResource(R.string.theme_predictive_back),
-                        summary = stringResource(R.string.theme_predictive_back_summary),
-                        checked = enablePredictiveBack,
-                        onCheckedChange = onEnablePredictiveBackChange,
-                        startAction = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.MenuOpen,
-                                contentDescription = stringResource(R.string.theme_predictive_back),
-                                modifier = Modifier.padding(end = 6.dp),
-                                tint = MiuixTheme.colorScheme.onBackground,
-                            )
-                        },
-                    )
-                    SwitchPreference(
-                        title = stringResource(R.string.theme_floating_navigation_bar),
-                        summary = stringResource(R.string.theme_floating_navigation_bar_summary),
-                        checked = enableFloatingBottomBar,
-                        onCheckedChange = onEnableFloatingBottomBarChange,
-                        startAction = {
-                            Icon(
-                                imageVector = Icons.Rounded.CallToAction,
-                                contentDescription = stringResource(R.string.theme_floating_navigation_bar),
-                                modifier = Modifier.padding(end = 6.dp),
-                                tint = MiuixTheme.colorScheme.onBackground,
-                            )
-                        },
-                    )
-                    if (enableFloatingBottomBar) {
-                        SwitchPreference(
-                            title = stringResource(R.string.theme_floating_navigation_bar_blur),
-                            summary = stringResource(R.string.theme_floating_navigation_bar_blur_summary),
-                            checked = enableFloatingBottomBarBlur,
-                            onCheckedChange = onEnableFloatingBottomBarBlurChange,
-                            startAction = {
-                                Icon(
-                                    imageVector = Icons.Rounded.WaterDrop,
-                                    contentDescription = stringResource(R.string.theme_floating_navigation_bar_blur),
-                                    modifier = Modifier.padding(end = 6.dp),
-                                    tint = MiuixTheme.colorScheme.onBackground,
-                                )
-                            },
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(12.dp))
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    MiuixPageScalePreference(
-                        pageScale = pageScale,
-                        onPageScaleChange = onPageScaleChange,
-                    )
-                }
-
-                Spacer(Modifier.height(24.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun MiuixPageScalePreference(
-    pageScale: Float,
-    onPageScaleChange: (Float) -> Unit,
-) {
-    var sliderValue by remember(pageScale) { mutableFloatStateOf(pageScale) }
-
-    Column(modifier = Modifier.padding(16.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.AspectRatio,
-                contentDescription = stringResource(R.string.theme_page_scale),
-                modifier = Modifier.padding(end = 12.dp),
-                tint = MiuixTheme.colorScheme.onBackground,
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.theme_page_scale),
-                    fontSize = MiuixTheme.textStyles.main.fontSize,
-                    color = MiuixTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = stringResource(R.string.theme_page_scale_summary),
-                    fontSize = MiuixTheme.textStyles.body2.fontSize,
-                    color = MiuixTheme.colorScheme.onSurfaceSecondary,
-                )
-            }
-            Text(
-                text = "${(sliderValue * 100).toInt()}%",
-                fontSize = MiuixTheme.textStyles.body2.fontSize,
-                color = MiuixTheme.colorScheme.onSurfaceSecondary,
-            )
-        }
-        MiuixSlider(
-            value = sliderValue,
-            onValueChange = { sliderValue = it },
-            onValueChangeFinished = { onPageScaleChange(sliderValue) },
-            valueRange = 0.8f..1.1f,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-@Composable
-private fun MiuixThemePreviewCard(
-    themeMode: ThemeMode,
-    themeColor: ThemeColor,
-) {
-    val accent = if (themeMode.isDynamic && themeColor != ThemeColor.DEFAULT) {
-        themeColor.color
-    } else {
-        MiuixTheme.colorScheme.primary
-    }
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(184.dp),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.ic_launcher_foreground),
-                    contentDescription = stringResource(R.string.app_name),
-                    modifier = Modifier.size(42.dp),
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MiuixTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = stringResource(R.string.theme_preview_summary),
-                        fontSize = 14.sp,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    )
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = 54.dp, height = 10.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(MiuixTheme.colorScheme.surfaceContainerHigh),
-                )
-                Box(
-                    modifier = Modifier
-                        .size(width = 76.dp, height = 34.dp)
-                        .clip(RoundedCornerShape(17.dp))
-                        .background(accent),
-                )
-            }
-        }
-    }
-}
 
 private val ThemeMode.baseIndex: Int
     get() = when (this) {

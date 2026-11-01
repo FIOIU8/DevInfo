@@ -18,7 +18,6 @@
 package com.fioiu8.devinfo.feature.main
 import com.fioiu8.devinfo.ui.DevInfoFeedbackScope
 import com.fioiu8.devinfo.feature.main.R
-import com.fioiu8.devinfo.ui.DevInfoNavigationBar
 import com.fioiu8.devinfo.ui.DevInfoNavigationItem
 import com.fioiu8.devinfo.ui.DevInfoSnackbarHost
 import com.fioiu8.devinfo.ui.TestVersionWarningCard
@@ -28,6 +27,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -41,6 +41,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -59,7 +60,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.material.icons.Icons
@@ -71,9 +71,9 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
@@ -85,19 +85,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -123,43 +121,12 @@ import com.fioiu8.devinfo.data.AppLanguage
 import com.fioiu8.devinfo.core.model.PaletteStyle
 import com.fioiu8.devinfo.core.model.ThemeColor
 import com.fioiu8.devinfo.core.model.ThemeMode
-import com.fioiu8.devinfo.core.model.UiStyle
-import com.fioiu8.devinfo.ui.BlurredBar
-import com.fioiu8.devinfo.ui.rememberBlurBackdrop
 import com.fioiu8.devinfo.feature.main.screen.about.AboutScreen
 import com.fioiu8.devinfo.feature.main.screen.roothelp.RootHelpScreen
-import com.fioiu8.devinfo.ui.kit.FloatingBottomBar
-import com.fioiu8.devinfo.ui.kit.FloatingBottomBarItem
-import com.fioiu8.devinfo.ui.theme.LocalUiStyle
-import com.fioiu8.devinfo.ui.theme.isInDarkTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.FloatingActionButton as MiuixFloatingActionButton
-import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
-import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
-import top.yukonga.miuix.kmp.basic.NavigationRail as MiuixNavigationRail
-import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem
-import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
-import top.yukonga.miuix.kmp.basic.SnackbarHostState as MiuixSnackbarHostState
-import top.yukonga.miuix.kmp.basic.Text as MiuixText
-import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
-import top.yukonga.miuix.kmp.blur.Backdrop
-import top.yukonga.miuix.kmp.blur.LayerBackdrop
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import top.yukonga.miuix.kmp.nav.core.NavController
-import top.yukonga.miuix.kmp.nav.core.NavDisplay
-import top.yukonga.miuix.kmp.nav.core.NavDisplayEffects
-import top.yukonga.miuix.kmp.nav.core.rememberNavController
-import top.yukonga.miuix.kmp.nav.transition.NavSwipeDirection
-import top.yukonga.miuix.kmp.nav.transition.NavTransitions
-import top.yukonga.miuix.kmp.window.WindowDialog
-import com.fioiu8.devinfo.ui.CustomMiuixIcons
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-
-internal val LocalFloatingNavigationContentPadding = staticCompositionLocalOf { 0.dp }
 
 /** App-owned settings and callbacks required by the main UI. */
 data class MainScreenSettings(
@@ -167,20 +134,12 @@ data class MainScreenSettings(
     val onThemeModeChange: (ThemeMode) -> Unit,
     val themeColor: ThemeColor,
     val onThemeColorChange: (ThemeColor) -> Unit,
-    val uiStyle: UiStyle,
-    val onUiStyleChange: (UiStyle) -> Unit,
     val checkUpdate: Boolean,
     val onCheckUpdateChange: (Boolean) -> Unit,
     val paletteStyle: PaletteStyle,
     val onPaletteStyleChange: (PaletteStyle) -> Unit,
     val colorSpec: com.fioiu8.devinfo.core.model.ColorSpec,
     val onColorSpecChange: (com.fioiu8.devinfo.core.model.ColorSpec) -> Unit,
-    val enableBlur: Boolean,
-    val onEnableBlurChange: (Boolean) -> Unit,
-    val enableFloatingBottomBar: Boolean,
-    val onEnableFloatingBottomBarChange: (Boolean) -> Unit,
-    val enableFloatingBottomBarBlur: Boolean,
-    val onEnableFloatingBottomBarBlurChange: (Boolean) -> Unit,
     val pageScale: Float,
     val onPageScaleChange: (Float) -> Unit,
     val enablePredictiveBack: Boolean,
@@ -211,8 +170,10 @@ fun MainScreen(
         viewModel.onFirstComposition()
     }
 
-    val navController = rememberNavController<MainRoute>(MainRoute.Overview)
-    val navigator = remember(navController) { MainNavigator(navController) }
+    val routeStack = rememberSaveable(saver = MainRouteStackSaver) {
+        mutableStateListOf(MainRoute.Overview)
+    }
+    val navigator = remember(routeStack) { MainNavigator(routeStack) }
     var showExportDialog by rememberSaveable { mutableStateOf(false) }
     var showExportSuccessDialog by rememberSaveable { mutableStateOf(false) }
     var exportedFileUri by rememberSaveable(stateSaver = UriSaver) { mutableStateOf<Uri?>(null) }
@@ -237,10 +198,8 @@ fun MainScreen(
     val exportPartialFileWarning = stringResource(R.string.export_failed_partial_file)
     val exportFileName = remember { ModuleExportHelper.createExportFileName(android.os.Build.MODEL) }
     val materialSnackbarHostState = remember { SnackbarHostState() }
-    val miuixSnackbarHostState = remember { MiuixSnackbarHostState() }
     val showMessage = rememberDevInfoMessageHandler(
         materialHostState = materialSnackbarHostState,
-        miuixHostState = miuixSnackbarHostState,
     )
 
     // SAF 导出 — 用户选择保存位置后将 ZIP 写入 ContentResolver 提供的输出流。
@@ -282,16 +241,7 @@ fun MainScreen(
     }
 
     val snackbarBottomPadding =
-        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
-            if (useNavigationRail) 16.dp else 92.dp
-    val floatingNavigationContentPadding = if (
-        !useNavigationRail && settings.enableFloatingBottomBar
-    ) {
-        88.dp
-    } else {
-        0.dp
-    }
-
+        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 16.dp
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -391,7 +341,6 @@ fun MainScreen(
 
     DevInfoFeedbackScope(
         materialHostState = materialSnackbarHostState,
-        miuixHostState = miuixSnackbarHostState,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             MainRootScaffold(Modifier.fillMaxSize()) {
@@ -412,14 +361,10 @@ fun MainScreen(
                         } else {
                             WindowInsets(0, 0, 0, 0)
                         },
-                        navController = navController,
                         navigator = navigator,
                         viewModel = viewModel,
                         uiState = uiState,
                         settings = settings,
-                        items = navigationItems,
-                        showBottomBar = !useNavigationRail,
-                        floatingNavigationContentPadding = floatingNavigationContentPadding,
                         rootFabBottomPadding = snackbarBottomPadding,
                         onExportClick = { showExportDialog = true },
                         onRootFabClick = { onRootFabClick() },
@@ -430,7 +375,6 @@ fun MainScreen(
 
             DevInfoSnackbarHost(
                 materialHostState = materialSnackbarHostState,
-                miuixHostState = miuixSnackbarHostState,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(horizontal = 16.dp)
@@ -527,14 +471,10 @@ fun MainScreen(
 private fun MainNavigationHost(
     modifier: Modifier,
     consumedStartInsets: WindowInsets,
-    navController: NavController,
     navigator: MainNavigator,
     viewModel: MainViewModel,
     uiState: MainViewModel.MainUiState,
     settings: MainScreenSettings,
-    items: List<MainNavigationItem>,
-    showBottomBar: Boolean,
-    floatingNavigationContentPadding: androidx.compose.ui.unit.Dp,
     rootFabBottomPadding: androidx.compose.ui.unit.Dp,
     onExportClick: () -> Unit,
     onRootFabClick: () -> Unit,
@@ -543,12 +483,8 @@ private fun MainNavigationHost(
     val hostModifier = modifier
         .fillMaxHeight()
         .consumeWindowInsets(consumedStartInsets)
+        .background(MaterialTheme.colorScheme.background)
         .clipToBounds()
-    val hostBackground = when (LocalUiStyle.current) {
-        UiStyle.MATERIAL3 -> MaterialTheme.colorScheme.background
-        UiStyle.MIUIX -> MiuixTheme.colorScheme.background
-    }
-
     // 所有路由入口渲染的是同一个内容函数，只有路由不同。此前把这一串参数在每个
     // entry 里各抄一遍，任何一处漏改都会让某个页面拿到过期的状态。
     val routeContent: @Composable (MainRoute) -> Unit = { route ->
@@ -558,61 +494,34 @@ private fun MainNavigationHost(
             viewModel = viewModel,
             uiState = uiState,
             settings = settings,
-            items = items,
-            showBottomBar = showBottomBar,
-            floatingNavigationContentPadding = floatingNavigationContentPadding,
             rootFabBottomPadding = rootFabBottomPadding,
             onExportClick = onExportClick,
             onRootFabClick = onRootFabClick,
         )
     }
 
+    val canGoBack = navigator.backStack.size > 1
     if (enablePredictiveBack) {
-        NavDisplay(
-            navController = navController,
-            modifier = hostModifier,
-            onBack = { navigator.pop() },
-            transition = NavTransitions.MiuixDefault,
-            effects = NavDisplayEffects(
-                dimAmount = 0f,
-                blockInputDuringTransition = true,
-                backdropColor = hostBackground,
-            ),
-        ) {
-            entry<MainRoute.Overview>(swipeDismiss = NavSwipeDirection.None) {
-                routeContent(MainRoute.Overview)
-            }
-            entry<MainRoute.Settings>(swipeDismiss = NavSwipeDirection.None) {
-                routeContent(MainRoute.Settings)
-            }
-            entry<MainRoute.Details>(swipeDismiss = NavSwipeDirection.None) { route ->
-                routeContent(route)
-            }
-            entry<MainRoute.ThemeSettings>(swipeDismiss = NavSwipeDirection.None) {
-                routeContent(MainRoute.ThemeSettings)
-            }
-            entry<MainRoute.About>(swipeDismiss = NavSwipeDirection.None) {
-                routeContent(MainRoute.About)
-            }
-            entry<MainRoute.RootHelp>(swipeDismiss = NavSwipeDirection.None) {
-                routeContent(MainRoute.RootHelp)
-            }
-        }
-    } else {
-        BackHandler(enabled = navController.backStack.size > 1) {
+        PredictiveBackHandler(enabled = canGoBack) { events ->
+            events.collect { }
             navigator.pop()
         }
-        val stateHolder = rememberSaveableStateHolder()
-        val currentRoute = navigator.currentRoute
-        Box(modifier = hostModifier) {
-            AnimatedContent(
-                targetState = currentRoute,
-                transitionSpec = { mainRouteTransition(initialState, targetState) },
-                label = "mainNavigationTransition",
-            ) { route ->
-                stateHolder.SaveableStateProvider(route) {
-                    routeContent(route)
-                }
+    } else {
+        BackHandler(enabled = canGoBack) {
+            navigator.pop()
+        }
+    }
+
+    val stateHolder = rememberSaveableStateHolder()
+    Box(modifier = hostModifier) {
+        AnimatedContent(
+            targetState = navigator.currentRoute,
+            transitionSpec = { mainRouteTransition(initialState, targetState) },
+            label = "mainNavigationTransition",
+        ) { route ->
+            // SaveableStateHolder keys must be Bundle-compatible on Android.
+            stateHolder.SaveableStateProvider(route.toSavedKey()) {
+                routeContent(route)
             }
         }
     }
@@ -626,9 +535,6 @@ private fun MainRouteContent(
     viewModel: MainViewModel,
     uiState: MainViewModel.MainUiState,
     settings: MainScreenSettings,
-    items: List<MainNavigationItem>,
-    showBottomBar: Boolean,
-    floatingNavigationContentPadding: androidx.compose.ui.unit.Dp,
     rootFabBottomPadding: androidx.compose.ui.unit.Dp,
     onExportClick: () -> Unit,
     onRootFabClick: () -> Unit,
@@ -638,18 +544,11 @@ private fun MainRouteContent(
             title = stringResource(R.string.overview_title),
             showBackButton = false,
             onBack = {},
-            items = items,
-            selectedIndex = route.rootTabIndex(),
-            showBottomBar = showBottomBar,
-            enableBlur = settings.enableBlur,
-            enableFloatingBottomBar = settings.enableFloatingBottomBar,
-            enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
-            floatingNavigationContentPadding = floatingNavigationContentPadding,
+            onSettingsClick = navigator::openSettings,
             showRootFab = false,
             isRootModeEnabled = uiState.isRootModeEnabled,
             rootFabBottomPadding = rootFabBottomPadding,
             onRootFabClick = onRootFabClick,
-            onItemSelected = navigator::selectTab,
         ) {
             DeviceInfoOverviewPage(
                 itemsState = uiState.deviceInfoItems,
@@ -667,26 +566,16 @@ private fun MainRouteContent(
             }
             MainAppScaffold(
                 title = stringResource(R.string.title_settings),
-                showBackButton = false,
-                onBack = {},
-                items = items,
-                selectedIndex = route.rootTabIndex(),
-                showBottomBar = showBottomBar,
-                enableBlur = settings.enableBlur,
-                enableFloatingBottomBar = settings.enableFloatingBottomBar,
-                enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
-                floatingNavigationContentPadding = floatingNavigationContentPadding,
-                showRootFab = true,
+                showBackButton = true,
+                onBack = { if (!navigator.pop()) navigator.selectTab(INFO_TAB_INDEX) },
+                showRootFab = false,
                 isRootModeEnabled = uiState.isRootModeEnabled,
                 rootFabBottomPadding = rootFabBottomPadding,
                 onRootFabClick = onRootFabClick,
-                onItemSelected = navigator::selectTab,
             ) {
                 SettingsPage(
                     versionName = viewModel.appVersionName,
                     versionCode = viewModel.appVersionCode,
-                    uiStyle = settings.uiStyle,
-                    onUiStyleChange = settings.onUiStyleChange,
                     onThemeSettingsClick = navigator::openThemeSettings,
                     onExportClick = onExportClick,
                     onAboutClick = navigator::openAbout,
@@ -708,18 +597,11 @@ private fun MainRouteContent(
             title = stringResource(R.string.title_device_details),
             showBackButton = true,
             onBack = { navigator.pop() },
-            items = items,
-            selectedIndex = route.rootTabIndex(),
-            showBottomBar = showBottomBar,
-            enableBlur = settings.enableBlur,
-            enableFloatingBottomBar = settings.enableFloatingBottomBar,
-            enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
-            floatingNavigationContentPadding = floatingNavigationContentPadding,
+            onSettingsClick = navigator::openSettings,
             showRootFab = false,
             isRootModeEnabled = uiState.isRootModeEnabled,
             rootFabBottomPadding = rootFabBottomPadding,
             onRootFabClick = onRootFabClick,
-            onItemSelected = navigator::selectTab,
         ) {
             HardwareDetailsPage(
                 itemsState = uiState.deviceInfoItems,
@@ -734,7 +616,6 @@ private fun MainRouteContent(
         }
 
         MainRoute.ThemeSettings -> ThemeSettingsPage(
-            uiStyle = settings.uiStyle,
             themeMode = settings.themeMode,
             onThemeModeChange = settings.onThemeModeChange,
             themeColor = settings.themeColor,
@@ -743,12 +624,6 @@ private fun MainRouteContent(
             onPaletteStyleChange = settings.onPaletteStyleChange,
             colorSpec = settings.colorSpec,
             onColorSpecChange = settings.onColorSpecChange,
-            enableBlur = settings.enableBlur,
-            onEnableBlurChange = settings.onEnableBlurChange,
-            enableFloatingBottomBar = settings.enableFloatingBottomBar,
-            onEnableFloatingBottomBarChange = settings.onEnableFloatingBottomBarChange,
-            enableFloatingBottomBarBlur = settings.enableFloatingBottomBarBlur,
-            onEnableFloatingBottomBarBlurChange = settings.onEnableFloatingBottomBarBlurChange,
             pageScale = settings.pageScale,
             onPageScaleChange = settings.onPageScaleChange,
             enablePredictiveBack = settings.enablePredictiveBack,
@@ -772,18 +647,11 @@ private fun MainAppScaffold(
     title: String,
     showBackButton: Boolean,
     onBack: () -> Unit,
-    items: List<MainNavigationItem>,
-    selectedIndex: Int,
-    showBottomBar: Boolean,
-    enableBlur: Boolean,
-    enableFloatingBottomBar: Boolean,
-    enableFloatingBottomBarBlur: Boolean,
-    floatingNavigationContentPadding: androidx.compose.ui.unit.Dp,
+    onSettingsClick: (() -> Unit)? = null,
     showRootFab: Boolean,
     isRootModeEnabled: Boolean,
     rootFabBottomPadding: androidx.compose.ui.unit.Dp,
     onRootFabClick: () -> Unit,
-    onItemSelected: (Int) -> Unit,
     content: @Composable () -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
@@ -793,24 +661,14 @@ private fun MainAppScaffold(
             title = title,
             showBackButton = showBackButton,
             onBack = onBack,
-            items = items,
-            selectedIndex = selectedIndex,
-            onItemSelected = onItemSelected,
-            showBottomBar = showBottomBar,
-            enableBlur = enableBlur,
-            enableFloatingBottomBar = enableFloatingBottomBar,
-            enableFloatingBottomBarBlur = enableFloatingBottomBarBlur,
+            onSettingsClick = onSettingsClick,
         ) { paddingValues ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
             ) {
-                CompositionLocalProvider(
-                    LocalFloatingNavigationContentPadding provides floatingNavigationContentPadding,
-                ) {
-                    content()
-                }
+                content()
             }
         }
 
@@ -821,7 +679,7 @@ private fun MainAppScaffold(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 16.dp)
-                    .padding(bottom = rootFabBottomPadding + 56.dp),
+                    .padding(bottom = rootFabBottomPadding),
             )
         }
     }
@@ -859,24 +717,8 @@ private fun MainRootScaffold(
     modifier: Modifier,
     content: @Composable BoxScope.() -> Unit
 ) {
-    when (LocalUiStyle.current) {
-        UiStyle.MATERIAL3 -> {
-            Box(modifier = modifier) {
-                content()
-            }
-        }
-
-        UiStyle.MIUIX -> {
-            MiuixScaffold(
-                modifier = modifier,
-                containerColor = Color.Transparent,
-                contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    content()
-                }
-            }
-        }
+    Box(modifier = modifier) {
+        content()
     }
 }
 
@@ -887,288 +729,23 @@ private fun MainScaffold(
     title: String,
     showBackButton: Boolean,
     onBack: () -> Unit,
-    items: List<MainNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit,
-    showBottomBar: Boolean,
-    enableBlur: Boolean,
-    enableFloatingBottomBar: Boolean,
-    enableFloatingBottomBarBlur: Boolean,
+    onSettingsClick: (() -> Unit)?,
     content: @Composable (PaddingValues) -> Unit
 ) {
-    val topBar: @Composable () -> Unit = {
-        MainTopBar(
-            title = title,
-            showBackButton = showBackButton,
-            onBack = onBack
-        )
-    }
-
-    val standardBottomBar: @Composable () -> Unit = {
-        if (showBottomBar) {
-            if (LocalUiStyle.current == UiStyle.MIUIX) {
-                val surfaceColor = MiuixTheme.colorScheme.surface
-                val blurBackdrop = rememberBlurBackdrop(
-                    enableBlur = enableBlur,
-                    surfaceColor = surfaceColor,
-                )
-                BlurredBar(
-                    backdrop = blurBackdrop,
-                    blurActive = enableBlur,
-                    surfaceColor = surfaceColor,
-                ) {
-                    DevInfoNavigationBar(
-                        items = items,
-                        selectedIndex = selectedIndex,
-                        onItemSelected = onItemSelected,
-                    )
-                }
-            } else {
-                DevInfoNavigationBar(
-                    items = items,
-                    selectedIndex = selectedIndex,
-                    onItemSelected = onItemSelected,
-                )
-            }
-        }
-    }
-
     Box(modifier = modifier.consumeWindowInsets(consumedStartInsets)) {
-        when (LocalUiStyle.current) {
-            UiStyle.MATERIAL3 -> {
-                // Material3：保留原始 Scaffold + bottomBar slot，不干涉，保留原始悬浮样式
-                if (enableFloatingBottomBar) {
-                    val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
-                    val blurBackdrop = rememberBlurBackdrop(
-                        enableBlur = enableBlur || enableFloatingBottomBarBlur,
-                        surfaceColor = surfaceColor,
-                    )
-                    val kitBackdrop: Backdrop = blurBackdrop ?: rememberLayerBackdrop {
-                        drawRect(surfaceColor)
-                        drawContent()
-                    }
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .then(if (blurBackdrop != null) Modifier.layerBackdrop(blurBackdrop) else Modifier),
-                        ) {
-                            Scaffold(
-                                modifier = Modifier.fillMaxSize(),
-                                topBar = topBar,
-                                containerColor = MaterialTheme.colorScheme.background,
-                                content = content,
-                            )
-                        }
-                        if (showBottomBar) {
-                            FloatingMainNavigationBar(
-                                items = items,
-                                selectedIndex = selectedIndex,
-                                onItemSelected = onItemSelected,
-                                backdrop = kitBackdrop,
-                                blurBackdrop = blurBackdrop,
-                                enableBlur = enableFloatingBottomBarBlur,
-                            )
-                        }
-                    }
-                } else {
-                    Scaffold(
-                        modifier = Modifier.fillMaxSize(),
-                        topBar = topBar,
-                        bottomBar = standardBottomBar,
-                        containerColor = MaterialTheme.colorScheme.background,
-                        content = content,
-                    )
-                }
-            }
-
-            UiStyle.MIUIX -> {
-                // Miuix：使用 Box + blur 叠加，实现悬浮毛玻璃效果
-                if (enableFloatingBottomBar) {
-                    val surfaceColor = MiuixTheme.colorScheme.surfaceContainer
-                    val blurBackdrop = rememberBlurBackdrop(
-                        enableBlur = enableBlur || enableFloatingBottomBarBlur,
-                        surfaceColor = surfaceColor,
-                    )
-                    val kitBackdrop: Backdrop = blurBackdrop ?: rememberLayerBackdrop {
-                        drawRect(surfaceColor)
-                        drawContent()
-                    }
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .then(if (blurBackdrop != null) Modifier.layerBackdrop(blurBackdrop) else Modifier),
-                        ) {
-                            MiuixScaffold(
-                                topBar = topBar,
-                                popupHost = {},
-                                content = content,
-                            )
-                        }
-                        if (showBottomBar) {
-                            FloatingMainNavigationBar(
-                                items = items,
-                                selectedIndex = selectedIndex,
-                                onItemSelected = onItemSelected,
-                                backdrop = kitBackdrop,
-                                blurBackdrop = blurBackdrop,
-                                enableBlur = enableFloatingBottomBarBlur,
-                            )
-                        }
-                    }
-                } else {
-                    MiuixScaffold(
-                        topBar = topBar,
-                        bottomBar = standardBottomBar,
-                        popupHost = {},
-                        content = content,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun BoxScope.FloatingMainNavigationBar(
-    items: List<MainNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit,
-    backdrop: Backdrop,
-    blurBackdrop: LayerBackdrop?,
-    enableBlur: Boolean,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .align(Alignment.BottomCenter)
-            .padding(
-                bottom = 12.dp +
-                    WindowInsets.navigationBars
-                        .asPaddingValues()
-                        .calculateBottomPadding(),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        when (LocalUiStyle.current) {
-            UiStyle.MATERIAL3 -> MaterialKitFloatingNavigationBar(
-                items = items,
-                selectedIndex = selectedIndex,
-                onItemSelected = onItemSelected,
-                backdrop = backdrop,
-                glassEffect = enableBlur,
-                blurBackdrop = blurBackdrop,
-            )
-
-            UiStyle.MIUIX -> MiuixKitFloatingNavigationBar(
-                items = items,
-                selectedIndex = selectedIndex,
-                onItemSelected = onItemSelected,
-                backdrop = backdrop,
-                glassEffect = enableBlur,
-                blurBackdrop = blurBackdrop,
-            )
-        }
-    }
-}
-
-@Composable
-private fun BoxScope.MaterialKitFloatingNavigationBar(
-    items: List<MainNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit,
-    backdrop: Backdrop,
-    glassEffect: Boolean,
-    blurBackdrop: LayerBackdrop?,
-) {
-    val selectedIndexState = rememberUpdatedState(selectedIndex)
-    val selectedIndexProvider = remember { { selectedIndexState.value } }
-
-    // 底部定位与安全区留白由外层 FloatingMainNavigationBar 统一处理，
-    // 此处再补一次会导致浮动栏悬浮过高（双重 12.dp + 双重导航栏 inset）
-    FloatingBottomBar(
-        modifier = Modifier
-            .align(Alignment.BottomCenter)
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp),
-        selectedIndex = selectedIndexProvider,
-        onSelected = onItemSelected,
-        backdrop = backdrop,
-        tabsCount = items.size,
-        isBlurEnabled = glassEffect && blurBackdrop != null,
-        surfaceColorOverride = MaterialTheme.colorScheme.surfaceContainer,
-        accentColorOverride = MaterialTheme.colorScheme.primary,
-        darkThemeOverride = isInDarkTheme(),
-    ) {
-        items.forEachIndexed { index, item ->
-            FloatingBottomBarItem(
-                modifier = Modifier.defaultMinSize(minWidth = 92.dp),
-                onClick = { onItemSelected(index) },
-            ) {
-                Icon(
-                    imageVector = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
-                    contentDescription = item.label,
-                    tint = MaterialTheme.colorScheme.onSurface,
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                MainTopBar(
+                    title = title,
+                    showBackButton = showBackButton,
+                    onBack = onBack,
+                    onSettingsClick = onSettingsClick
                 )
-                Text(
-                    text = item.label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Visible,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BoxScope.MiuixKitFloatingNavigationBar(
-    items: List<MainNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit,
-    backdrop: Backdrop,
-    glassEffect: Boolean,
-    blurBackdrop: LayerBackdrop?,
-) {
-    val selectedIndexState = rememberUpdatedState(selectedIndex)
-    val selectedIndexProvider = remember { { selectedIndexState.value } }
-
-    // 同 MaterialKitFloatingNavigationBar：底部留白由外层统一处理
-    FloatingBottomBar(
-        modifier = Modifier
-            .align(Alignment.BottomCenter)
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp),
-        selectedIndex = selectedIndexProvider,
-        onSelected = onItemSelected,
-        backdrop = backdrop,
-        tabsCount = items.size,
-        isBlurEnabled = glassEffect && blurBackdrop != null,
-    ) {
-        items.forEachIndexed { index, item ->
-            FloatingBottomBarItem(
-                modifier = Modifier.defaultMinSize(minWidth = 92.dp),
-                onClick = { onItemSelected(index) },
-            ) {
-                MiuixIcon(
-                    imageVector = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
-                    contentDescription = item.label,
-                    tint = MiuixTheme.colorScheme.onSurface,
-                )
-                MiuixText(
-                    text = item.label,
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp,
-                    color = MiuixTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Visible,
-                )
-            }
-        }
+            },
+            containerColor = MaterialTheme.colorScheme.background,
+            content = content,
+        )
     }
 }
 
@@ -1176,26 +753,16 @@ private fun BoxScope.MiuixKitFloatingNavigationBar(
 private fun MainTopBar(
     title: String,
     showBackButton: Boolean,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onSettingsClick: (() -> Unit)?
 ) {
     Column {
-        when (LocalUiStyle.current) {
-            UiStyle.MATERIAL3 -> {
-                MaterialMainTopBar(
-                    title = title,
-                    showBackButton = showBackButton,
-                    onBack = onBack
-                )
-            }
-
-            UiStyle.MIUIX -> {
-                MiuixMainTopBar(
-                    title = title,
-                    showBackButton = showBackButton,
-                    onBack = onBack
-                )
-            }
-        }
+        MaterialMainTopBar(
+            title = title,
+            showBackButton = showBackButton,
+            onBack = onBack,
+            onSettingsClick = onSettingsClick,
+        )
 
         if (!BuildConfig.IS_OFFICIAL) {
             TestVersionWarningCard(
@@ -1212,7 +779,8 @@ private fun MainTopBar(
 private fun MaterialMainTopBar(
     title: String,
     showBackButton: Boolean,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onSettingsClick: (() -> Unit)?
 ) {
     val navigationIcon: @Composable () -> Unit = {
         if (showBackButton) {
@@ -1238,30 +806,17 @@ private fun MaterialMainTopBar(
     TopAppBar(
         navigationIcon = navigationIcon,
         title = titleContent,
-        colors = colors,
-    )
-}
-
-@Composable
-private fun MiuixMainTopBar(
-    title: String,
-    showBackButton: Boolean,
-    onBack: () -> Unit
-) {
-    MiuixTopAppBar(
-        title = title,
-        navigationIcon = {
-            if (showBackButton) {
-                MiuixIconButton(onClick = onBack) {
-                    MiuixIcon(
-                        imageVector = CustomMiuixIcons.Back,
-                        contentDescription = stringResource(R.string.back),
-                        tint = MiuixTheme.colorScheme.onBackground
+        actions = {
+            onSettingsClick?.let { openSettings ->
+                IconButton(onClick = openSettings) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = stringResource(R.string.nav_settings)
                     )
                 }
             }
         },
-        color = MiuixTheme.colorScheme.surface
+        colors = colors,
     )
 }
 
@@ -1272,10 +827,7 @@ private fun MainNavigationRail(
     onItemSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    when (LocalUiStyle.current) {
-        UiStyle.MATERIAL3 -> MaterialMainNavigationRail(items, selectedIndex, onItemSelected, modifier)
-        UiStyle.MIUIX -> MiuixMainNavigationRail(items, selectedIndex, onItemSelected, modifier)
-    }
+    MaterialMainNavigationRail(items, selectedIndex, onItemSelected, modifier)
 }
 
 @Composable
@@ -1321,31 +873,6 @@ private fun MaterialMainNavigationRail(
 }
 
 @Composable
-private fun MiuixMainNavigationRail(
-    items: List<MainNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    MiuixNavigationRail(
-        modifier = modifier.fillMaxHeight(),
-        color = MiuixTheme.colorScheme.surface
-    ) {
-        Spacer(modifier = Modifier.weight(1f))
-        items.forEachIndexed { index, item ->
-            MiuixNavigationRailItem(
-                icon = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
-                label = item.label,
-                selected = selectedIndex == index,
-                onClick = { onItemSelected(index) },
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-        }
-        Spacer(modifier = Modifier.weight(1f))
-    }
-}
-
-@Composable
 private fun BoxScope.RootModeFab(
     isRootModeEnabled: Boolean,
     onClick: () -> Unit,
@@ -1353,41 +880,24 @@ private fun BoxScope.RootModeFab(
     modifier: Modifier = Modifier,
 ) {
     if (!isVisible) return
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixFloatingActionButton(
-            onClick = onClick,
-            modifier = modifier,
-            containerColor = if (isRootModeEnabled) {
-                MiuixTheme.colorScheme.primary
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier,
+        containerColor = if (isRootModeEnabled) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        },
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Build,
+            contentDescription = stringResource(R.string.root_fab_desc),
+            tint = if (isRootModeEnabled) {
+                MaterialTheme.colorScheme.onPrimaryContainer
             } else {
-                MiuixTheme.colorScheme.surfaceVariant
+                MaterialTheme.colorScheme.onSurfaceVariant
             },
-        ) {
-            MiuixIcon(
-                imageVector = Icons.Outlined.Build,
-                contentDescription = stringResource(R.string.root_fab_desc),
-            )
-        }
-    } else {
-        FloatingActionButton(
-            onClick = onClick,
-            modifier = modifier,
-            containerColor = if (isRootModeEnabled) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHigh
-            },
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Build,
-                contentDescription = stringResource(R.string.root_fab_desc),
-                tint = if (isRootModeEnabled) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-        }
+        )
     }
 }
 
@@ -1398,34 +908,6 @@ private fun RootRequiredDialog(
     onConfirm: () -> Unit,
 ) {
     if (!show) return
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        WindowDialog(
-            show = show,
-            title = stringResource(R.string.root_required_title),
-            onDismissRequest = onDismiss,
-            // 居中形态（默认在手机上会走底部滑入，长文时贴住下半屏）
-            largeScreen = true,
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                MiuixText(text = stringResource(R.string.root_required_message))
-                // 两个动作横向平分宽度，主要动作在右（见 MiuixDialogActions）
-                MiuixDialogActions(
-                    listOf(
-                        MiuixDialogAction(
-                            label = stringResource(R.string.cancel),
-                            onClick = onDismiss,
-                        ),
-                        MiuixDialogAction(
-                            label = stringResource(R.string.root_fab_confirm),
-                            onClick = onConfirm,
-                            isPrimary = true,
-                        ),
-                    ),
-                )
-            }
-        }
-        return
-    }
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {

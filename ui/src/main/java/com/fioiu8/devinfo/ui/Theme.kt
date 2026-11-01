@@ -28,9 +28,9 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
@@ -39,9 +39,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.fioiu8.devinfo.core.model.ThemeColor
 import com.fioiu8.devinfo.core.model.ThemeMode
-import com.fioiu8.devinfo.core.model.UiStyle
-
-val LocalUiStyle = staticCompositionLocalOf { UiStyle.MATERIAL3 }
+/** The app now has one Material 3 visual system. Kept as a compatibility local while
+ * page implementations are being consolidated. */
 private val LocalDevInfoDarkTheme = staticCompositionLocalOf { false }
 
 @Composable
@@ -126,7 +125,6 @@ private val LightColorScheme = lightColorScheme(
 fun DevInfoTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     themeColor: ThemeColor = ThemeColor.DEFAULT,
-    uiStyle: UiStyle = UiStyle.MATERIAL3,
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
@@ -166,24 +164,12 @@ fun DevInfoTheme(
         else -> LightColorScheme
     }
 
-    CompositionLocalProvider(
-        LocalUiStyle provides uiStyle,
-        LocalDevInfoDarkTheme provides darkTheme,
-    ) {
-        when (uiStyle) {
-            UiStyle.MIUIX -> MiuixDevInfoTheme(
-                themeMode = themeMode,
-                themeColor = themeColor,
-                darkTheme = darkTheme,
-                content = content,
-            )
-
-            UiStyle.MATERIAL3 -> MaterialTheme(
-                colorScheme = colorScheme,
-                typography = Typography,
-                content = content,
-            )
-        }
+    CompositionLocalProvider(LocalDevInfoDarkTheme provides darkTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content,
+        )
     }
 }
 

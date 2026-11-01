@@ -44,12 +44,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.core.model.InfoCategory
-import com.fioiu8.devinfo.core.model.UiStyle
-import com.fioiu8.devinfo.ui.theme.LocalUiStyle
-import top.yukonga.miuix.kmp.basic.BasicComponent as MiuixBasicComponent
-import top.yukonga.miuix.kmp.basic.Card as MiuixCard
-import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * Returns the string resource ID for an InfoCategory's display name.
@@ -80,18 +74,14 @@ fun InfoCategory.descriptionResId(): Int = when (this) {
     InfoCategory.APP -> R.string.category_desc_app
 }
 
-/** 分类标题文本 — 自动适配当前 UI 风格的颜色 */
+/** Category header using the Material 3 accent color. */
 @Composable
 fun CategoryHeader(title: String) {
-    val color = when (LocalUiStyle.current) {
-        UiStyle.MIUIX -> MiuixTheme.colorScheme.primary
-        UiStyle.MATERIAL3 -> MaterialTheme.colorScheme.primary
-    }
     Text(
         text = title,
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.SemiBold,
-        color = color,
+        color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
     )
 }
@@ -115,10 +105,7 @@ fun InfoRow(
     valueAlignment: Alignment.Horizontal? = null,
     icon: ImageVector? = null
 ) {
-    val defaultColor = when (LocalUiStyle.current) {
-        UiStyle.MIUIX -> MiuixTheme.colorScheme.onSurfaceSecondary
-        UiStyle.MATERIAL3 -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    val defaultColor = MaterialTheme.colorScheme.onSurfaceVariant
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -180,23 +167,6 @@ fun TestVersionWarningCard(
     versionName: String = "",
     buildType: String = "dev"
 ) {
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixCard(modifier = modifier.padding(horizontal = 12.dp)) {
-            MiuixBasicComponent(
-                title = stringResource(R.string.test_version_warning),
-                summary = stringResource(R.string.test_version_desc),
-                startAction = {
-                    MiuixIcon(
-                        imageVector = Icons.Outlined.Warning,
-                        contentDescription = stringResource(R.string.warning_icon_desc),
-                        tint = MiuixTheme.colorScheme.error,
-                    )
-                },
-            )
-        }
-        return
-    }
-
     val bgColor = MaterialTheme.colorScheme.surfaceContainerHigh
     val textColor = MaterialTheme.colorScheme.onSurfaceVariant
 

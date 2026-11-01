@@ -43,11 +43,6 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.android.liquid.glass)
 
-    // Miuix
-    implementation(libs.miuix.ui)
-    implementation(libs.miuix.preference)
-    implementation(libs.miuix.blur)
-
     // Lifecycle
     implementation(libs.androidx.lifecycle.runtime.compose)
 

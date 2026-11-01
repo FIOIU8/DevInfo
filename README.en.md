@@ -10,10 +10,6 @@
 | --- | --- | --- |
 | <img src="md3_info.png" width="220" alt="Material 3 device information"> | <img src="md3_info_details.png" width="220" alt="Material 3 information details"> | <img src="md3_settings.png" width="220" alt="Material 3 settings"> |
 
-| Miuix Device information | Miuix Details | Miuix Settings |
-| --- | --- | --- |
-| <img src="miuix_info.png" width="220" alt="Miuix device information"> | <img src="miuix_info_details.png" width="220" alt="Miuix information details"> | <img src="miuix_settings.png" width="220" alt="Miuix settings"> |
-
 [![License](https://img.shields.io/github/license/FIOIU8/DevInfo?color=blue)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-13%2B-brightgreen.svg)](https://developer.android.com)
 [![GitHub Release](https://img.shields.io/github/v/release/FIOIU8/DevInfo?style=flat&logo=github)](https://github.com/FIOIU8/DevInfo/releases)
@@ -24,8 +20,9 @@ DevInfo is an Android device information viewer built with Kotlin and Jetpack Co
 
 ### Device information and live overview
 
-- Details are grouped into nine categories: device, identifiers, system, locale, display, storage, battery, network, and apps.
+- Details use horizontal pages for device, display, SoC and storage, battery and network, cameras, sensors, and more, while preserving and regrouping existing device fields.
 - Fields include Android version, SDK, ABI, kernel, security patch, display, memory/storage, battery, network, sensors, and app information.
+- The camera page shows basic characteristics available to the system without requesting camera permission. The sensor page lists available sensors and reads live accelerometer and gyroscope axes only while that page is visible in the foreground.
 - The overview provides static information, pull-to-refresh, and live metrics. CPU/GPU, memory, storage, battery, motion, brightness, storage read speed, and Wi-Fi signal are shown when supported.
 - CPU statistics may be restricted in normal mode. Optional Root mode shows a risk notice first and only requests root permission after you confirm; when it fails, it explains the reason and offers in-app authorization help.
 
@@ -37,8 +34,9 @@ DevInfo is an Android device information viewer built with Kotlin and Jetpack Co
 
 ### UI and localization
 
-- Material 3 and Miuix UI styles.
-- System, light, dark, and dynamic-color modes with theme colors, palette styles, page scale, blur, and floating navigation settings.
+- A unified Material 3 technical dashboard. Details use top category tabs and horizontal paging, with back and settings actions in the top bar; the main screen has no bottom navigation and uses a navigation rail on wide screens. Overview and detail cards, along with top bar actions, use liquid glass surfaces.
+- All pages use Material 3. AndroidLiquidGlass provides the liquid-glass effects.
+- System, light, dark, and dynamic-color modes with theme colors, palette styles, and page scale settings.
 - Simplified Chinese, English, Japanese, and custom BCP-47 locale tags.
 - Predictive back gestures on Android 14+, splash screens, and app-wide pull-to-refresh.
 
@@ -83,7 +81,6 @@ The debug APK is written to `app/build/outputs/apk/debug/`.
 | --- | --- |
 | Kotlin | 2.4.10 |
 | Jetpack Compose | BOM 2026.08.00 |
-| Miuix | 0.9.4-rc01 |
 | Android Gradle Plugin | 9.1.0 |
 | compileSdk / targetSdk | 37 |
 | minSdk | 33 (Android 13) |
@@ -95,7 +92,7 @@ DevInfo/
 ├── core/                # Framework-independent models and CPU parsing
 ├── data/                # Collection, monitoring, preferences, updates, export
 ├── feature-main/        # Main, overview, details, settings, about
-├── ui/                  # Compose/Miuix themes and shared components
+├── ui/                  # Material 3 themes and shared components
 ├── .github/workflows/   # CI, builds, and releases
 ├── gradle/libs.versions.toml
 └── LICENSE

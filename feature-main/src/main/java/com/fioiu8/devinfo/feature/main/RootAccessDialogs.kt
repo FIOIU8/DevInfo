@@ -18,7 +18,6 @@
 package com.fioiu8.devinfo.feature.main
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -40,13 +39,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
-import com.fioiu8.devinfo.core.model.UiStyle
 import com.fioiu8.devinfo.core.root.RootAccess
 import com.fioiu8.devinfo.ui.DevInfoLoadingIndicator
-import com.fioiu8.devinfo.ui.theme.LocalUiStyle
-import top.yukonga.miuix.kmp.basic.Text as MiuixText
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.window.WindowDialog
 
 /**
  * 加载弹窗的延迟显示阈值。
@@ -118,24 +112,6 @@ fun RootRequestLoadingDialog(
     val message = stringResource(R.string.root_loading_message)
     val cancelLabel = stringResource(R.string.cancel)
 
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        // onDismissRequest 给空实现：Miuix 由回调驱动关闭，空回调即背景点击/返回键无效果
-        WindowDialog(
-            show = true,
-            title = title,
-            onDismissRequest = {},
-            largeScreen = true,
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                RootLoadingBody(message)
-                MiuixDialogActions(
-                    listOf(MiuixDialogAction(label = cancelLabel, onClick = onCancel)),
-                )
-            }
-        }
-        return
-    }
-
     AlertDialog(
         onDismissRequest = {},
         properties = DialogProperties(
@@ -180,28 +156,6 @@ fun RootRequestFailureDialog(
     val helpLabel = stringResource(R.string.root_failure_open_help)
     val closeLabel = stringResource(R.string.close)
 
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        WindowDialog(
-            show = true,
-            title = title,
-            onDismissRequest = onDismiss,
-            largeScreen = true,
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                MiuixText(text = message, style = MiuixTheme.textStyles.body2)
-                // 三个动作 → 竖排（见 MiuixDialogActions）；主要动作用强调色，其余保持默认中性。
-                MiuixDialogActions(
-                    listOf(
-                        MiuixDialogAction(label = retryLabel, onClick = onRetry, isPrimary = true),
-                        MiuixDialogAction(label = helpLabel, onClick = onOpenHelp),
-                        MiuixDialogAction(label = closeLabel, onClick = onDismiss),
-                    ),
-                )
-            }
-        }
-        return
-    }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -241,21 +195,14 @@ fun RootRequestFailureDialog(
     )
 }
 
-/** 弹窗正文：说明文字 + 统一的加载指示器（[DevInfoLoadingIndicator] 已按 UI 风格分派）。 */
+/** Dialog body with an explanation and a loading indicator. */
 @Composable
 private fun RootLoadingBody(message: String) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        when (LocalUiStyle.current) {
-            UiStyle.MATERIAL3 -> Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-
-            UiStyle.MIUIX -> MiuixText(
-                text = message,
-                style = MiuixTheme.textStyles.body2,
-            )
-        }
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+        )
         Spacer(Modifier.height(16.dp))
         Box(
             modifier = Modifier.fillMaxWidth(),
