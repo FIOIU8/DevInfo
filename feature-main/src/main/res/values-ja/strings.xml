@@ -188,13 +188,7 @@
     <string name="system_security_patch">セキュリティパッチ</string>
     <string name="system_sensor_count">センサー数</string>
     <string name="system_usb_debugging">USB デバッグ</string>
-    <string name="theme_blur">ぼかし効果</string>
-    <string name="theme_blur_summary">フローティングナビゲーションボタンに背景のぼかしを適用</string>
     <string name="theme_color_spec">カラー仕様</string>
-    <string name="theme_floating_navigation_bar">フローティングナビゲーションバー</string>
-    <string name="theme_floating_navigation_bar_blur">AndroidLiquidGlass 効果</string>
-    <string name="theme_floating_navigation_bar_blur_summary">フローティングナビゲーションバーにすりガラス効果を適用</string>
-    <string name="theme_floating_navigation_bar_summary">下部ナビゲーションバーをフローティング表示にする</string>
     <string name="theme_key_color">テーマカラー</string>
     <string name="theme_mode_dark">ダークモード</string>
     <string name="theme_mode_light">ライトモード</string>
@@ -211,9 +205,6 @@
     <string name="theme_settings_title">テーマ設定</string>
     <string name="title_device_details">デバイスの詳細</string>
     <string name="title_settings">設定</string>
-    <string name="ui_style">UI スタイル</string>
-    <string name="ui_style_material3">Material 3</string>
-    <string name="ui_style_miuix">Miuix</string>
     <string name="update_check_failed">更新の確認に失敗しました</string>
     <string name="update_found">新しいバージョンがあります</string>
     <string name="update_network_error">GitHub に接続できません。ネットワークを確認してから再試行してください。</string>

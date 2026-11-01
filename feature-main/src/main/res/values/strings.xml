@@ -188,13 +188,7 @@
     <string name="system_security_patch">安全补丁</string>
     <string name="system_sensor_count">传感器数量</string>
     <string name="system_usb_debugging">USB调试</string>
-    <string name="theme_blur">毛玻璃效果</string>
-    <string name="theme_blur_summary">为悬浮导航按钮应用背景模糊</string>
     <string name="theme_color_spec">颜色标准</string>
-    <string name="theme_floating_navigation_bar">悬浮导航栏</string>
-    <string name="theme_floating_navigation_bar_blur">AndroidLiquidGlass 效果</string>
-    <string name="theme_floating_navigation_bar_blur_summary">为悬浮导航栏应用毛玻璃效果</string>
-    <string name="theme_floating_navigation_bar_summary">以悬浮样式显示底部导航栏</string>
     <string name="theme_key_color">主题色</string>
     <string name="theme_mode_dark">深色模式</string>
     <string name="theme_mode_light">浅色模式</string>
@@ -211,9 +205,6 @@
     <string name="theme_settings_title">主题设置</string>
     <string name="title_device_details">详细信息</string>
     <string name="title_settings">设置</string>
-    <string name="ui_style">界面风格</string>
-    <string name="ui_style_material3">Material 3</string>
-    <string name="ui_style_miuix">Miuix</string>
     <string name="update_check_failed">检查更新失败</string>
     <string name="update_found">发现新版本</string>
     <string name="update_network_error">无法连接到GitHub，请检查网络后重试</string>

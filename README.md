@@ -10,10 +10,6 @@
 | --- | --- | --- |
 | <img src="md3_info.png" width="220" alt="Material 3 设备信息"> | <img src="md3_info_details.png" width="220" alt="Material 3 信息详情"> | <img src="md3_settings.png" width="220" alt="Material 3 设置"> |
 
-| Miuix 设备信息 | Miuix 信息详情 | Miuix 设置 |
-| --- | --- | --- |
-| <img src="miuix_info.png" width="220" alt="Miuix 设备信息"> | <img src="miuix_info_details.png" width="220" alt="Miuix 信息详情"> | <img src="miuix_settings.png" width="220" alt="Miuix 设置"> |
-
 [![License](https://img.shields.io/github/license/FIOIU8/DevInfo?color=blue)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-13%2B-brightgreen.svg)](https://developer.android.com)
 [![GitHub Release](https://img.shields.io/github/v/release/FIOIU8/DevInfo?style=flat&logo=github)](https://github.com/FIOIU8/DevInfo/releases)
@@ -24,8 +20,9 @@ DevInfo 是一个使用 Kotlin 和 Jetpack Compose 编写的 Android 设备信�
 
 ### 设备信息与实时概览
 
-- 详情页按设备、标识符、系统、区域、显示、存储、电池、网络、应用九类展示信息。
+- 详情页使用横向分页展示设备、屏幕、SoC 与存储、电池与网络、相机、传感器及更多信息；保留现有设备字段并按用途归类。
 - 覆盖 Android 版本、SDK、ABI、内核、安全补丁、屏幕、内存/存储、电池、网络、传感器和应用信息等字段。
+- 相机页展示系统允许读取的相机基础能力，不申请相机权限；传感器页展示传感器清单，并在页面前台可见时读取加速度计和陀螺仪实时三轴数据。
 - 总览页提供静态信息、下拉刷新和实时指标；CPU/GPU、内存、存储、电池、运动、亮度、存储读速和 Wi-Fi 信号按设备能力显示。
 - 普通模式下 CPU 统计可能受系统限制；可选 Root 模式会先展示风险告知，确认后才向 Root 管理器请求权限，失败时按原因提示并可查看应用内的授权帮助。
 
@@ -37,8 +34,9 @@ DevInfo 是一个使用 Kotlin 和 Jetpack Compose 编写的 Android 设备信�
 
 ### 界面与本地化
 
-- Material 3 与 Miuix 两种 UI 风格。
-- 系统、浅色、深色和动态颜色模式，以及主题色、颜色风格、页面缩放、模糊和悬浮底栏设置。
+- 统一 Material 3 技术仪表盘界面，详情页使用顶部分类标签和横向滑动分页；详情页顶部提供返回和设置入口。主界面不显示底部导航，宽屏使用导航轨；总览与详情信息卡、顶部栏操作使用液态玻璃表面。
+- 全部页面使用 Material 3；液态玻璃效果由 AndroidLiquidGlass 提供。
+- 系统、浅色、深色和动态颜色模式，以及主题色、颜色风格和页面缩放设置。
 - 简体中文、英文、日文和自定义 BCP-47 locale 标签。
 - Android 14+ 预测返回手势、Splash 屏和全局下拉刷新。
 
@@ -83,7 +81,6 @@ Debug APK 输出在 `app/build/outputs/apk/debug/`。
 | --- | --- |
 | Kotlin | 2.4.10 |
 | Jetpack Compose | BOM 2026.08.00 |
-| Miuix | 0.9.4-rc01 |
 | Android Gradle Plugin | 9.1.0 |
 | compileSdk / targetSdk | 37 |
 | minSdk | 33（Android 13） |
@@ -95,7 +92,7 @@ DevInfo/
 ├── core/                # 无 UI 的模型与 CPU 解析
 ├── data/                # 采集、监控、偏好、更新和模块导出
 ├── feature-main/        # 主界面、总览、详情、设置和关于
-├── ui/                  # Compose/Miuix 主题与共享组件
+├── ui/                  # Material 3 主题与共享组件
 ├── .github/workflows/   # CI、构建和 Release
 ├── gradle/libs.versions.toml
 └── LICENSE

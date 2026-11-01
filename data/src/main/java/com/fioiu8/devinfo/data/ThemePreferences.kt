@@ -21,7 +21,6 @@ import android.content.Context
 import com.fioiu8.devinfo.core.model.PaletteStyle
 import com.fioiu8.devinfo.core.model.ThemeColor
 import com.fioiu8.devinfo.core.model.ThemeMode
-import com.fioiu8.devinfo.core.model.UiStyle
 import kotlin.concurrent.Volatile
 import kotlinx.coroutines.flow.StateFlow
 
@@ -44,12 +43,6 @@ class ThemePreferences private constructor(context: Context) :
             defaultValue = ThemeColor.DEFAULT,
         )
 
-    private val uiStylePreference =
-        enumPreference(
-            key = KEY_UI_STYLE,
-            defaultValue = UiStyle.MIUIX,
-        )
-
     private val checkUpdatePreference =
         booleanPreference(
             key = KEY_CHECK_UPDATE,
@@ -68,15 +61,6 @@ class ThemePreferences private constructor(context: Context) :
             defaultValue = com.fioiu8.devinfo.core.model.ColorSpec.DEFAULT,
         )
 
-    private val enableBlurPreference =
-        booleanPreference(key = KEY_ENABLE_BLUR, defaultValue = false)
-
-    private val enableFloatingBottomBarPreference =
-        booleanPreference(key = KEY_ENABLE_FLOATING_BOTTOM_BAR, defaultValue = true)
-
-    private val enableFloatingBottomBarBlurPreference =
-        booleanPreference(key = KEY_ENABLE_FLOATING_BOTTOM_BAR_BLUR, defaultValue = true)
-
     private val pageScalePreference =
         floatPreference(
             key = KEY_PAGE_SCALE,
@@ -91,14 +75,9 @@ class ThemePreferences private constructor(context: Context) :
 
     val themeColor: StateFlow<ThemeColor> = themeColorPreference.flow
 
-    val uiStyle: StateFlow<UiStyle> = uiStylePreference.flow
-
     val checkUpdate: StateFlow<Boolean> = checkUpdatePreference.flow
     val paletteStyle: StateFlow<PaletteStyle> = paletteStylePreference.flow
     val colorSpec: StateFlow<com.fioiu8.devinfo.core.model.ColorSpec> = colorSpecPreference.flow
-    val enableBlur: StateFlow<Boolean> = enableBlurPreference.flow
-    val enableFloatingBottomBar: StateFlow<Boolean> = enableFloatingBottomBarPreference.flow
-    val enableFloatingBottomBarBlur: StateFlow<Boolean> = enableFloatingBottomBarBlurPreference.flow
     val pageScale: StateFlow<Float> = pageScalePreference.flow
     val enablePredictiveBack: StateFlow<Boolean> = enablePredictiveBackPreference.flow
 
@@ -111,10 +90,6 @@ class ThemePreferences private constructor(context: Context) :
         themeColorPreference.set(color)
     }
 
-    fun setUiStyle(style: UiStyle) {
-        uiStylePreference.set(style)
-    }
-
     fun setCheckUpdate(enabled: Boolean) {
         checkUpdatePreference.set(enabled)
     }
@@ -125,18 +100,6 @@ class ThemePreferences private constructor(context: Context) :
 
     fun setColorSpec(spec: com.fioiu8.devinfo.core.model.ColorSpec) {
         colorSpecPreference.set(spec)
-    }
-
-    fun setEnableBlur(enabled: Boolean) {
-        enableBlurPreference.set(enabled)
-    }
-
-    fun setEnableFloatingBottomBar(enabled: Boolean) {
-        enableFloatingBottomBarPreference.set(enabled)
-    }
-
-    fun setEnableFloatingBottomBarBlur(enabled: Boolean) {
-        enableFloatingBottomBarBlurPreference.set(enabled)
     }
 
     fun setPageScale(scale: Float) {
@@ -171,13 +134,9 @@ class ThemePreferences private constructor(context: Context) :
         private const val PREFS_NAME = "devinfo_theme_prefs"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_THEME_COLOR = "theme_color"
-        const val KEY_UI_STYLE = "ui_style"
         const val KEY_CHECK_UPDATE = "check_update"
         const val KEY_PALETTE_STYLE = "palette_style"
         const val KEY_COLOR_SPEC = "color_spec"
-        const val KEY_ENABLE_BLUR = "enable_blur"
-        const val KEY_ENABLE_FLOATING_BOTTOM_BAR = "enable_floating_bottom_bar"
-        const val KEY_ENABLE_FLOATING_BOTTOM_BAR_BLUR = "enable_floating_bottom_bar_blur"
         const val KEY_PAGE_SCALE = "page_scale"
         const val KEY_ENABLE_PREDICTIVE_BACK = "enable_predictive_back"
     }

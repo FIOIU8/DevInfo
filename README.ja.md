@@ -10,10 +10,6 @@
 | --- | --- | --- |
 | <img src="md3_info.png" width="220" alt="Material 3 デバイス情報"> | <img src="md3_info_details.png" width="220" alt="Material 3 情報詳細"> | <img src="md3_settings.png" width="220" alt="Material 3 設定"> |
 
-| Miuix デバイス情報 | Miuix 詳細 | Miuix 設定 |
-| --- | --- | --- |
-| <img src="miuix_info.png" width="220" alt="Miuix デバイス情報"> | <img src="miuix_info_details.png" width="220" alt="Miuix 情報詳細"> | <img src="miuix_settings.png" width="220" alt="Miuix 設定"> |
-
 [![License](https://img.shields.io/github/license/FIOIU8/DevInfo?color=blue)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-13%2B-brightgreen.svg)](https://developer.android.com)
 [![GitHub Release](https://img.shields.io/github/v/release/FIOIU8/DevInfo?style=flat&logo=github)](https://github.com/FIOIU8/DevInfo/releases)
@@ -24,8 +20,9 @@ DevInfo は Kotlin と Jetpack Compose で作られた Android デバイス情�
 
 ### デバイス情報とリアルタイム概要
 
-- 詳細画面は、デバイス、識別子、システム、地域、ディスプレイ、ストレージ、バッテリー、ネットワーク、アプリの9カテゴリで構成されます。
+- 詳細画面は横方向のページで、デバイス、ディスプレイ、SoC とストレージ、バッテリーとネットワーク、カメラ、センサー、その他を表示します。既存のデバイス情報を保持して再分類します。
 - Android バージョン、SDK、ABI、カーネル、セキュリティパッチ、画面、メモリ/ストレージ、バッテリー、ネットワーク、センサー、アプリ情報を表示します。
+- カメラページはカメラ権限を要求せず、システムから読み取れる基本情報を表示します。センサーページはセンサー一覧を表示し、そのページが前面にある間だけ加速度計とジャイロスコープの三軸データを読み取ります。
 - 概要画面は静的情報、プル・トゥ・リフレッシュ、リアルタイム指標を提供します。CPU/GPU、メモリ、ストレージ、バッテリー、動き、明るさ、ストレージ読み取り速度、Wi-Fi 信号は端末が対応する場合に表示されます。
 - 通常モードでは CPU 統計が制限される場合があります。オプションの Root モードは、まずリスクの告知を表示し、同意してから Root マネージャーに権限を要求します。失敗時は原因を表示し、アプリ内の許可ヘルプを確認できます。
 
@@ -37,8 +34,9 @@ DevInfo は Kotlin と Jetpack Compose で作られた Android デバイス情�
 
 ### UI とローカライズ
 
-- Material 3 と Miuix の UI スタイル。
-- システム、ライト、ダーク、動的カラー、テーマ色、カラースタイル、ページ倍率、ぼかし、フローティングナビゲーションの設定。
+- Material 3 に統一した技術ダッシュボード。詳細画面は上部タブと横スワイプで切り替え、上部に戻る操作と設定を配置します。メイン画面に下部ナビゲーションは表示せず、幅広い画面ではナビゲーションレールを使用します。概要と詳細の情報カード、上部バーの操作には Liquid Glass 表面を使用します。
+- すべてのページで Material 3 を使用し、液体ガラス効果には AndroidLiquidGlass を使用しています。
+- システム、ライト、ダーク、動的カラー、テーマ色、カラースタイル、ページ倍率の設定。
 - 簡体字中国語、英語、日本語、カスタム BCP-47 locale タグ。
 - Android 14 以降の予測型戻るジェスチャー、Splash 画面、アプリ全体のプル・トゥ・リフレッシュ。
 
@@ -83,7 +81,6 @@ Debug APK は `app/build/outputs/apk/debug/` に出力されます。
 | --- | --- |
 | Kotlin | 2.4.10 |
 | Jetpack Compose | BOM 2026.08.00 |
-| Miuix | 0.9.4-rc01 |
 | Android Gradle Plugin | 9.1.0 |
 | compileSdk / targetSdk | 37 |
 | minSdk | 33（Android 13） |
@@ -95,7 +92,7 @@ DevInfo/
 ├── core/                # UI に依存しないモデルと CPU 解析
 ├── data/                # 収集、監視、設定、更新、モジュール出力
 ├── feature-main/        # メイン、概要、詳細、設定、About
-├── ui/                  # Compose/Miuix テーマと共有コンポーネント
+├── ui/                  # Material 3 テーマと共有コンポーネント
 ├── .github/workflows/   # CI、ビルド、Release
 ├── gradle/libs.versions.toml
 └── LICENSE

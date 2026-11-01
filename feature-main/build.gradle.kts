@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ktlint)
 }
 
@@ -74,13 +73,6 @@ dependencies {
 
     // Activity
     implementation(libs.androidx.activity.compose)
-
-    // Miuix
-    implementation(libs.miuix.ui)
-    implementation(libs.miuix.preference)
-    implementation(libs.miuix.blur)
-    implementation(libs.miuix.nav)
-    implementation(libs.kotlinx.serialization.json)
 
     // Test
     testImplementation(libs.junit)

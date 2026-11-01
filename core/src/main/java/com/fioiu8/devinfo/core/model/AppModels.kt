@@ -18,14 +18,6 @@
 package com.fioiu8.devinfo.core.model
 
 /**
- * UI style selection — Material 3 or Miuix.
- */
-enum class UiStyle {
-    MATERIAL3,
-    MIUIX,
-}
-
-/**
  * Theme mode options.
  * Display names resolved by UI layer via string key.
  *
