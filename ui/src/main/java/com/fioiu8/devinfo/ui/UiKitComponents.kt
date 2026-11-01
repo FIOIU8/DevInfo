@@ -66,30 +66,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.fioiu8.devinfo.core.model.UiStyle
-import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
-import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar
-import top.yukonga.miuix.kmp.basic.NavigationBarItem as MiuixNavigationBarItem
-import top.yukonga.miuix.kmp.basic.PullToRefresh as MiuixPullToRefresh
-import top.yukonga.miuix.kmp.basic.SnackbarHost as MiuixSnackbarHost
-import top.yukonga.miuix.kmp.basic.SnackbarHostState as MiuixSnackbarHostState
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val LocalMaterialSnackbarHostState = staticCompositionLocalOf<SnackbarHostState?> { null }
-private val LocalMiuixSnackbarHostState = staticCompositionLocalOf<MiuixSnackbarHostState?> { null }
 
 /** Provides the app-wide transient-message host to every DevInfo page. */
 @Composable
 fun DevInfoFeedbackScope(
     materialHostState: SnackbarHostState,
-    miuixHostState: MiuixSnackbarHostState,
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(
         LocalMaterialSnackbarHostState provides materialHostState,
-        LocalMiuixSnackbarHostState provides miuixHostState,
         content = content,
     )
 }
@@ -98,18 +86,13 @@ fun DevInfoFeedbackScope(
 @Composable
 fun rememberDevInfoMessageHandler(
     materialHostState: SnackbarHostState? = LocalMaterialSnackbarHostState.current,
-    miuixHostState: MiuixSnackbarHostState? = LocalMiuixSnackbarHostState.current,
 ): (String) -> Unit {
     val scope = rememberCoroutineScope()
-    val uiStyle = LocalUiStyle.current
 
-    return remember(materialHostState, miuixHostState, scope, uiStyle) {
+    return remember(materialHostState, scope) {
         { message ->
             scope.launch {
-                when (uiStyle) {
-                    UiStyle.MATERIAL3 -> materialHostState?.showSnackbar(message)
-                    UiStyle.MIUIX -> miuixHostState?.showSnackbar(message)
-                }
+                materialHostState?.showSnackbar(message)
             }
         }
     }
@@ -121,20 +104,9 @@ fun rememberDevInfoMessageHandler(
 @Composable
 fun DevInfoSnackbarHost(
     materialHostState: SnackbarHostState,
-    miuixHostState: MiuixSnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
-    when (LocalUiStyle.current) {
-        UiStyle.MATERIAL3 -> MaterialDevInfoSnackbarHost(
-            hostState = materialHostState,
-            modifier = modifier,
-        )
-
-        UiStyle.MIUIX -> MiuixSnackbarHost(
-            state = miuixHostState,
-            modifier = modifier,
-        )
-    }
+    MaterialDevInfoSnackbarHost(hostState = materialHostState, modifier = modifier)
 }
 
 @Composable
@@ -178,21 +150,12 @@ fun DevInfoNavigationBar(
     onItemSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    when (LocalUiStyle.current) {
-        UiStyle.MATERIAL3 -> MaterialNavigationBar(
-            items = items,
-            selectedIndex = selectedIndex,
-            onItemSelected = onItemSelected,
-            modifier = modifier,
-        )
-
-        UiStyle.MIUIX -> MiuixNavigationBar(
-            items = items,
-            selectedIndex = selectedIndex,
-            onItemSelected = onItemSelected,
-            modifier = modifier,
-        )
-    }
+    MaterialNavigationBar(
+        items = items,
+        selectedIndex = selectedIndex,
+        onItemSelected = onItemSelected,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -222,50 +185,17 @@ private fun MaterialNavigationBar(
     }
 }
 
-@Composable
-private fun MiuixNavigationBar(
-    items: List<DevInfoNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit,
-    modifier: Modifier,
-) {
-    MiuixNavigationBar(
-        modifier = modifier,
-        color = MiuixTheme.colorScheme.surface,
-    ) {
-        items.forEachIndexed { index, item ->
-            MiuixNavigationBarItem(
-                modifier = Modifier.weight(1f),
-                icon = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
-                label = item.label,
-                selected = selectedIndex == index,
-                onClick = { onItemSelected(index) },
-            )
-        }
-    }
-}
-
 /** Uses the component system selected by the user for initial data loading. */
 @Composable
 fun DevInfoLoadingIndicator(modifier: Modifier = Modifier) {
-    when (LocalUiStyle.current) {
-        UiStyle.MATERIAL3 -> CircularProgressIndicator(
-            modifier = modifier,
-            color = MaterialTheme.colorScheme.primary,
-        )
-
-        UiStyle.MIUIX -> InfiniteProgressIndicator(
-            modifier = modifier,
-            color = MiuixTheme.colorScheme.primary,
-        )
-    }
+    CircularProgressIndicator(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.primary,
+    )
 }
 
 /**
- * 下拉刷新容器 — 按当前 UI 风格分派。
- *
- * 两套实现的刷新状态来源不同：Miuix 直接接收 isRefreshing，Material3 需要外部持有的
- * state，因此这里统一暴露 isRefreshing/onRefresh 两个参数，由本组件负责创建 state。
+ * Material 3 下拉刷新容器。
  */
 @Composable
 fun DevInfoPullToRefresh(
@@ -274,23 +204,13 @@ fun DevInfoPullToRefresh(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    when (LocalUiStyle.current) {
-        UiStyle.MATERIAL3 -> PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = onRefresh,
-            state = rememberPullToRefreshState(),
-            modifier = modifier,
-        ) {
-            content()
-        }
-
-        UiStyle.MIUIX -> MiuixPullToRefresh(
-            isRefreshing = isRefreshing,
-            onRefresh = onRefresh,
-            modifier = modifier,
-        ) {
-            content()
-        }
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        state = rememberPullToRefreshState(),
+        modifier = modifier,
+    ) {
+        content()
     }
 }
 

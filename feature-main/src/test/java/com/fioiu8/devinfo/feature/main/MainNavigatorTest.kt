@@ -3,13 +3,10 @@ package com.fioiu8.devinfo.feature.main
 import androidx.compose.runtime.mutableStateListOf
 import com.fioiu8.devinfo.core.model.HardwareDetailPage
 import com.fioiu8.devinfo.core.model.InfoCategory
-import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import top.yukonga.miuix.kmp.nav.core.NavController
-import top.yukonga.miuix.kmp.nav.core.NavKey
 
 class MainNavigatorTest {
 
@@ -69,6 +66,18 @@ class MainNavigatorTest {
     }
 
     @Test
+    fun `settings action pushes settings and back returns to the previous page`() {
+        val navigator = navigator()
+        navigator.openDetails(InfoCategory.DISPLAY)
+
+        navigator.openSettings()
+
+        assertEquals(MainRoute.Settings, navigator.currentRoute)
+        assertTrue(navigator.pop())
+        assertEquals(MainRoute.Details("DISPLAY"), navigator.currentRoute)
+    }
+
+    @Test
     fun `reselecting the current root tab is a no-op`() {
         val navigator = navigator()
 
@@ -87,28 +96,21 @@ class MainNavigatorTest {
     }
 
     @Test
-    fun `routes round trip through serialization`() {
-        val route = MainRoute.Details("BATTERY_NETWORK")
-        val json = Json
+    fun `routes round trip through save keys`() {
+        val routes = listOf(
+            MainRoute.Overview,
+            MainRoute.Details("BATTERY_NETWORK"),
+            MainRoute.Settings,
+            MainRoute.ThemeSettings,
+            MainRoute.About,
+            MainRoute.RootHelp,
+        )
 
-        val encoded = json.encodeToString(MainRoute.serializer(), route)
-        val restored = json.decodeFromString(MainRoute.serializer(), encoded)
+        val restored = routes.map(MainRoute::toSavedKey).mapNotNull(::mainRouteFromSavedKey)
 
-        assertEquals(route, restored)
+        assertEquals(routes, restored)
     }
 
-    @Test
-    fun `root help route round trips through serialization`() {
-        val json = Json
-
-        val encoded = json.encodeToString(MainRoute.serializer(), MainRoute.RootHelp)
-        val restored = json.decodeFromString(MainRoute.serializer(), encoded)
-
-        assertEquals(MainRoute.RootHelp, restored)
-    }
-
-    private fun navigator(): MainNavigator {
-        val stack = mutableStateListOf<NavKey>(MainRoute.Overview)
-        return MainNavigator(NavController(stack))
-    }
+    private fun navigator(): MainNavigator =
+        MainNavigator(mutableStateListOf(MainRoute.Overview))
 }

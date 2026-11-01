@@ -19,15 +19,13 @@ package com.fioiu8.devinfo.feature.main.screen.roothelp
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
-import com.fioiu8.devinfo.core.model.UiStyle
 import com.fioiu8.devinfo.feature.main.R
-import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 
 /**
  * 应用内的 Root 授权帮助页。
  *
- * 与 `screen/about/` 保持同一套结构：一个组装状态的入口 + 两套风格实现，因此新增一节内容只需
- * 扩 [RootHelpUiState]，两套风格各自怎么排版由渲染层决定。
+ * The state and its Material 3 rendering stay separate so translated help content can change
+ * without mixing it into the layout.
  *
  * 入口有两个：设置页「工具」区的一行，以及授权失败弹窗的「查看授权帮助」。
  */
@@ -56,10 +54,7 @@ fun RootHelpScreen(
     )
     val actions = RootHelpScreenActions(onBack = onBack)
 
-    when (LocalUiStyle.current) {
-        UiStyle.MIUIX -> RootHelpScreenMiuix(state, actions)
-        UiStyle.MATERIAL3 -> RootHelpScreenMaterial(state, actions)
-    }
+    RootHelpScreenMaterial(state, actions)
 }
 
 /**

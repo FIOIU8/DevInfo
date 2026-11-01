@@ -122,7 +122,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             val themeMode by themePrefs.themeMode.collectAsStateWithLifecycle()
             val themeColor by themePrefs.themeColor.collectAsStateWithLifecycle()
-            val uiStyle by themePrefs.uiStyle.collectAsStateWithLifecycle()
             val appLanguage by languagePrefs.appLanguage.collectAsStateWithLifecycle(initialValue = AppLanguage.SYSTEM)
             val customLocaleTag by languagePrefs.customLocaleTag.collectAsStateWithLifecycle(initialValue = "")
             val viewModelKey = "main:$appLanguage:$customLocaleTag:${resources.configuration.locales.toLanguageTags()}"
@@ -133,9 +132,6 @@ class MainActivity : ComponentActivity() {
             val checkUpdate by themePrefs.checkUpdate.collectAsStateWithLifecycle(initialValue = true)
             val paletteStyle by themePrefs.paletteStyle.collectAsStateWithLifecycle(initialValue = PaletteStyle.DEFAULT)
             val colorSpec by themePrefs.colorSpec.collectAsStateWithLifecycle(initialValue = com.fioiu8.devinfo.core.model.ColorSpec.DEFAULT)
-            val enableBlur by themePrefs.enableBlur.collectAsStateWithLifecycle(initialValue = false)
-            val enableFloatingBottomBar by themePrefs.enableFloatingBottomBar.collectAsStateWithLifecycle(initialValue = true)
-            val enableFloatingBottomBarBlur by themePrefs.enableFloatingBottomBarBlur.collectAsStateWithLifecycle(initialValue = true)
             val pageScale by themePrefs.pageScale.collectAsStateWithLifecycle(initialValue = 1f)
             val enablePredictiveBack by themePrefs.enablePredictiveBack.collectAsStateWithLifecycle(initialValue = true)
             val systemDensity = LocalDensity.current
@@ -148,15 +144,11 @@ class MainActivity : ComponentActivity() {
             val mainScreenSettings = remember(
                 themeMode,
                 themeColor,
-                uiStyle,
                 appLanguage,
                 customLocaleTag,
                 checkUpdate,
                 paletteStyle,
                 colorSpec,
-                enableBlur,
-                enableFloatingBottomBar,
-                enableFloatingBottomBarBlur,
                 pageScale,
                 enablePredictiveBack,
             ) {
@@ -165,20 +157,12 @@ class MainActivity : ComponentActivity() {
                     onThemeModeChange = themePrefs::setThemeMode,
                     themeColor = themeColor,
                     onThemeColorChange = themePrefs::setThemeColor,
-                    uiStyle = uiStyle,
-                    onUiStyleChange = themePrefs::setUiStyle,
                     checkUpdate = checkUpdate,
                     onCheckUpdateChange = themePrefs::setCheckUpdate,
                     paletteStyle = paletteStyle,
                     onPaletteStyleChange = themePrefs::setPaletteStyle,
                     colorSpec = colorSpec,
                     onColorSpecChange = themePrefs::setColorSpec,
-                    enableBlur = enableBlur,
-                    onEnableBlurChange = themePrefs::setEnableBlur,
-                    enableFloatingBottomBar = enableFloatingBottomBar,
-                    onEnableFloatingBottomBarChange = themePrefs::setEnableFloatingBottomBar,
-                    enableFloatingBottomBarBlur = enableFloatingBottomBarBlur,
-                    onEnableFloatingBottomBarBlurChange = themePrefs::setEnableFloatingBottomBarBlur,
                     pageScale = pageScale,
                     onPageScaleChange = themePrefs::setPageScale,
                     enablePredictiveBack = enablePredictiveBack,
@@ -199,7 +183,7 @@ class MainActivity : ComponentActivity() {
             }
 
             CompositionLocalProvider(LocalDensity provides scaledDensity) {
-                DevInfoTheme(themeMode = themeMode, themeColor = themeColor, uiStyle = uiStyle) {
+                DevInfoTheme(themeMode = themeMode, themeColor = themeColor) {
                     MainScreen(
                         viewModel = mainViewModel,
                         settings = mainScreenSettings,

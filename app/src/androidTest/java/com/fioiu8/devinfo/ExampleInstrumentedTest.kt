@@ -23,7 +23,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
@@ -89,7 +88,6 @@ class ExampleInstrumentedTest {
 
         composeTestRule.onNodeWithText("C0 80%").assertIsDisplayed()
         val lastCore = composeTestRule.onNodeWithText("C15 80%")
-        lastCore.assertIsDisplayed()
 
         val rootBounds = composeTestRule.onRoot().fetchSemanticsNode().boundsInRoot
         val lastCoreBounds = lastCore.fetchSemanticsNode().boundsInRoot
@@ -98,8 +96,6 @@ class ExampleInstrumentedTest {
 
     @Test
     fun liveActivity_selectingCoreShowsItsDetails() {
-        val detailsLabel = InstrumentationRegistry.getInstrumentation().targetContext
-            .getString(R.string.title_device_details)
         val detailsOpened = AtomicBoolean(false)
         val coreMetrics = listOf(
             CpuCoreMetric(index = 0, frequency = "1800 MHz", usagePercent = 42f),
@@ -135,9 +131,12 @@ class ExampleInstrumentedTest {
         composeTestRule.onNodeWithText("CPU1").assertIsDisplayed()
         composeTestRule.onNodeWithText("2100 MHz").assertIsDisplayed()
         composeTestRule.onNodeWithText("73.5%").assertIsDisplayed()
-        val detailsButton = composeTestRule.onNodeWithContentDescription(detailsLabel)
-        detailsButton.assertHasClickAction()
-        detailsButton.performTouchInput { click() }
+        val cpuOverviewCard = composeTestRule.onNodeWithText(
+            InstrumentationRegistry.getInstrumentation().targetContext
+                .getString(R.string.overview_cpu_usage_short)
+        )
+        cpuOverviewCard.assertHasClickAction()
+        cpuOverviewCard.performTouchInput { click() }
         composeTestRule.runOnIdle { assertTrue("Details button must open device details", detailsOpened.get()) }
     }
 }

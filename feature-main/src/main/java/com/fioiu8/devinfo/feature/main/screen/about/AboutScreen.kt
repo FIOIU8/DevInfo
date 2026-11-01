@@ -4,8 +4,6 @@ import com.fioiu8.devinfo.feature.main.R
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
-import com.fioiu8.devinfo.core.model.UiStyle
-import com.fioiu8.devinfo.ui.theme.LocalUiStyle
 
 @Composable
 fun AboutScreen(
@@ -31,8 +29,5 @@ fun AboutScreen(
         onOpenLink = uriHandler::openUri,
     )
 
-    when (LocalUiStyle.current) {
-        UiStyle.MIUIX -> AboutScreenMiuix(state, actions)
-        UiStyle.MATERIAL3 -> AboutScreenMaterial(state, actions)
-    }
+    AboutScreenMaterial(state, actions)
 }
