@@ -9,7 +9,9 @@
 
 package com.fioiu8.devinfo.feature.main
 
+import com.fioiu8.devinfo.core.model.HardwareDetailPage
 import com.fioiu8.devinfo.core.model.InfoCategory
+import com.fioiu8.devinfo.core.model.hardwareDetailPage
 import kotlinx.serialization.Serializable
 import top.yukonga.miuix.kmp.nav.core.NavController
 import top.yukonga.miuix.kmp.nav.core.NavKey
@@ -68,7 +70,7 @@ internal class MainNavigator(
     }
 
     fun openDetails(category: InfoCategory) {
-        val target = MainRoute.Details(category.name)
+        val target = MainRoute.Details(category.hardwareDetailPage().name)
         if (currentRoute is MainRoute.Details) {
             if (currentRoute != target) controller.replace(target)
         } else {
@@ -111,8 +113,8 @@ internal class MainNavigator(
 
     fun pop(): Boolean = controller.pop()
 
-    fun detailsCategory(route: MainRoute.Details): InfoCategory =
-        InfoCategory.entries.firstOrNull { it.name == route.categoryName } ?: InfoCategory.DEVICE
+    fun detailsPage(route: MainRoute.Details): HardwareDetailPage =
+        HardwareDetailPage.entries.firstOrNull { it.name == route.categoryName } ?: HardwareDetailPage.DEVICE
 
     private fun popToRoot() {
         val root = backStack.firstOrNull() ?: return
