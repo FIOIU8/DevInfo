@@ -22,6 +22,8 @@ import com.fioiu8.devinfo.ui.DevInfoNavigationItem
 import com.fioiu8.devinfo.ui.DevInfoSnackbarHost
 import com.fioiu8.devinfo.ui.TestVersionWarningCard
 import com.fioiu8.devinfo.ui.rememberDevInfoMessageHandler
+import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassBackdropHost
+import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassIconButton
 
 import android.content.Context
 import android.content.Intent
@@ -71,7 +73,6 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.TopAppBar
@@ -733,19 +734,21 @@ private fun MainScaffold(
     content: @Composable (PaddingValues) -> Unit
 ) {
     Box(modifier = modifier.consumeWindowInsets(consumedStartInsets)) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            topBar = {
-                MainTopBar(
-                    title = title,
-                    showBackButton = showBackButton,
-                    onBack = onBack,
-                    onSettingsClick = onSettingsClick
-                )
-            },
-            containerColor = MaterialTheme.colorScheme.background,
-            content = content,
-        )
+        LiquidGlassBackdropHost(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                topBar = {
+                    MainTopBar(
+                        title = title,
+                        showBackButton = showBackButton,
+                        onBack = onBack,
+                        onSettingsClick = onSettingsClick
+                    )
+                },
+                containerColor = MaterialTheme.colorScheme.background,
+                content = content,
+            )
+        }
     }
 }
 
@@ -784,7 +787,7 @@ private fun MaterialMainTopBar(
 ) {
     val navigationIcon: @Composable () -> Unit = {
         if (showBackButton) {
-            IconButton(onClick = onBack) {
+            LiquidGlassIconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(R.string.back),
@@ -808,7 +811,7 @@ private fun MaterialMainTopBar(
         title = titleContent,
         actions = {
             onSettingsClick?.let { openSettings ->
-                IconButton(onClick = openSettings) {
+                LiquidGlassIconButton(onClick = openSettings) {
                     Icon(
                         imageVector = Icons.Outlined.Settings,
                         contentDescription = stringResource(R.string.nav_settings)
