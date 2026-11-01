@@ -1,6 +1,7 @@
 package com.fioiu8.devinfo.feature.main
 
 import androidx.compose.runtime.mutableStateListOf
+import com.fioiu8.devinfo.core.model.HardwareDetailPage
 import com.fioiu8.devinfo.core.model.InfoCategory
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -64,7 +65,7 @@ class MainNavigatorTest {
         navigator.openDetails(InfoCategory.NETWORK)
 
         assertEquals(2, navigator.backStack.size)
-        assertEquals(MainRoute.Details(InfoCategory.NETWORK.name), navigator.currentRoute)
+        assertEquals(MainRoute.Details("BATTERY_NETWORK"), navigator.currentRoute)
     }
 
     @Test
@@ -78,16 +79,16 @@ class MainNavigatorTest {
     }
 
     @Test
-    fun `invalid detail category falls back safely`() {
+    fun `invalid detail page falls back safely`() {
         val navigator = navigator()
         val route = MainRoute.Details("unknown-category")
 
-        assertEquals(InfoCategory.DEVICE, navigator.detailsCategory(route))
+        assertEquals(HardwareDetailPage.DEVICE, navigator.detailsPage(route))
     }
 
     @Test
     fun `routes round trip through serialization`() {
-        val route = MainRoute.Details(InfoCategory.NETWORK.name)
+        val route = MainRoute.Details("BATTERY_NETWORK")
         val json = Json
 
         val encoded = json.encodeToString(MainRoute.serializer(), route)
