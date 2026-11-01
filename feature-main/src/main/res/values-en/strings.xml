@@ -188,13 +188,7 @@
     <string name="system_security_patch">Security patch</string>
     <string name="system_sensor_count">Sensor count</string>
     <string name="system_usb_debugging">USB debugging</string>
-    <string name="theme_blur">Blur effects</string>
-    <string name="theme_blur_summary">Apply background blur to the floating navigation buttons</string>
     <string name="theme_color_spec">Color spec</string>
-    <string name="theme_floating_navigation_bar">Floating navigation bar</string>
-    <string name="theme_floating_navigation_bar_blur">AndroidLiquidGlass effect</string>
-    <string name="theme_floating_navigation_bar_blur_summary">Apply a frosted-glass effect to the floating navigation bar</string>
-    <string name="theme_floating_navigation_bar_summary">Show the bottom navigation bar as a floating bar</string>
     <string name="theme_key_color">Theme color</string>
     <string name="theme_mode_dark">Dark mode</string>
     <string name="theme_mode_light">Light mode</string>
@@ -211,9 +205,6 @@
     <string name="theme_settings_title">Theme settings</string>
     <string name="title_device_details">Device details</string>
     <string name="title_settings">Settings</string>
-    <string name="ui_style">UI style</string>
-    <string name="ui_style_material3">Material 3</string>
-    <string name="ui_style_miuix">Miuix</string>
     <string name="update_check_failed">Update check failed</string>
     <string name="update_found">New version found</string>
     <string name="update_network_error">Cannot connect to GitHub. Check your network and try again.</string>

@@ -65,15 +65,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import com.fioiu8.devinfo.core.model.UiStyle
 import com.fioiu8.devinfo.data.GitHubClient
 import com.fioiu8.devinfo.feature.main.R
-import com.fioiu8.devinfo.ui.theme.LocalUiStyle
-import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.Text as MiuixText
-import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.window.WindowDialog
 
 /**
  * 导出确认对话框 — 展示导出摘要与风险提示，并延迟几秒才允许确认。
@@ -99,16 +92,6 @@ fun ExportConfirmDialog(
             delay(1000L)
             countdown--
         }
-    }
-
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixExportConfirmDialog(
-            fileName = fileName,
-            countdown = countdown,
-            onConfirm = onConfirm,
-            onDismiss = onDismiss,
-        )
-        return
     }
 
     AlertDialog(
@@ -198,11 +181,6 @@ fun ExportSuccessDialog(
     if (!show) return
     val context = LocalContext.current
 
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixExportSuccessDialog(fileUri = fileUri, onDismiss = onDismiss)
-        return
-    }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -280,7 +258,6 @@ fun ExportSuccessDialog(
         }
     )
 }
-
 /**
  * 外部链接确认对话框 — 打开外链前请求用户确认。
  *
@@ -299,18 +276,6 @@ fun ExternalLinkConfirmDialog(
     onDismiss: () -> Unit
 ) {
     if (!show) return
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixActionDialog(
-            title = title,
-            message = "$description\n\n${stringResource(R.string.external_link_open_browser)}",
-            confirmLabel = stringResource(R.string.open),
-            onConfirm = onConfirm,
-            dismissLabel = stringResource(R.string.cancel),
-            onDismiss = onDismiss,
-        )
-        return
-    }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -354,7 +319,6 @@ fun ExternalLinkConfirmDialog(
         }
     )
 }
-
 /**
  * 更新通知对话框 — 显示新版本内容或错误信息。
  *
@@ -377,30 +341,6 @@ fun UpdateAvailableDialog(
     onDismiss: () -> Unit
 ) {
     if (!show) return
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        val title = stringResource(if (isError) R.string.update_check_failed else R.string.update_found)
-        val message = if (isError) {
-            stringResource(R.string.update_network_error)
-        } else {
-            listOfNotNull(
-                info?.let { "${it.name} (${it.tagName})" },
-                info?.body?.takeIf { it.isNotBlank() },
-            ).joinToString("\n\n")
-                // info 缺失（如旧缓存数据）时避免渲染完全空白的正文
-                .takeIf { it.isNotBlank() }
-                ?: stringResource(R.string.update_found)
-        }
-        MiuixActionDialog(
-            title = title,
-            message = message,
-            confirmLabel = stringResource(if (isError) R.string.retry else R.string.go_to_download),
-            onConfirm = if (isError) onRetry else onDownload,
-            dismissLabel = stringResource(if (isError) R.string.close else R.string.later),
-            onDismiss = onDismiss,
-        )
-        return
-    }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -451,8 +391,7 @@ fun UpdateAvailableDialog(
                     )
                     if (info.body.isNotBlank()) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        // 可滚动的发布说明区域。与 Miuix 分支一致，按纯文本渲染：
-                        // release notes 里的 Markdown 标记不值得引入一个解析器。
+                        // Keep release notes as plain text to avoid introducing a parser.
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -520,7 +459,6 @@ fun UpdateAvailableDialog(
         }
     )
 }
-
 /**
  * 下载二次确认对话框 — 用户在更新对话框点击"前往下载"后弹出。
  * 必须再次点击"确认下载"才会真正跳转浏览器离开应用，避免误触。
@@ -536,18 +474,6 @@ fun DownloadConfirmDialog(
     onDismiss: () -> Unit,
 ) {
     if (!show) return
-
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixActionDialog(
-            title = stringResource(R.string.download_confirm_title),
-            message = stringResource(R.string.download_confirm_message),
-            confirmLabel = stringResource(R.string.download_confirm),
-            onConfirm = onConfirm,
-            dismissLabel = stringResource(R.string.cancel),
-            onDismiss = onDismiss,
-        )
-        return
-    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -579,228 +505,10 @@ fun DownloadConfirmDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.download_confirm))
+        Text(stringResource(R.string.download_confirm))
             }
         }
     )
 }
 
-/**
- * Miuix 两键弹窗（取消 + 确定）。
- *
- * 确定键用主要按钮样式：[MiuixTextButton] 的默认颜色是**次要**样式
- * （`ButtonDefaults.textButtonColors()`），主次都走默认就会两个按钮同色、看不出哪个是主操作。
- */
-@Composable
-fun MiuixActionDialog(
-    title: String,
-    message: String,
-    confirmLabel: String,
-    onConfirm: () -> Unit,
-    dismissLabel: String,
-    onDismiss: () -> Unit,
-) {
-    WindowDialog(
-        show = true,
-        title = title,
-        onDismissRequest = onDismiss,
-        largeScreen = true,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            if (message.isNotBlank()) {
-                MiuixText(text = message)
-            }
-            MiuixDialogActions(
-                listOf(
-                    MiuixDialogAction(label = dismissLabel, onClick = onDismiss),
-                    MiuixDialogAction(label = confirmLabel, onClick = onConfirm, isPrimary = true),
-                ),
-            )
-        }
-    }
-}
-
-@Composable
-private fun MiuixExportConfirmDialog(
-    fileName: String,
-    countdown: Int,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    WindowDialog(
-        show = true,
-        title = stringResource(R.string.export_title),
-        onDismissRequest = onDismiss,
-        // 居中的「缩放/淡入」形态。默认（largeScreen = null）在手机上判定为底部滑入形态，
-        // 弹窗贴着屏幕下半并随内容长高，视觉上很重；Miuix 的 largeScreen 就是这两个形态的开关。
-        largeScreen = true,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            MiuixText(
-                text = stringResource(R.string.export_confirm_text),
-                style = MiuixTheme.textStyles.body2,
-            )
-            MiuixText(
-                text = stringResource(R.string.export_risk_warning),
-                color = MiuixTheme.colorScheme.error,
-                style = MiuixTheme.textStyles.body2,
-            )
-            // 原来这里是一张「格式 / 保存位置 / 文件名」三行表；压成一行文件名即可，
-            // 格式由「导出模块」本身表达，保存位置在下一步的系统选择器里选。
-            MiuixText(
-                text = stringResource(R.string.export_filename) + ": " + fileName,
-                color = MiuixTheme.colorScheme.onSurfaceSecondary,
-                style = MiuixTheme.textStyles.footnote1,
-            )
-            MiuixText(
-                text = stringResource(R.string.export_confirm),
-                style = MiuixTheme.textStyles.body2,
-            )
-            // 两个动作横向平分宽度（主要动作在右），宽度由容器决定，倒计时文案变化
-            // （确认导出 (3) → 确认导出）不会改变按钮尺寸。
-            MiuixDialogActions(
-                listOf(
-                    MiuixDialogAction(label = stringResource(R.string.cancel), onClick = onDismiss),
-                    MiuixDialogAction(
-                        label = if (countdown > 0) {
-                            stringResource(R.string.confirm_export_countdown, countdown)
-                        } else {
-                            stringResource(R.string.confirm_export)
-                        },
-                        onClick = onConfirm,
-                        isPrimary = true,
-                        enabled = countdown == 0,
-                    ),
-                ),
-            )
-        }
-    }
-}
-
-/** 弹窗动作区里的一个动作。 */
-@Immutable
-data class MiuixDialogAction(
-    val label: String,
-    val onClick: () -> Unit,
-    /** 主要动作：用主题强调色填充。每个弹窗只应有一个，且在横排时位于右侧。 */
-    val isPrimary: Boolean = false,
-    val enabled: Boolean = true,
-)
-
-/**
- * Miuix 弹窗的动作区。
- *
- * 排布按动作数量决定：
- * - 1 个：满宽；
- * - 2 个：横向**平分**宽度，主要动作在右（次要动作在左）；
- * - 3 个及以上：竖排（横排会把长文案挤成两三行）。
- *
- * 宽度一律由容器决定（`weight` / `fillMaxWidth`），**不用**内容宽度，因此按钮文案变化
- * （例如倒计时「确认导出 (3)」→「确认导出」）不会让按钮尺寸跟着变。
- */
-@Composable
-fun MiuixDialogActions(actions: List<MiuixDialogAction>) {
-    when {
-        actions.isEmpty() -> Unit
-
-        actions.size == 1 -> MiuixDialogActionButton(
-            action = actions.first(),
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        actions.size == 2 -> Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            actions.forEach { action ->
-                MiuixDialogActionButton(action = action, modifier = Modifier.weight(1f))
-            }
-        }
-
-        else -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            actions.forEach { action ->
-                MiuixDialogActionButton(action = action, modifier = Modifier.fillMaxWidth())
-            }
-        }
-    }
-}
-
-@Composable
-private fun MiuixDialogActionButton(
-    action: MiuixDialogAction,
-    modifier: Modifier,
-) {
-    if (action.isPrimary) {
-        MiuixTextButton(
-            text = action.label,
-            onClick = action.onClick,
-            enabled = action.enabled,
-            colors = ButtonDefaults.textButtonColorsPrimary(),
-            modifier = modifier,
-        )
-    } else {
-        MiuixTextButton(
-            text = action.label,
-            onClick = action.onClick,
-            enabled = action.enabled,
-            modifier = modifier,
-        )
-    }
-}
-
-@Composable
-private fun MiuixExportSuccessDialog(
-    fileUri: Uri?,
-    onDismiss: () -> Unit,
-) {
-    val context = LocalContext.current
-
-    WindowDialog(
-        show = true,
-        title = stringResource(R.string.export_success),
-        onDismissRequest = onDismiss,
-        largeScreen = true,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            MiuixText(text = stringResource(R.string.export_saved_to))
-            // 三个动作 → 竖排（见 MiuixDialogActions）
-            MiuixDialogActions(
-                listOf(
-                    MiuixDialogAction(
-                        label = stringResource(R.string.open),
-                        enabled = fileUri != null,
-                        onClick = {
-                            fileUri?.let { uri ->
-                                val intent = Intent(Intent.ACTION_VIEW).apply {
-                                    setDataAndType(uri, "application/zip")
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                // 无 zip 查看器的设备会抛 ActivityNotFoundException
-                                runCatching { context.startActivity(intent) }
-                            }
-                        },
-                    ),
-                    MiuixDialogAction(
-                        label = stringResource(R.string.share),
-                        enabled = fileUri != null,
-                        onClick = {
-                            fileUri?.let { uri ->
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "application/zip"
-                                    putExtra(Intent.EXTRA_STREAM, uri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                runCatching { context.startActivity(Intent.createChooser(intent, null)) }
-                            }
-                        },
-                    ),
-                    MiuixDialogAction(
-                        label = stringResource(R.string.confirm),
-                        onClick = onDismiss,
-                        isPrimary = true,
-                    ),
-                ),
-            )
-        }
-    }
-}
+// All app dialogs use the Material 3 implementation.

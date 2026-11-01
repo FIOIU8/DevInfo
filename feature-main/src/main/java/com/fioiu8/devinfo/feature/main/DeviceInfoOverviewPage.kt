@@ -19,6 +19,9 @@ package com.fioiu8.devinfo.feature.main
 import com.fioiu8.devinfo.ui.theme.isInDarkTheme
 import com.fioiu8.devinfo.ui.DevInfoLoadingIndicator
 import com.fioiu8.devinfo.ui.DevInfoPullToRefresh
+import com.fioiu8.devinfo.ui.descriptionResId
+import com.fioiu8.devinfo.ui.displayNameResId
+import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassCard
 import com.fioiu8.devinfo.feature.main.R
 
 import android.content.Intent
@@ -78,6 +81,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -92,15 +96,6 @@ import com.fioiu8.devinfo.core.model.LiveHardwareSnapshot
 import com.fioiu8.devinfo.core.model.OverviewSnapshot
 import com.fioiu8.devinfo.core.model.InfoCategory
 import com.fioiu8.devinfo.core.model.ItemWithVisibility
-import com.fioiu8.devinfo.core.model.UiStyle
-import com.fioiu8.devinfo.ui.theme.LocalUiStyle
-import top.yukonga.miuix.kmp.basic.Card as MiuixCard
-import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
-import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
-import top.yukonga.miuix.kmp.basic.LinearProgressIndicator as MiuixLinearProgressIndicator
-import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
-import top.yukonga.miuix.kmp.basic.Text as MiuixText
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -147,6 +142,13 @@ private data class StaticInfoCardData(
     val icon: ImageVector
 )
 
+@Immutable
+private data class CategorySummaryData(
+    val category: InfoCategory,
+    val count: Int,
+    val preview: ItemWithVisibility?
+)
+
 /** 概览页展示的静态信息项（按此顺序），值缺失时自动跳过 */
 private val staticCardResIds = listOf(
     R.string.system_cpu_arch,
@@ -169,6 +171,20 @@ private fun buildStaticInfoCards(items: List<ItemWithVisibility>): List<StaticIn
         StaticInfoCardData(resId, item.value, item.category, itemIconByKey(item.key))
     }
 
+private fun buildCategorySummaries(items: List<ItemWithVisibility>): List<CategorySummaryData> =
+    InfoCategory.entries.mapNotNull { category ->
+        val categoryItems = items.filter { it.item.category == category }
+        if (categoryItems.isEmpty()) {
+            null
+        } else {
+            CategorySummaryData(
+                category = category,
+                count = categoryItems.size,
+                preview = categoryItems.firstOrNull { it.item.value.isNotBlank() } ?: categoryItems.first()
+            )
+        }
+    }
+
 @Composable
 fun DeviceInfoOverviewPage(
     itemsState: List<ItemWithVisibility>,
@@ -188,7 +204,7 @@ fun DeviceInfoOverviewPage(
     }
 
     val metrics = remember(snapshot) { buildOverviewMetrics(snapshot) }
-    val staticCards = remember(itemsState) { buildStaticInfoCards(itemsState) }
+    val categorySummaries = remember(itemsState) { buildCategorySummaries(itemsState) }
 
     if ((isLoading && itemsState.isEmpty()) || (isOverviewLoading && metrics.isEmpty())) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -217,18 +233,23 @@ fun DeviceInfoOverviewPage(
                         start = if (compactLayout) 12.dp else 20.dp,
                         top = if (compactLayout) 12.dp else 20.dp,
                         end = if (compactLayout) 12.dp else 20.dp,
-                        bottom = (if (compactLayout) 12.dp else 20.dp) +
-                            LocalFloatingNavigationContentPadding.current,
+                        bottom = if (compactLayout) 12.dp else 20.dp,
                     ),
                     horizontalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp),
                     verticalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp)
                 ) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        DeviceOverviewHeader(itemsState)
+                    }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        DeviceIdentitySummaryCard(itemsState)
+                    }
                     items(
-                        items = metrics,
+                    items = metrics,
                         key = { metric -> metric.id },
                         span = { metric ->
                             GridItemSpan(
-                                if (useSingleColumn || (!compactLayout && metric.id == OverviewMetricId.REALTIME_CPU)) {
+                                if (useSingleColumn) {
                                     maxLineSpan
                                 } else {
                                     metric.size.span
@@ -242,14 +263,17 @@ fun DeviceInfoOverviewPage(
                             onClick = { onOpenDetails(metric.category) }
                         )
                     }
-                    items(
-                        items = staticCards,
-                        key = { card -> card.keyResId },
-                        span = { GridItemSpan(1) }
-                    ) { card ->
-                        StaticInfoCard(
-                            card = card,
-                            onClick = { onOpenDetails(card.category) }
+                    metrics.firstOrNull { it.id == OverviewMetricId.REALTIME_CPU }
+                        ?.takeIf { it.history.isNotEmpty() }
+                        ?.let { cpuMetric ->
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                CpuTrendCard(metric = cpuMetric)
+                            }
+                        }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        CategorySummaryList(
+                            summaries = categorySummaries,
+                            onOpenDetails = onOpenDetails,
                         )
                     }
                     item(span = { GridItemSpan(maxLineSpan) }) {
@@ -267,295 +291,83 @@ fun DeviceInfoOverviewPage(
     }
 }
 
+/** Device identity heading that follows the compact top app bar. */
 @Composable
-private fun MiuixMetricCard(
-    metric: OverviewMetric,
-    onClick: () -> Unit
-) {
-    val titleResId = metric.titleResId
-    val title = if (titleResId == null) metric.title.orEmpty() else stringResource(titleResId)
-    val supportingTextResId = metric.supportingTextResId
-    val supportingText = if (supportingTextResId == null) {
-        null
-    } else {
-        listOfNotNull(
-            stringResource(supportingTextResId),
-            metric.coreCount?.let { stringResource(R.string.overview_cpu_core_count, it) },
-            metric.supportingTextSuffix
-        ).joinToString(" · ")
-    }
-    val displayValue = metric.value ?: if (metric.id == OverviewMetricId.REALTIME_CPU) {
-        stringResource(R.string.status_unavailable)
-    } else {
-        null
-    }
+private fun DeviceOverviewHeader(items: List<ItemWithVisibility>) {
+    val model = items.firstOrNull { it.item.key == "device_model" }?.item?.value
+        ?: stringResource(R.string.status_unavailable)
+    val subtitle = listOfNotNull(
+        items.firstOrNull { it.item.key == "system_android_version" }?.item?.value?.let {
+            "${stringResource(R.string.system_android_version)} $it"
+        },
+        items.firstOrNull { it.item.key == "system_cpu_arch" }?.item?.value?.let {
+            "${stringResource(R.string.system_cpu_arch)} $it"
+        },
+    ).joinToString(" · ").ifBlank { stringResource(R.string.status_unavailable) }
 
-    MiuixCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = if (metric.size == OverviewCardSize.LARGE) 144.dp else 116.dp)
-            .clickable(onClick = onClick),
-        insideMargin = PaddingValues(16.dp),
-        cornerRadius = 14.dp,
+    Column(
+        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                MiuixIcon(
-                    imageVector = metric.icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(26.dp),
-                    tint = MiuixTheme.colorScheme.primary
-                )
-                Spacer(Modifier.width(10.dp))
-                MiuixText(
-                    text = title,
-                    modifier = Modifier.weight(1f),
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            displayValue?.let {
-                MiuixText(
-                    text = it,
-                    style = if (metric.size == OverviewCardSize.LARGE) {
-                        MiuixTheme.textStyles.headline1
-                    } else {
-                        MiuixTheme.textStyles.subtitle
-                    },
-                    fontWeight = FontWeight.Bold,
-                    color = MiuixTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            supportingText?.let {
-                MiuixText(
-                    text = it,
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceSecondary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            metric.progress?.let {
-                MiuixLinearProgressIndicator(
-                    progress = it.coerceIn(0f, 1f),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ProgressIndicatorDefaults.progressIndicatorColors(
-                        foregroundColor = MiuixTheme.colorScheme.primary,
-                        backgroundColor = MiuixTheme.colorScheme.surfaceContainerHigh
-                    )
-                )
-            }
-            if (metric.coreMetrics.isNotEmpty() && metric.history.isEmpty()) {
-                metric.coreMetrics.forEach { coreMetric ->
-                    MiuixCoreMetricRow(coreMetric)
-                }
-            }
-        }
+        Text(
+            text = model,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
+/** Compact status summary inspired by the reference dashboard's health card. */
 @Composable
-private fun MiuixCoreMetricRow(metric: CpuCoreMetric) {
-    Row(
+private fun DeviceIdentitySummaryCard(items: List<ItemWithVisibility>) {
+    val supportingText = stringResource(R.string.overview_device_summary_supporting, items.size)
+    LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
     ) {
-        MiuixText(
-            text = "CPU${metric.index}",
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurfaceSecondary
-        )
-        Spacer(Modifier.weight(1f))
-        MiuixText(
-            text = metric.usagePercent?.let { "%.0f%%".format(it) } ?: metric.frequency ?: "--",
-            style = MiuixTheme.textStyles.main,
-            fontWeight = FontWeight.SemiBold,
-            color = MiuixTheme.colorScheme.onSurface
-        )
-        metric.usagePercent?.let {
-            metric.frequency?.let { frequency ->
-                MiuixText(
-                    text = frequency,
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceSecondary
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MiuixStaticInfoCard(card: StaticInfoCardData, onClick: () -> Unit) {
-    MiuixCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(124.dp)
-            .clickable(onClick = onClick),
-        insideMargin = PaddingValues(14.dp),
-        cornerRadius = 14.dp,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            MiuixIcon(
-                imageVector = card.icon,
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 112.dp, max = 132.dp)
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Storage,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = MiuixTheme.colorScheme.primary
+                modifier = Modifier.size(30.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
             )
-            MiuixText(
-                text = stringResource(card.keyResId),
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            MiuixText(
-                text = card.value,
-                style = MiuixTheme.textStyles.subtitle,
-                fontWeight = FontWeight.SemiBold,
-                color = MiuixTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-private fun MiuixHardwareSensorsCard(
-    snapshot: LiveHardwareSnapshot,
-    stackValues: Boolean
-) {
-    MiuixCard(
-        modifier = Modifier.fillMaxWidth(),
-        insideMargin = PaddingValues(16.dp),
-        cornerRadius = 14.dp,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                MiuixIcon(
-                    Icons.Outlined.Refresh,
-                    null,
-                    Modifier.size(24.dp),
-                    tint = MiuixTheme.colorScheme.primary
-                )
-                Spacer(Modifier.width(10.dp))
-                MiuixText(
-                    text = stringResource(R.string.overview_hardware_title),
-                    style = MiuixTheme.textStyles.subtitle,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            val sensorValues = listOf(
-                Triple(Icons.Outlined.Refresh, stringResource(R.string.overview_motion), when {
-                    !snapshot.motionAvailable -> stringResource(R.string.status_unavailable)
-                    snapshot.moving -> stringResource(R.string.status_moving)
-                    else -> stringResource(R.string.status_stationary)
-                }),
-                Triple(Icons.Outlined.Brightness6, stringResource(R.string.overview_brightness), snapshot.brightnessPercent?.let { "$it%" } ?: stringResource(R.string.status_unavailable)),
-                Triple(Icons.Outlined.Storage, stringResource(R.string.overview_storage_read), snapshot.storageReadSpeedMbps?.let { "$it MB/s" } ?: stringResource(R.string.status_unavailable)),
-                Triple(Icons.Outlined.Wifi, stringResource(R.string.overview_wifi_signal), snapshot.wifiRssiDbm?.let { "$it dBm" } ?: stringResource(R.string.status_unavailable))
-            )
-            if (stackValues) {
-                sensorValues.forEach { (icon, label, value) ->
-                    MiuixSensorValue(icon, label, value, Modifier.fillMaxWidth())
-                }
-            } else {
-                sensorValues.chunked(2).forEach { rowValues ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        rowValues.forEach { (icon, label, value) ->
-                            MiuixSensorValue(icon, label, value, Modifier.weight(1f))
-                        }
-                    }
-                }
-            }
-            MiuixText(
-                text = stringResource(R.string.overview_storage_average, snapshot.storageAverageReadSpeedMbps ?: 0).takeIf { snapshot.storageAverageReadSpeedMbps != null } ?: stringResource(R.string.overview_storage_average_unknown),
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceSecondary
-            )
-        }
-    }
-}
-
-@Composable
-private fun MiuixSensorValue(icon: ImageVector, label: String, value: String, modifier: Modifier) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-        MiuixIcon(icon, null, Modifier.size(19.dp), tint = MiuixTheme.colorScheme.primary)
-        Column {
-            MiuixText(label, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            MiuixText(value, style = MiuixTheme.textStyles.main, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-@Composable
-private fun MiuixSecuritySummaryCard(snapshot: OverviewSnapshot) {
-    val context = LocalContext.current
-    var showUsbDialog by remember { mutableStateOf(false) }
-    MiuixCard(
-        modifier = Modifier.fillMaxWidth(),
-        insideMargin = PaddingValues(16.dp),
-        cornerRadius = 14.dp,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                MiuixIcon(Icons.Outlined.CheckCircle, null, Modifier.size(24.dp), tint = MiuixTheme.colorScheme.primary)
-                Spacer(Modifier.width(10.dp))
-                MiuixText(stringResource(R.string.overview_security_title), style = MiuixTheme.textStyles.subtitle, fontWeight = FontWeight.Bold)
-            }
-            MiuixSecurityRow(Icons.Outlined.CheckCircle, stringResource(R.string.security_patch_updated, snapshot.securityPatch ?: stringResource(R.string.status_unknown)), MiuixTheme.colorScheme.primary)
-            MiuixSecurityRow(Icons.Outlined.Lock, when (snapshot.lockScreenEnabled) {
-                true -> stringResource(R.string.security_lock_enabled)
-                false -> stringResource(R.string.security_lock_disabled)
-                null -> stringResource(R.string.security_lock_unknown)
-            }, MiuixTheme.colorScheme.primary)
-            MiuixCard(
-                modifier = Modifier.fillMaxWidth(),
-                insideMargin = PaddingValues(8.dp),
-                cornerRadius = 10.dp,
-                colors = MiuixCardDefaults.defaultColors(
-                    color = if (snapshot.usbDebuggingEnabled == true) MiuixTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f) else MiuixTheme.colorScheme.surfaceContainerHigh
-                )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                MiuixSecurityRow(Icons.Outlined.ErrorOutline, when (snapshot.usbDebuggingEnabled) {
-                    true -> stringResource(R.string.security_usb_enabled)
-                    false -> stringResource(R.string.security_usb_disabled)
-                    null -> stringResource(R.string.security_usb_unknown)
-                }, if (snapshot.usbDebuggingEnabled == true) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceSecondary)
+                Text(
+                    text = stringResource(R.string.overview_device_summary),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = supportingText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
-    }
-    if (showUsbDialog) {
-        AlertDialog(
-            onDismissRequest = { showUsbDialog = false },
-            icon = { Icon(Icons.Outlined.ErrorOutline, null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text(stringResource(R.string.security_usb_dialog_title)) },
-            text = { Text(stringResource(R.string.security_usb_dialog_text)) },
-            dismissButton = { TextButton(onClick = { showUsbDialog = false }) { Text(stringResource(R.string.cancel)) } },
-            confirmButton = {
-                TextButton(onClick = {
-                    showUsbDialog = false
-                    runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) }
-                }) {
-                    Icon(Icons.Outlined.OpenInBrowser, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.security_open_developer_options))
-                }
-            }
-        )
-    }
-}
-
-@Composable
-private fun MiuixSecurityRow(icon: ImageVector, text: String, color: Color, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        MiuixIcon(icon, null, Modifier.size(19.dp), tint = color)
-        MiuixText(text, style = MiuixTheme.textStyles.body2, color = color)
     }
 }
 
@@ -574,7 +386,7 @@ private fun buildOverviewMetrics(
             value = currentUsage?.let(::formatPercent),
             category = InfoCategory.SYSTEM,
             icon = itemIconByKey("system_cpu_arch"),
-            size = OverviewCardSize.LARGE,
+            size = OverviewCardSize.SMALL,
             supportingTextResId = when {
                 currentUsage != null -> R.string.overview_realtime_cpu
                 availableCoreMetrics.isNotEmpty() -> R.string.overview_cpu_frequency_monitor
@@ -664,14 +476,21 @@ private fun OverviewMetricCard(
     wideLayout: Boolean,
     onClick: () -> Unit
 ) {
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixMetricCard(metric = metric, onClick = onClick)
-        return
-    }
     val titleResId = metric.titleResId
-    val title = if (titleResId == null) metric.title.orEmpty() else stringResource(titleResId)
+    val title = if (metric.id == OverviewMetricId.REALTIME_CPU) {
+        stringResource(R.string.overview_cpu_usage_short)
+    } else if (titleResId == null) {
+        metric.title.orEmpty()
+    } else {
+        stringResource(titleResId)
+    }
     val supportingTextResId = metric.supportingTextResId
-    val supportingText = if (supportingTextResId == null) {
+    val supportingText = if (metric.id == OverviewMetricId.REALTIME_CPU && metric.value != null) {
+        listOfNotNull(
+            metric.coreCount?.let { stringResource(R.string.overview_cpu_core_count, it) },
+            metric.supportingTextSuffix,
+        ).joinToString(" · ").ifBlank { null }
+    } else if (supportingTextResId == null) {
         null
     } else {
         listOfNotNull(
@@ -685,26 +504,25 @@ private fun OverviewMetricCard(
     } else {
         null
     }
-    var selectedCore by remember(metric.id) { mutableStateOf<Int?>(null) }
-    val hasCoreControls = metric.history.isNotEmpty()
+    val hasCpuGauge = metric.id == OverviewMetricId.REALTIME_CPU
     val hasFrequencySummary = metric.showFrequencySummary
-    Card(
+    LiquidGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .then(
-                if (hasCoreControls || hasFrequencySummary) {
-                    Modifier
+                if (hasCpuGauge || hasFrequencySummary) {
+                    Modifier.heightIn(min = 148.dp)
                 } else {
-                    Modifier.height(if (metric.size == OverviewCardSize.LARGE) 148.dp else 124.dp)
+                    Modifier.height(148.dp)
                 }
             )
-            .then(if (hasCoreControls) Modifier else Modifier.clickable(onClick = onClick)),
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         androidx.compose.foundation.layout.Column(
-            modifier = Modifier.padding(if (hasCoreControls) 14.dp else 16.dp),
-            verticalArrangement = Arrangement.spacedBy(if (hasCoreControls) 6.dp else 8.dp)
+            modifier = Modifier.padding(if (hasCpuGauge) 14.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (hasCpuGauge) 6.dp else 8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -722,18 +540,7 @@ private fun OverviewMetricCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (hasCoreControls && !wideLayout) {
-                    displayValue?.let { value ->
-                        Text(
-                            text = value,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1
-                        )
-                    }
-                }
-                if (metric.category == InfoCategory.SYSTEM) {
+                if (metric.category == InfoCategory.SYSTEM && !hasCpuGauge) {
                     IconButton(onClick = onClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
@@ -742,7 +549,7 @@ private fun OverviewMetricCard(
                     }
                 }
             }
-            if (wideLayout && hasCoreControls) {
+            if (wideLayout && hasCpuGauge) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(20.dp),
@@ -752,62 +559,95 @@ private fun OverviewMetricCard(
                         metric = metric,
                         displayValue = displayValue,
                         supportingText = supportingText,
-                        modifier = Modifier.widthIn(min = 132.dp, max = 184.dp)
+                         modifier = Modifier.widthIn(min = 132.dp, max = 184.dp),
+                         showValue = false,
+                         showGauge = false,
                     )
-                    CpuTrendChart(
-                        history = metric.history,
-                        selectedCore = selectedCore,
-                        modifier = Modifier.weight(1f),
-                        chartHeight = 80.dp
-                    )
-                    Column(
-                        modifier = Modifier.widthIn(min = 220.dp, max = 300.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        CpuTrendLegend(
-                            metric = metric,
-                            selectedCore = selectedCore,
-                            onCoreSelected = { core ->
-                                selectedCore = core.takeUnless { it == selectedCore }
-                            }
-                        )
-                        CpuCoreSelectionSlot(
-                            metric = metric,
-                            selectedCore = selectedCore,
-                            reserveSpace = true
-                        )
-                    }
+                     DashboardGauge(
+                         progress = metric.progress,
+                         value = displayValue,
+                         modifier = Modifier.size(104.dp),
+                     )
                 }
             } else {
                 MetricValueBlock(
                     metric = metric,
                     displayValue = displayValue,
                     supportingText = supportingText,
-                    showValue = !hasCoreControls
+                    showValue = !hasCpuGauge,
+                    showGauge = !hasCpuGauge,
                 )
-                if (hasCoreControls) {
-                    CpuTrendChart(
-                        history = metric.history,
-                        selectedCore = selectedCore,
-                        chartHeight = 80.dp
-                    )
-                    CpuTrendLegend(
-                        metric = metric,
-                        selectedCore = selectedCore,
-                        onCoreSelected = { core ->
-                            selectedCore = core.takeUnless { it == selectedCore }
-                        }
-                    )
-                    CpuCoreSelectionSlot(
-                        metric = metric,
-                        selectedCore = selectedCore,
-                        reserveSpace = false
-                    )
+                if (hasCpuGauge) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        DashboardGauge(
+                            progress = metric.progress,
+                            value = displayValue,
+                            modifier = Modifier.size(if (wideLayout) 72.dp else 64.dp),
+                        )
+                    }
                 }
                 if (hasFrequencySummary) {
                     CpuFrequencySummary(metric.coreMetrics)
                 }
             }
+        }
+    }
+}
+
+/** Historical CPU usage is intentionally separated from the current-value gauge. */
+@Composable
+private fun CpuTrendCard(metric: OverviewMetric) {
+    var selectedCore by remember(metric.id) { mutableStateOf<Int?>(null) }
+
+    LiquidGlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.overview_realtime_cpu),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = stringResource(R.string.overview_cpu_cores_detail),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = metric.coreCount?.let { stringResource(R.string.overview_cpu_core_count, it) }
+                        ?: stringResource(R.string.status_unavailable),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            CpuTrendChart(
+                history = metric.history,
+                selectedCore = selectedCore,
+                chartHeight = 112.dp,
+            )
+            CpuTrendLegend(
+                metric = metric,
+                selectedCore = selectedCore,
+                onCoreSelected = { core ->
+                    selectedCore = core.takeUnless { it == selectedCore }
+                },
+            )
+            CpuCoreSelectionSlot(
+                metric = metric,
+                selectedCore = selectedCore,
+                reserveSpace = false,
+            )
         }
     }
 }
@@ -837,13 +677,25 @@ private fun MetricValueBlock(
     displayValue: String?,
     supportingText: String?,
     modifier: Modifier = Modifier,
-    showValue: Boolean = true
+    showValue: Boolean = true,
+    showGauge: Boolean = true,
 ) {
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        if (showValue) {
+        if (showGauge && metric.progress != null) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                DashboardGauge(
+                    progress = metric.progress,
+                    value = displayValue,
+                    modifier = Modifier.size(if (metric.size == OverviewCardSize.LARGE) 112.dp else 76.dp),
+                )
+            }
+        } else if (showValue) {
             displayValue?.let {
                 Text(
                     text = it,
@@ -868,7 +720,7 @@ private fun MetricValueBlock(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        metric.progress?.let {
+        metric.progress?.takeUnless { showGauge || metric.id == OverviewMetricId.REALTIME_CPU }?.let {
             LinearProgressIndicator(
                 progress = { it.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth(),
@@ -876,6 +728,63 @@ private fun MetricValueBlock(
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
         }
+    }
+}
+
+/** Circular dashboard gauge used for the primary health metrics. */
+@Composable
+private fun DashboardGauge(
+    progress: Float?,
+    value: String?,
+    modifier: Modifier = Modifier,
+) {
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    val indicatorColor = when {
+        progress == null -> MaterialTheme.colorScheme.outline
+        progress >= 0.9f -> MaterialTheme.colorScheme.error
+        progress >= 0.75f -> Color(0xFFFFA000)
+        else -> MaterialTheme.colorScheme.primary
+    }
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = 10.dp.toPx()
+            val inset = strokeWidth / 2f
+            val diameter = size.minDimension - strokeWidth
+            drawArc(
+                color = trackColor,
+                startAngle = 135f,
+                sweepAngle = 270f,
+                useCenter = false,
+                topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
+                size = androidx.compose.ui.geometry.Size(diameter, diameter),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = strokeWidth,
+                    cap = StrokeCap.Round,
+                ),
+            )
+            progress?.coerceIn(0f, 1f)?.let {
+                drawArc(
+                    color = indicatorColor,
+                    startAngle = 135f,
+                    sweepAngle = 270f * it,
+                    useCenter = false,
+                    topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
+                    size = androidx.compose.ui.geometry.Size(diameter, diameter),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = strokeWidth,
+                        cap = StrokeCap.Round,
+                    ),
+                )
+            }
+        }
+        Text(
+            text = value ?: stringResource(R.string.status_unavailable),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -911,13 +820,105 @@ private fun CpuCoreSelectionSlot(
     }
 }
 
+/** 首页分类入口：用一组紧凑列表行替代大量静态信息小卡片。 */
+@Composable
+private fun CategorySummaryList(
+    summaries: List<CategorySummaryData>,
+    onOpenDetails: (InfoCategory) -> Unit,
+) {
+    if (summaries.isEmpty()) return
+
+    LiquidGlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.title_device_details),
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            summaries.forEachIndexed { index, summary ->
+                val preview = summary.preview
+                Card(
+                    onClick = { onOpenDetails(summary.category) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.Transparent,
+                    ),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Icon(
+                            imageVector = categoryIcon(summary.category),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(summary.category.displayNameResId()),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = stringResource(R.string.items_count, summary.count),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            preview?.let { item ->
+                                Text(
+                                    text = stringResource(item.item.keyResId) + " · " + item.item.value,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                            contentDescription = stringResource(R.string.title_device_details),
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                if (index < summaries.lastIndex) {
+                    androidx.compose.material3.HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 18.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                    )
+                }
+            }
+        }
+    }
+}
+
 /** 静态信息小卡片：图标 + 标题 + 值，点击跳转到对应分类详情 */
 @Composable
 private fun StaticInfoCard(card: StaticInfoCardData, onClick: () -> Unit) {
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixStaticInfoCard(card = card, onClick = onClick)
-        return
-    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1178,14 +1179,10 @@ private fun HardwareSensorsCard(
     snapshot: LiveHardwareSnapshot,
     stackValues: Boolean
 ) {
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixHardwareSensorsCard(snapshot = snapshot, stackValues = stackValues)
-        return
-    }
-    Card(
+    LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1238,16 +1235,12 @@ private fun SensorValue(icon: androidx.compose.ui.graphics.vector.ImageVector, l
 
 @Composable
 private fun SecuritySummaryCard(snapshot: OverviewSnapshot) {
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixSecuritySummaryCard(snapshot)
-        return
-    }
     val context = LocalContext.current
     var showUsbDialog by remember { mutableStateOf(false) }
-    Card(
+    LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

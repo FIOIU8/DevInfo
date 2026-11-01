@@ -22,7 +22,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.fioiu8.devinfo.core.model.ThemeMode
-import com.fioiu8.devinfo.core.model.UiStyle
 import com.fioiu8.devinfo.data.GitHubClient
 import com.fioiu8.devinfo.feature.main.UpdateAvailableDialog
 import com.fioiu8.devinfo.ui.theme.DevInfoTheme
@@ -45,9 +44,9 @@ class UpdateDialogInstrumentedTest {
     // 正文里保留 Markdown 标记，用于确认渲染的是原始文本而不是解析结果。
     private val releaseNotes = "# 更新内容 **加粗**"
 
-    private fun showDialog(uiStyle: UiStyle) {
+    private fun showDialog() {
         composeTestRule.setContent {
-            DevInfoTheme(themeMode = ThemeMode.LIGHT, uiStyle = uiStyle) {
+            DevInfoTheme(themeMode = ThemeMode.LIGHT) {
                 UpdateAvailableDialog(
                     show = true,
                     info = GitHubClient.ReleaseInfo(
@@ -68,17 +67,9 @@ class UpdateDialogInstrumentedTest {
     }
 
     @Test
-    fun material3BranchRendersReleaseNotesAsPlainText() {
-        showDialog(UiStyle.MATERIAL3)
+    fun rendersReleaseNotesAsPlainText() {
+        showDialog()
 
         composeTestRule.onNodeWithText(releaseNotes).assertIsDisplayed()
-    }
-
-    @Test
-    fun miuixBranchRendersReleaseNotesAsPlainText() {
-        showDialog(UiStyle.MIUIX)
-
-        // Miuix 分支把标题与正文合并成一段文本，因此按子串匹配。
-        composeTestRule.onNodeWithText(releaseNotes, substring = true).assertExists()
     }
 }

@@ -55,7 +55,7 @@ app
 | core | UI-independent models, enums, update state, CPU parsing | Android Context, Compose, or page logic |
 | data | DeviceInfoCollector, CPU/hardware/battery monitoring, preferences, update checks, module export | Compose layout or page navigation |
 | feature-main | MainScreen, MainViewModel, overview, details, settings, theme, and about pages | Scattered system reads or network implementations |
-| ui | Material 3/Miuix themes, shared Compose components, blur, floating navigation, Markdown rendering | Device collection, business persistence, or release logic |
+| ui | Material 3 theme, shared Compose components, AndroidLiquidGlass surfaces, Markdown rendering | Device collection, business persistence, or release logic |
 
 Key entry points:
 
@@ -91,7 +91,7 @@ Current constraints:
 - File, network, /proc, /sys, and other potentially blocking calls must not run on the main thread.
 - When catching coroutine failures, rethrow CancellationException. Never convert cancellation into an ordinary failure.
 - Follow MainViewModel lifecycle ownership for foreground monitoring. Avoid leaking Handlers, Receivers, SensorListeners, or global coroutines.
-- Validate both Material 3 and Miuix paths when a shared behavior or UI contract changes.
+- Validate the Material 3 path when a shared UI behavior or contract changes.
 
 ### Failures, permissions, and privacy
 

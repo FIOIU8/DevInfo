@@ -29,7 +29,6 @@ import androidx.compose.ui.test.performClick
 import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.fioiu8.devinfo.core.model.ThemeMode
-import com.fioiu8.devinfo.core.model.UiStyle
 import com.fioiu8.devinfo.core.root.RootAccess
 import com.fioiu8.devinfo.feature.main.RootRequestFailureDialog
 import com.fioiu8.devinfo.feature.main.RootRequestLoadingDialog
@@ -40,7 +39,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Root 授权弹窗在两套 UI 风格下的渲染与交互契约。
+ * Root authorization dialogs' rendering and interaction contracts.
  *
  * 授权流程要靠真实 `su` 往返才能走完，真机路径本身不适合断言；这里直接组合弹窗组件覆盖两条
  * 关键契约：
@@ -71,9 +70,9 @@ class RootDialogInstrumentedTest {
 
     // ---- 加载弹窗 ----
 
-    private fun showLoadingDialog(uiStyle: UiStyle, onCancel: () -> Unit) {
+    private fun showLoadingDialog(onCancel: () -> Unit) {
         composeTestRule.setContent {
-            DevInfoTheme(themeMode = ThemeMode.LIGHT, uiStyle = uiStyle) {
+            DevInfoTheme(themeMode = ThemeMode.LIGHT) {
                 var show by remember { mutableStateOf(true) }
                 RootRequestLoadingDialog(
                     show = show,
@@ -86,9 +85,9 @@ class RootDialogInstrumentedTest {
         }
     }
 
-    private fun assertLoadingDialogBlocksBackPressAndCancels(uiStyle: UiStyle) {
+    private fun assertLoadingDialogBlocksBackPressAndCancels() {
         var cancelled = false
-        showLoadingDialog(uiStyle, onCancel = { cancelled = true })
+        showLoadingDialog(onCancel = { cancelled = true })
 
         composeTestRule.onNodeWithText(string(R.string.root_loading_title)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.root_loading_message)).assertIsDisplayed()
@@ -111,25 +110,19 @@ class RootDialogInstrumentedTest {
     }
 
     @Test
-    fun material3LoadingDialogOnlyExitsThroughCancel() {
-        assertLoadingDialogBlocksBackPressAndCancels(UiStyle.MATERIAL3)
-    }
-
-    @Test
-    fun miuixLoadingDialogOnlyExitsThroughCancel() {
-        assertLoadingDialogBlocksBackPressAndCancels(UiStyle.MIUIX)
+    fun loadingDialogOnlyExitsThroughCancel() {
+        assertLoadingDialogBlocksBackPressAndCancels()
     }
 
     // ---- 失败弹窗 ----
 
     private fun showFailureDialog(
-        uiStyle: UiStyle,
         onRetry: () -> Unit = {},
         onOpenHelp: () -> Unit = {},
         onDismiss: () -> Unit = {},
     ) {
         composeTestRule.setContent {
-            DevInfoTheme(themeMode = ThemeMode.LIGHT, uiStyle = uiStyle) {
+            DevInfoTheme(themeMode = ThemeMode.LIGHT) {
                 var access by remember { mutableStateOf<RootAccess>(RootAccess.NoSuEntryPoint) }
                 switchAccess = { access = it }
                 RootRequestFailureDialog(
@@ -148,8 +141,8 @@ class RootDialogInstrumentedTest {
         composeTestRule.waitForIdle()
     }
 
-    private fun assertFailureDialogShowsReasonSpecificTitle(uiStyle: UiStyle) {
-        showFailureDialog(uiStyle)
+    private fun assertFailureDialogShowsReasonSpecificTitle() {
+        showFailureDialog()
 
         failureTitles.forEach { (access, titleRes) ->
             switchTo(access)
@@ -158,21 +151,15 @@ class RootDialogInstrumentedTest {
     }
 
     @Test
-    fun material3FailureDialogShowsReasonSpecificTitle() {
-        assertFailureDialogShowsReasonSpecificTitle(UiStyle.MATERIAL3)
+    fun failureDialogShowsReasonSpecificTitle() {
+        assertFailureDialogShowsReasonSpecificTitle()
     }
 
-    @Test
-    fun miuixFailureDialogShowsReasonSpecificTitle() {
-        assertFailureDialogShowsReasonSpecificTitle(UiStyle.MIUIX)
-    }
-
-    private fun assertFailureDialogActionsInvokeCallbacks(uiStyle: UiStyle) {
+    private fun assertFailureDialogActionsInvokeCallbacks() {
         var retried = false
         var helped = false
         var closed = false
         showFailureDialog(
-            uiStyle = uiStyle,
             onRetry = { retried = true },
             onOpenHelp = { helped = true },
             onDismiss = { closed = true },
@@ -189,12 +176,7 @@ class RootDialogInstrumentedTest {
     }
 
     @Test
-    fun material3FailureDialogActionsInvokeCallbacks() {
-        assertFailureDialogActionsInvokeCallbacks(UiStyle.MATERIAL3)
-    }
-
-    @Test
-    fun miuixFailureDialogActionsInvokeCallbacks() {
-        assertFailureDialogActionsInvokeCallbacks(UiStyle.MIUIX)
+    fun failureDialogActionsInvokeCallbacks() {
+        assertFailureDialogActionsInvokeCallbacks()
     }
 }
