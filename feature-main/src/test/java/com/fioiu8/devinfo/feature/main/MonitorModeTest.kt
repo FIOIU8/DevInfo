@@ -23,6 +23,22 @@ class MonitorModeTest {
     }
 
     @Test
+    fun `visible sensor detail uses sensor sampling without full overview monitoring`() {
+        assertEquals(
+            MonitorMode.SENSORS,
+            monitorModeFor(isForeground = true, isOverviewVisible = false, isSensorsPageVisible = true)
+        )
+    }
+
+    @Test
+    fun `background stops sensor detail monitoring`() {
+        assertEquals(
+            MonitorMode.STOPPED,
+            monitorModeFor(isForeground = false, isOverviewVisible = false, isSensorsPageVisible = true)
+        )
+    }
+
+    @Test
     fun `cpu sampling backs off after repeated failures`() {
         assertEquals(2_000L, cpuSamplingIntervalMs(consecutiveFailures = 0))
         assertEquals(2_000L, cpuSamplingIntervalMs(consecutiveFailures = 2))

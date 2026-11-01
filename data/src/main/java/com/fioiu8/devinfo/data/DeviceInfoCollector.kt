@@ -29,6 +29,7 @@ import android.content.res.Configuration
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CameraCharacteristics
 import android.hardware.display.DisplayManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -42,6 +43,7 @@ import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.Display
+import android.util.Size
 import com.fioiu8.devinfo.data.BuildConfig
 import com.fioiu8.devinfo.core.cpu.CPU_USAGE_SAMPLE_DELAY_MS
 import com.fioiu8.devinfo.core.cpu.CpuTimes
@@ -58,6 +60,9 @@ import com.fioiu8.devinfo.core.root.ROOT_PROBE_COMMAND
 import com.fioiu8.devinfo.core.root.RootAccess
 import com.fioiu8.devinfo.core.root.parseRootProbe
 import com.fioiu8.devinfo.core.model.SecuritySnapshot
+import com.fioiu8.devinfo.core.model.CameraHardwareInfo
+import com.fioiu8.devinfo.core.model.HardwareDetailsSnapshot
+import com.fioiu8.devinfo.core.model.SensorHardwareInfo
 import com.fioiu8.devinfo.core.model.DeviceInfoItem
 import com.fioiu8.devinfo.core.model.InfoCategory
 import java.io.File
@@ -155,6 +160,64 @@ class DeviceInfoCollector(private val context: Context) {
                 null
             }
         }
+    }
+
+    /** Reads camera characteristics and the static sensor inventory without opening the camera. */
+    suspend fun collectHardwareDetails(): HardwareDetailsSnapshot = withContext(Dispatchers.IO) {
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
+        val cameraIds = try {
+            cameraManager?.cameraIdList
+        } catch (_: Exception) {
+            null
+        }
+        val cameras = cameraIds.orEmpty().map { id ->
+            val characteristics = try {
+                cameraManager?.getCameraCharacteristics(id)
+            } catch (_: Exception) {
+                null
+            }
+            val pixelArray: Size? = characteristics?.get(CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE)
+            val physicalSize = characteristics?.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
+            CameraHardwareInfo(
+                id = id,
+                characteristicsAvailable = characteristics != null,
+                lensFacing = characteristics?.get(CameraCharacteristics.LENS_FACING),
+                focalLengthsMm = characteristics
+                    ?.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
+                    ?.toList()
+                    .orEmpty(),
+                physicalWidthMm = physicalSize?.width,
+                physicalHeightMm = physicalSize?.height,
+                pixelWidth = pixelArray?.width,
+                pixelHeight = pixelArray?.height,
+                sensorOrientationDegrees = characteristics?.get(CameraCharacteristics.SENSOR_ORIENTATION)
+            )
+        }
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val sensorList = try {
+            sensorManager?.getSensorList(Sensor.TYPE_ALL)
+        } catch (_: Exception) {
+            null
+        }
+        val sensors = sensorList.orEmpty()
+            .map { sensor ->
+                SensorHardwareInfo(
+                    name = sensor.name,
+                    vendor = sensor.vendor,
+                    type = sensor.type,
+                    typeName = sensor.stringType,
+                    maxRange = sensor.maximumRange.takeIf { it.isFinite() },
+                    resolution = sensor.resolution.takeIf { it.isFinite() },
+                    powerMilliAmps = sensor.power.takeIf { it.isFinite() },
+                    minDelayMicros = sensor.minDelay.takeIf { it >= 0 }
+                )
+            }
+        HardwareDetailsSnapshot(
+            cameras = cameras,
+            sensors = sensors,
+            cameraAccessAvailable = cameraIds != null,
+            sensorAccessAvailable = sensorList != null
+        )
     }
 
     /** Reads one item at a time so the UI can publish successful results in source order. */
