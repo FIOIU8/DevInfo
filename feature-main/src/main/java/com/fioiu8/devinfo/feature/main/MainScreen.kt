@@ -721,12 +721,15 @@ private fun MainRouteContent(
             onRootFabClick = onRootFabClick,
             onItemSelected = navigator::selectTab,
         ) {
-            DeviceInfoPage(
+            HardwareDetailsPage(
                 itemsState = uiState.deviceInfoItems,
                 isLoading = uiState.isDeviceInfoLoading,
                 overviewSnapshot = uiState.overviewSnapshot,
+                hardwareDetails = uiState.hardwareDetails,
+                motionSensors = uiState.motionSensors,
                 onRefresh = { viewModel.refreshAndAwait() },
-                initialCategory = navigator.detailsCategory(route),
+                initialPage = navigator.detailsPage(route),
+                onSensorPageVisibilityChanged = viewModel::onSensorsPageVisibilityChanged,
             )
         }
 

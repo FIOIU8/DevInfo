@@ -26,6 +26,8 @@ import com.fioiu8.devinfo.core.model.CpuUsageSample
 import com.fioiu8.devinfo.core.model.CpuUsageReading
 import com.fioiu8.devinfo.core.model.ItemWithVisibility
 import com.fioiu8.devinfo.core.model.LiveHardwareSnapshot
+import com.fioiu8.devinfo.core.model.HardwareDetailsSnapshot
+import com.fioiu8.devinfo.core.model.MotionSensorSnapshot
 import com.fioiu8.devinfo.core.model.OverviewSnapshot
 import com.fioiu8.devinfo.core.model.SecuritySnapshot
 import com.fioiu8.devinfo.core.model.UpdateState
@@ -57,15 +59,18 @@ import kotlinx.coroutines.withContext
 enum class MonitorMode {
     STOPPED,
     LOW_FREQUENCY,
+    SENSORS,
     ACTIVE
 }
 
 fun monitorModeFor(
     isForeground: Boolean,
-    isOverviewVisible: Boolean
+    isOverviewVisible: Boolean,
+    isSensorsPageVisible: Boolean = false
 ): MonitorMode = when {
     !isForeground -> MonitorMode.STOPPED
     isOverviewVisible -> MonitorMode.ACTIVE
+    isSensorsPageVisible -> MonitorMode.SENSORS
     else -> MonitorMode.LOW_FREQUENCY
 }
 
@@ -85,6 +90,8 @@ class MainViewModel(
     @Immutable
     data class MainUiState(
         val deviceInfoItems: List<ItemWithVisibility> = emptyList(),
+        val hardwareDetails: HardwareDetailsSnapshot = HardwareDetailsSnapshot(),
+        val motionSensors: MotionSensorSnapshot = MotionSensorSnapshot(),
         val isDeviceInfoLoading: Boolean = true,
         val overviewSnapshot: OverviewSnapshot = OverviewSnapshot(),
         val isOverviewLoading: Boolean = true,
@@ -107,13 +114,18 @@ class MainViewModel(
     private var hardwareMonitoringGeneration = 0L
     private var isForeground = false
     private var isOverviewVisible = true
+    private var isSensorsPageVisible = false
     private val _monitorMode = MutableStateFlow(MonitorMode.STOPPED)
     val monitorMode: StateFlow<MonitorMode> = _monitorMode.asStateFlow()
 
     private var hasStarted = false
 
     init {
-        // 延迟到首帧渲染后再启动数据加载
+        viewModelScope.launch {
+            liveHardwareMonitor.motionSensorSnapshot.collect { snapshot ->
+                _uiState.update { it.copy(motionSensors = snapshot) }
+            }
+        }
     }
 
     /** 由 UI 层在首次组合后调用，触发数据加载和更新检查 */
@@ -196,6 +208,13 @@ class MainViewModel(
         updateMonitoring()
     }
 
+    /** Starts live motion readings only while the sensor detail page is visible. */
+    @MainThread
+    fun onSensorsPageVisibilityChanged(visible: Boolean) {
+        isSensorsPageVisible = visible
+        updateMonitoring()
+    }
+
     @Volatile private var isUserInitiatedUpdateCheck = false
 
     fun retryUpdateCheck() {
@@ -238,8 +257,13 @@ class MainViewModel(
                     // 概览采集读取 /proc、/sys 并可能派生 top 子进程，走 IO 调度器
                     val overviewJob = async(Dispatchers.IO) { loadOverviewSnapshot() }
                     val deviceInfoJob = async { loadDeviceInfo(publishBatches = isInitialLoad) }
+                    val hardwareDetailsJob = async(Dispatchers.IO) { collector.collectHardwareDetails() }
                     overviewJob.await()
                     deviceInfoJob.await()
+                    val hardwareDetails = hardwareDetailsJob.await()
+                    withContext(Dispatchers.Main.immediate) {
+                        _uiState.update { it.copy(hardwareDetails = hardwareDetails) }
+                    }
                 }
             } finally {
                 _uiState.update {
@@ -331,7 +355,7 @@ class MainViewModel(
     }
 
     private fun updateMonitoring() {
-        val mode = monitorModeFor(isForeground, isOverviewVisible)
+        val mode = monitorModeFor(isForeground, isOverviewVisible, isSensorsPageVisible)
         if (_monitorMode.value == mode) return
         _monitorMode.value = mode
 
@@ -343,6 +367,12 @@ class MainViewModel(
             }
 
             MonitorMode.LOW_FREQUENCY -> {
+                startBatteryObserver()
+                startHardwareMonitoring(mode)
+                stopDynamicMonitoring()
+            }
+
+            MonitorMode.SENSORS -> {
                 startBatteryObserver()
                 startHardwareMonitoring(mode)
                 stopDynamicMonitoring()
@@ -413,8 +443,16 @@ class MainViewModel(
         if (hardwareMonitoringJob?.isActive == true) stopHardwareMonitoring()
 
         val generation = ++hardwareMonitoringGeneration
-        liveHardwareMonitor.start(collectMotion = mode == MonitorMode.ACTIVE)
-        val interval = if (mode == MonitorMode.ACTIVE) ACTIVE_REFRESH_INTERVAL_MS else LOW_FREQUENCY_REFRESH_INTERVAL_MS
+        val collectMotion = mode == MonitorMode.ACTIVE || mode == MonitorMode.SENSORS
+        liveHardwareMonitor.start(
+            collectMotion = collectMotion,
+            collectLiveReadings = mode == MonitorMode.SENSORS
+        )
+        val interval = if (mode == MonitorMode.ACTIVE || mode == MonitorMode.SENSORS) {
+            ACTIVE_REFRESH_INTERVAL_MS
+        } else {
+            LOW_FREQUENCY_REFRESH_INTERVAL_MS
+        }
         hardwareMonitoringJob = viewModelScope.launch {
             while (isActive) {
                 val hardware = try {
