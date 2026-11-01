@@ -41,6 +41,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.android.liquid.glass)
 
     // Miuix
     implementation(libs.miuix.ui)

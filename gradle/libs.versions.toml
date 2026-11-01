@@ -10,6 +10,7 @@ kotlin = "2.4.10"
 composeBom = "2026.08.00"
 ktlint = "13.1.0"
 miuix = "0.9.4-rc01"
+backdrop = "2.0.1"
 dataStore = "1.1.7"
 coreSplashscreen = "1.2.0"
 kotlinxCoroutines = "1.9.0"
@@ -39,6 +40,7 @@ miuix-ui = { module = "top.yukonga.miuix.kmp:miuix-ui-android", version.ref = "m
 miuix-preference = { module = "top.yukonga.miuix.kmp:miuix-preference-android", version.ref = "miuix" }
 miuix-blur = { module = "top.yukonga.miuix.kmp:miuix-blur-android", version.ref = "miuix" }
 miuix-nav = { module = "top.yukonga.miuix.kmp:miuix-nav-android", version.ref = "miuix" }
+android-liquid-glass = { module = "io.github.kyant0:backdrop", version.ref = "backdrop" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
