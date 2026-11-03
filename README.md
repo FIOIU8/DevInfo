@@ -6,9 +6,9 @@
   <a href="README.ja.md">日本語</a>
 </p>
 
-| Material 3 设备信息 | Material 3 信息详情 | Material 3 设置 |
+| 设备概览 | 实时指标与分类信息 | 硬件详情 |
 | --- | --- | --- |
-| <img src="md3_info.png" width="220" alt="Material 3 设备信息"> | <img src="md3_info_details.png" width="220" alt="Material 3 信息详情"> | <img src="md3_settings.png" width="220" alt="Material 3 设置"> |
+| <img src="readme_overview.png" width="220" alt="设备概览"> | <img src="readme_overview_metrics.png" width="220" alt="实时指标与分类信息"> | <img src="readme_hardware_details.png" width="220" alt="硬件详情"> |
 
 [![License](https://img.shields.io/github/license/FIOIU8/DevInfo?color=blue)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-13%2B-brightgreen.svg)](https://developer.android.com)
@@ -20,10 +20,10 @@ DevInfo 是一个使用 Kotlin 和 Jetpack Compose 编写的 Android 设备信�
 
 ### 设备信息与实时概览
 
-- 详情页使用横向分页展示设备、屏幕、SoC 与存储、电池与网络、相机、传感器及更多信息；保留现有设备字段并按用途归类。
+- 详情页使用设备、屏幕、SoC 与存储、电池与网络、相机、传感器及更多信息七个横向分页，保留现有字段并按用途归类；可点击顶部标签或横向滑动切换。
 - 覆盖 Android 版本、SDK、ABI、内核、安全补丁、屏幕、内存/存储、电池、网络、传感器和应用信息等字段。
 - 相机页展示系统允许读取的相机基础能力，不申请相机权限；传感器页展示传感器清单，并在页面前台可见时读取加速度计和陀螺仪实时三轴数据。
-- 总览页提供静态信息、下拉刷新和实时指标；CPU/GPU、内存、存储、电池、运动、亮度、存储读速和 Wi-Fi 信号按设备能力显示。
+- 总览页显示设备型号与系统摘要、可查看信息项数、CPU/内存/存储/电池圆环指标、独立 CPU 波形及分类摘要，并支持下拉刷新；GPU、运动、亮度、存储读速和 Wi-Fi 信号按设备能力显示。
 - 普通模式下 CPU 统计可能受系统限制；可选 Root 模式会先展示风险告知，确认后才向 Root 管理器请求权限，失败时按原因提示并可查看应用内的授权帮助。
 
 ### 导出与更新

@@ -6,9 +6,9 @@
   <a href="README.ja.md">日本語</a>
 </p>
 
-| Material 3 デバイス情報 | Material 3 詳細 | Material 3 設定 |
+| デバイス概要 | リアルタイム指標とカテゴリ | ハードウェア詳細 |
 | --- | --- | --- |
-| <img src="md3_info.png" width="220" alt="Material 3 デバイス情報"> | <img src="md3_info_details.png" width="220" alt="Material 3 情報詳細"> | <img src="md3_settings.png" width="220" alt="Material 3 設定"> |
+| <img src="readme_overview.png" width="220" alt="デバイス概要"> | <img src="readme_overview_metrics.png" width="220" alt="リアルタイム指標とカテゴリ"> | <img src="readme_hardware_details.png" width="220" alt="ハードウェア詳細"> |
 
 [![License](https://img.shields.io/github/license/FIOIU8/DevInfo?color=blue)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-13%2B-brightgreen.svg)](https://developer.android.com)
@@ -20,10 +20,10 @@ DevInfo は Kotlin と Jetpack Compose で作られた Android デバイス情�
 
 ### デバイス情報とリアルタイム概要
 
-- 詳細画面は横方向のページで、デバイス、ディスプレイ、SoC とストレージ、バッテリーとネットワーク、カメラ、センサー、その他を表示します。既存のデバイス情報を保持して再分類します。
+- 詳細画面は、デバイス、ディスプレイ、SoC とストレージ、バッテリーとネットワーク、カメラ、センサー、その他の7つの横方向ページで構成されます。既存の項目を保持して再分類し、上部タブまたは横スワイプで切り替えます。
 - Android バージョン、SDK、ABI、カーネル、セキュリティパッチ、画面、メモリ/ストレージ、バッテリー、ネットワーク、センサー、アプリ情報を表示します。
 - カメラページはカメラ権限を要求せず、システムから読み取れる基本情報を表示します。センサーページはセンサー一覧を表示し、そのページが前面にある間だけ加速度計とジャイロスコープの三軸データを読み取ります。
-- 概要画面は静的情報、プル・トゥ・リフレッシュ、リアルタイム指標を提供します。CPU/GPU、メモリ、ストレージ、バッテリー、動き、明るさ、ストレージ読み取り速度、Wi-Fi 信号は端末が対応する場合に表示されます。
+- 概要画面には端末モデルとシステム概要、表示可能な項目数、CPU/メモリ/ストレージ/バッテリーの円形指標、独立した CPU グラフ、カテゴリ概要を表示し、プル・トゥ・リフレッシュにも対応します。GPU、動き、明るさ、ストレージ読み取り速度、Wi-Fi 信号は端末が対応する場合に表示されます。
 - 通常モードでは CPU 統計が制限される場合があります。オプションの Root モードは、まずリスクの告知を表示し、同意してから Root マネージャーに権限を要求します。失敗時は原因を表示し、アプリ内の許可ヘルプを確認できます。
 
 ### エクスポートと更新

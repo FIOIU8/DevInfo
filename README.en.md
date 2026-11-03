@@ -6,9 +6,9 @@
   <a href="README.ja.md">日本語</a>
 </p>
 
-| Material 3 Device information | Material 3 Details | Material 3 Settings |
+| Device overview | Live metrics and categories | Hardware details |
 | --- | --- | --- |
-| <img src="md3_info.png" width="220" alt="Material 3 device information"> | <img src="md3_info_details.png" width="220" alt="Material 3 information details"> | <img src="md3_settings.png" width="220" alt="Material 3 settings"> |
+| <img src="readme_overview.png" width="220" alt="Device overview"> | <img src="readme_overview_metrics.png" width="220" alt="Live metrics and categories"> | <img src="readme_hardware_details.png" width="220" alt="Hardware details"> |
 
 [![License](https://img.shields.io/github/license/FIOIU8/DevInfo?color=blue)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-13%2B-brightgreen.svg)](https://developer.android.com)
@@ -20,10 +20,10 @@ DevInfo is an Android device information viewer built with Kotlin and Jetpack Co
 
 ### Device information and live overview
 
-- Details use horizontal pages for device, display, SoC and storage, battery and network, cameras, sensors, and more, while preserving and regrouping existing device fields.
+- Details use seven horizontal pages for device, display, SoC and storage, battery and network, cameras, sensors, and more. Existing fields are preserved and regrouped; select a top tab or swipe horizontally to switch pages.
 - Fields include Android version, SDK, ABI, kernel, security patch, display, memory/storage, battery, network, sensors, and app information.
 - The camera page shows basic characteristics available to the system without requesting camera permission. The sensor page lists available sensors and reads live accelerometer and gyroscope axes only while that page is visible in the foreground.
-- The overview provides static information, pull-to-refresh, and live metrics. CPU/GPU, memory, storage, battery, motion, brightness, storage read speed, and Wi-Fi signal are shown when supported.
+- The overview shows the device model and system summary, available field count, circular CPU/memory/storage/battery metrics, a separate CPU graph, and category summaries. It supports pull-to-refresh; GPU, motion, brightness, storage read speed, and Wi-Fi signal appear when supported.
 - CPU statistics may be restricted in normal mode. Optional Root mode shows a risk notice first and only requests root permission after you confirm; when it fails, it explains the reason and offers in-app authorization help.
 
 ### Export and updates
