@@ -113,7 +113,9 @@ Read the implementation and tests before changing the relevant module, then run 
 
 ## License and links
 
-This project is released under [GPL-3.0](LICENSE).
+This project is released under the [MIT License](LICENSE). Third-party components and their licenses are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+License history: releases `v1.0.0`–`v1.3.3` were MIT; `v1.3.4`–`v1.4.3` used GPL-3.0-or-later because of third-party GPL-3.0 code; releases after this change are MIT again. Copies of the GPL-3.0-or-later releases already obtained remain under that license and are unaffected by this change.
 
 - [Source code](https://github.com/FIOIU8/DevInfo)
 - [Releases](https://github.com/FIOIU8/DevInfo/releases)
