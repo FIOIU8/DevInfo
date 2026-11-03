@@ -25,8 +25,10 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -47,14 +49,30 @@ fun LiquidGlassBackdropHost(
 ) {
     val backdrop = rememberLayerBackdrop()
     val backgroundColor = MaterialTheme.colorScheme.background
+    val isLightTheme = backgroundColor.luminance() >= 0.5f
+    val backdropModifier = Modifier
+        .fillMaxSize()
+        .background(backgroundColor)
+        .then(
+            if (isLightTheme) {
+                Modifier.background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.08f),
+                            Color.Transparent,
+                        ),
+                    ),
+                )
+            } else {
+                Modifier
+            },
+        )
+        .layerBackdrop(backdrop)
 
     Box(modifier = modifier) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(backgroundColor)
-                .layerBackdrop(backdrop),
-        )
+        Box(modifier = backdropModifier)
         CompositionLocalProvider(LocalLiquidGlassBackdrop provides backdrop) {
             content()
         }
@@ -110,24 +128,32 @@ fun Modifier.liquidGlassSurface(
         return clip(shape).background(fallbackColor, shape)
     }
 
+    val isLightTheme = MaterialTheme.colorScheme.background.luminance() >= 0.5f
+    val blurRadius = if (isLightTheme) 10.dp else 4.dp
+    val surfaceAlpha = if (isLightTheme) 0.68f else 0.84f
+
     return clip(shape).drawBackdrop(
         backdrop = backdrop,
         shape = { shape },
         effects = {
             vibrancy()
-            blur(4.dp.toPx())
-            lens(10.dp.toPx(), 12.dp.toPx())
+            blur(blurRadius.toPx())
+            if (isLightTheme) {
+                lens(12.dp.toPx(), 16.dp.toPx())
+            } else {
+                lens(10.dp.toPx(), 12.dp.toPx())
+            }
         },
         highlight = {
             Highlight(
-                width = 0.65.dp,
-                blurRadius = 0.3.dp,
-                alpha = 0.4f,
+                width = if (isLightTheme) 0.9.dp else 0.65.dp,
+                blurRadius = if (isLightTheme) 0.5.dp else 0.3.dp,
+                alpha = if (isLightTheme) 0.5f else 0.4f,
             )
         },
         shadow = { null },
         onDrawSurface = {
-            drawRect(fallbackColor.copy(alpha = 0.84f))
+            drawRect(fallbackColor.copy(alpha = surfaceAlpha))
         },
     )
 }
