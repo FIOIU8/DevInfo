@@ -113,7 +113,9 @@ DevInfo/
 
 ## 许可证与链接
 
-本项目基于 [GPL-3.0](LICENSE) 发布。
+本项目基于 [MIT](LICENSE) 发布。第三方组件及其许可见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+
+许可沿革：`v1.0.0`–`v1.3.3` 以 MIT 发布；`v1.3.4`–`v1.4.3` 因引入第三方 GPL-3.0 代码改为 GPL-3.0-or-later；自本变更之后的版本恢复 MIT。已按 GPL-3.0-or-later 发布的版本，其既有副本仍适用该协议，不因本次变更而改变。
 
 - [源代码](https://github.com/FIOIU8/DevInfo)
 - [Releases](https://github.com/FIOIU8/DevInfo/releases)
