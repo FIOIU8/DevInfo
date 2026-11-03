@@ -41,4 +41,5 @@ ui_dump.xml
 build/
 .mimosa/
 .zcode/
+/.workbuddy/
 *.tar.gz
