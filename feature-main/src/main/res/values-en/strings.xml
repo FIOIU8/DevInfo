@@ -56,6 +56,7 @@
     <string name="language_setting">Language</string>
     <string name="language_system">Follow system</string>
     <string name="later">Later</string>
+    <string name="license_title">MIT License</string>
     <string name="locale_timezone">Time zone</string>
     <string name="manual_go">Go manually</string>
     <string name="nav_info">Info</string>
@@ -209,5 +210,5 @@
     <string name="update_found">New version found</string>
     <string name="update_network_error">Cannot connect to GitHub. Check your network and try again.</string>
     <string name="version">Version</string>
-    <string name="view_gpl_license">View the full GPL-3.0 license</string>
+    <string name="view_license">View the full MIT license</string>
 </resources>

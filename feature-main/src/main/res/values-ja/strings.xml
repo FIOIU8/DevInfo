@@ -56,6 +56,7 @@
     <string name="language_setting">言語設定</string>
     <string name="language_system">システムに従う</string>
     <string name="later">後で</string>
+    <string name="license_title">MIT ライセンス</string>
     <string name="locale_timezone">タイムゾーン</string>
     <string name="manual_go">手動で移動</string>
     <string name="nav_info">情報</string>
@@ -209,5 +210,5 @@
     <string name="update_found">新しいバージョンがあります</string>
     <string name="update_network_error">GitHub に接続できません。ネットワークを確認してから再試行してください。</string>
     <string name="version">バージョン</string>
-    <string name="view_gpl_license">GPL-3.0 の全文を見る</string>
+    <string name="view_license">MIT ライセンスの全文を見る</string>
 </resources>

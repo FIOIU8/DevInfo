@@ -1,18 +1,7 @@
 /*
  * Copyright (C) 2026 FIOIU8
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: MIT
  */
 
 package com.fioiu8.devinfo.feature.main
@@ -82,7 +71,7 @@ import com.fioiu8.devinfo.core.model.ThemeMode
 import com.fioiu8.devinfo.ui.theme.color
 import com.fioiu8.devinfo.ui.theme.displayNameResId
 
-/** 圆形颜色按钮（参�?KernelSU-Style-UI-Kit �?ColorButtonMaterial�?*/
+/** 圆形颜色按钮：选中状态同时体现在边框粗细与文字颜色上。 */
 @Composable
 private fun MaterialColorCircle(
     color: Color,
@@ -90,11 +79,6 @@ private fun MaterialColorCircle(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val borderColor = if (selected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-    }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -102,16 +86,7 @@ private fun MaterialColorCircle(
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 4.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(color)
-                .then(
-                    if (selected) Modifier.border(3.dp, borderColor, CircleShape)
-                    else Modifier.border(1.dp, borderColor, CircleShape)
-                ),
-        )
+        ColorSwatch(color = color, selected = selected)
         Spacer(Modifier.height(4.dp))
         MaterialText(
             text = label,
@@ -124,6 +99,27 @@ private fun MaterialColorCircle(
             maxLines = 1,
         )
     }
+}
+
+@Composable
+private fun ColorSwatch(
+    color: Color,
+    selected: Boolean,
+) {
+    val strokeWidth = if (selected) 3.dp else 1.dp
+    val strokeColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+    }
+
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(color)
+            .border(strokeWidth, strokeColor, CircleShape),
+    )
 }
 
 /** Theme settings rendered with the active UI component system. */

@@ -113,7 +113,9 @@ DevInfo/
 
 ## ライセンスとリンク
 
-本プロジェクトは [GPL-3.0](LICENSE) で公開されています。
+本プロジェクトは [MIT ライセンス](LICENSE) で公開されています。サードパーティ製コンポーネントとそのライセンスは [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) に記載しています。
+
+ライセンスの経緯：`v1.0.0`–`v1.3.3` は MIT、`v1.3.4`–`v1.4.3` はサードパーティの GPL-3.0 コードを含むため GPL-3.0-or-later、本変更以降のリリースは再び MIT です。既に入手済みの GPL-3.0-or-later 版のコピーは同ライセンスのまま扱われ、本変更の影響を受けません。
 
 - [ソースコード](https://github.com/FIOIU8/DevInfo)
 - [Releases](https://github.com/FIOIU8/DevInfo/releases)

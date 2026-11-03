@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2026 FIOIU8
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 package com.fioiu8.devinfo.data
 
 import org.junit.Assert.assertFalse
