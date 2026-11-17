@@ -35,18 +35,23 @@ DevInfo は Kotlin と Jetpack Compose で作られた Android デバイス情�
 ### UI とローカライズ
 
 - Material 3 に統一した技術ダッシュボード。詳細画面は上部タブと横スワイプで切り替え、上部に戻る操作と設定を配置します。メイン画面に下部ナビゲーションは表示せず、幅広い画面ではナビゲーションレールを使用します。概要と詳細の情報カード、上部バーの操作には Liquid Glass 表面を使用します。
-- すべてのページで Material 3 を使用し、液体ガラス効果には AndroidLiquidGlass を使用しています。
-- システム、ライト、ダーク、動的カラー、テーマ色、カラースタイル、ページ倍率の設定。
+- すべてのページで Material 3 Expressive を使用します。ページタイトルの共有要素トランジション、コンテンツ内の大きな見出し、押下時の縮小フィードバック、形状が変化するローディングインジケーター、統一されたシェイプスケールを備えます。押下アニメーションはテーマ設定で無効にできます。
+- 液体ガラス効果には AndroidLiquidGlass を使用しています。
+- システム、ライト、ダーク、動的カラー、テーマ色、カラースタイル、ページ倍率の設定。設定項目はセグメントリストに統一されています。
 - 簡体字中国語、英語、日本語、カスタム BCP-47 locale タグ。
-- Android 14 以降の予測型戻るジェスチャー、Splash 画面、アプリ全体のプル・トゥ・リフレッシュ。
+- Android 14 以降の予測型戻るジェスチャー（進行状況プレビュー付き）、Splash 画面、アプリ全体のプル・トゥ・リフレッシュ。
 
 ## データ可用性とプライバシー
 
 取得できる項目はメーカー、Android バージョン、権限ポリシー、`/proc`/`/sys` の制限によって異なります。個別の失敗は他の表示を妨げず、利用できない CPU 使用率を `0%` として表示することはありません。
 
+Android ID、シリアル番号、ビルドの fingerprint/host/user、OAID/AAID は既定で固定長のアスタリスク表示になり、目のアイコンで明示的に表示する必要があります。ページを離れる、更新する、画面を回転すると再び非表示になります。エクスポートした ZIP にこれらの識別子は含まれません。
+
+スクリーンショット保護（`FLAG_SECURE`）は既定で有効です。無効にすると Android 14 以降では撮影を検出し、現在のページにある機密項目を表示します。Android 13 以下では検出できないため、UI にその旨を表示します。OAID/AAID は Android_CN_OAID により端末内で読み取られ、ネットワーク通信は行いません。AAID は GMS 広告 ID に依存するため `AD_ID` 権限がマージされます。
+
 本アプリに独自バックエンドやデバイス情報のアップロード機能はありません。更新確認では GitHub API にアクセスします。ZIP の共有・適用前に内容とリスクを確認してください。Root モードは必須ではありません。
 
-Manifest が宣言するのは `INTERNET`、`ACCESS_NETWORK_STATE`、`ACCESS_WIFI_STATE`、`NFC` です。NFC 機能は任意で、現在 Bluetooth 権限は宣言していません。
+Manifest が宣言するのは `INTERNET`、`ACCESS_NETWORK_STATE`、`ACCESS_WIFI_STATE`、`NFC`、`DETECT_SCREEN_CAPTURE`、および AAID に必要な GMS `AD_ID` です。NFC 機能は任意です。OAID ライブラリがマージする電話・ストレージ・システム設定の権限は削除しており、Bluetooth 権限は宣言していません。
 
 ## ダウンロードとビルド
 
@@ -102,9 +107,9 @@ DevInfo/
 
 ## CI とリリース
 
-- `build.yml` は Pull Request、手動実行、`dev`/`test` への push でテスト、ktlint、Android lint、ビルドを実行し、`main` への push では APK のビルドとアップロードのみを行います。
+- `build.yml` は `main`、`dev`、`test` への push、Pull Request、手動実行でテスト、ktlint、Android lint、ビルドを実行します。
 - 手動ビルドではバージョン名と `debug`/`release` 署名種別を指定でき、APK とビルド情報の Artifact をアップロードします。
-- `release.yml` は `main` からの手動リリース（`MAJOR.MINOR.PATCH` 形式のバージョン入力）のみに対応します。
+- `release.yml` は `main` への push、`vMAJOR.MINOR.PATCH` tag、`main` からの手動リリースに対応します。
 - テスト、ktlint、lint の後、`KEYSTORE_BASE64`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD` を使って署名 APK と Draft Release を作成します。
 
 ## コントリビューション

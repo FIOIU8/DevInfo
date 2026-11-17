@@ -35,18 +35,23 @@ DevInfo 是一个使用 Kotlin 和 Jetpack Compose 编写的 Android 设备信�
 ### 界面与本地化
 
 - 统一 Material 3 技术仪表盘界面，详情页使用顶部分类标签和横向滑动分页；详情页顶部提供返回和设置入口。主界面不显示底部导航，宽屏使用导航轨；总览与详情信息卡、顶部栏操作使用液态玻璃表面。
-- 全部页面使用 Material 3；液态玻璃效果由 AndroidLiquidGlass 提供。
-- 系统、浅色、深色和动态颜色模式，以及主题色、颜色风格和页面缩放设置。
+- 全部页面使用 Material 3 Expressive：页面标题共享元素过渡、内容区大标题、按压缩放反馈、形状变形加载指示器，以及统一的形状尺度。按压动效可在主题设置中关闭。
+- 液态玻璃效果由 AndroidLiquidGlass 提供。
+- 系统、浅色、深色和动态颜色模式，以及主题色、颜色风格和页面缩放设置；设置项统一使用分段式列表。
 - 简体中文、英文、日文和自定义 BCP-47 locale 标签。
-- Android 14+ 预测返回手势、Splash 屏和全局下拉刷新。
+- Android 14+ 预测返回手势（带进度预览）、Splash 屏和全局下拉刷新。
 
 ## 数据可用性与隐私
 
 厂商 ROM、Android 版本、权限策略以及 `/proc`/`/sys` 限制会影响字段可用性。单项采集失败不会阻塞其他信息；不可用的 CPU 使用率不会伪装成 `0%`。
 
+Android ID、序列号、构建指纹/Host/User 以及 OAID/AAID 默认显示为固定长度星号，需要点击眼睛图标主动显示；离开页面、刷新或旋转后重新隐藏。导出 ZIP 不包含这些标识符。
+
+防截屏默认开启（`FLAG_SECURE`）。关闭后，Android 14+ 会检测截图并弹窗列出当前页面上存在风险的字段；Android 13 及以下无法检测截图，界面会明确说明。OAID/AAID 通过 Android_CN_OAID 在本机读取，不发起网络请求；AAID 依赖 GMS 广告标识，因此会发生 `AD_ID` 权限合并。
+
 应用没有自建后端或设备信息上传服务。更新检查访问 GitHub API；导出 ZIP 前请检查敏感字段，分享或刷入前确认风险。Root 模式不是应用运行的必要条件。
 
-Manifest 当前声明 `INTERNET`、`ACCESS_NETWORK_STATE`、`ACCESS_WIFI_STATE` 和 `NFC`；NFC 特性为非必需。当前没有蓝牙权限声明。
+Manifest 当前声明 `INTERNET`、`ACCESS_NETWORK_STATE`、`ACCESS_WIFI_STATE`、`NFC`、`DETECT_SCREEN_CAPTURE`，以及 AAID 所需的 GMS `AD_ID`；NFC 特性为非必需。OAID 库自带的电话、存储和系统设置权限已通过 manifest 移除，当前没有蓝牙权限声明。
 
 ## 下载与构建
 
@@ -102,9 +107,9 @@ DevInfo/
 
 ## CI 与发布
 
-- `build.yml` 在 Pull Request、手动运行以及 `dev`/`test` 分支 push 时执行测试、ktlint、Android lint 与构建；合并到 `main` 的 push 只构建并上传 APK。
+- `build.yml` 在 `main`、`dev`、`test` 分支 push、目标分支 Pull Request 和手动运行时执行测试、ktlint、Android lint 与构建。
 - 手动构建可输入版本名和 `debug`/`release` 签名类型，并上传 APK 与构建信息 Artifact。
-- `release.yml` 仅支持从 `main` 发起的手动发布，版本号需为 `MAJOR.MINOR.PATCH`。
+- `release.yml` 支持 `main` push、`vMAJOR.MINOR.PATCH` tag 和从 `main` 发起的手动发布。
 - Release 流程先通过测试、ktlint 和 lint，再使用 `KEYSTORE_BASE64`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD` 创建签名 APK 和 Draft Release。
 
 ## 贡献
