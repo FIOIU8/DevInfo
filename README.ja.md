@@ -102,9 +102,9 @@ DevInfo/
 
 ## CI とリリース
 
-- `build.yml` は `main`、`dev`、`test` への push、Pull Request、手動実行でテスト、ktlint、Android lint、ビルドを実行します。
+- `build.yml` は Pull Request、手動実行、`dev`/`test` への push でテスト、ktlint、Android lint、ビルドを実行し、`main` への push では APK のビルドとアップロードのみを行います。
 - 手動ビルドではバージョン名と `debug`/`release` 署名種別を指定でき、APK とビルド情報の Artifact をアップロードします。
-- `release.yml` は `main` への push、`vMAJOR.MINOR.PATCH` tag、`main` からの手動リリースに対応します。
+- `release.yml` は `main` からの手動リリース（`MAJOR.MINOR.PATCH` 形式のバージョン入力）のみに対応します。
 - テスト、ktlint、lint の後、`KEYSTORE_BASE64`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD` を使って署名 APK と Draft Release を作成します。
 
 ## コントリビューション
