@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Download
@@ -388,7 +387,7 @@ fun UpdateAvailableDialog(
                                 .verticalScroll(rememberScrollState())
                                 .background(
                                     MaterialTheme.colorScheme.surfaceContainerLow,
-                                    RoundedCornerShape(12.dp)
+                                    MaterialTheme.shapes.small
                                 )
                                 .padding(12.dp)
                         ) {

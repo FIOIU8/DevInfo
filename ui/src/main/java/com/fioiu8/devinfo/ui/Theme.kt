@@ -10,13 +10,17 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
@@ -25,12 +29,15 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.fioiu8.devinfo.core.model.MotionLevel
 import com.fioiu8.devinfo.core.model.ThemeColor
 import com.fioiu8.devinfo.core.model.ThemeMode
 import com.fioiu8.devinfo.core.model.effectiveMotionLevel
 import com.fioiu8.devinfo.ui.motion.LocalDevInfoMotionLevel
+import com.fioiu8.devinfo.ui.motion.LocalDevInfoMotionScheme
+import com.fioiu8.devinfo.ui.motion.LocalDevInfoPressAnimationEnabled
 import com.fioiu8.devinfo.ui.motion.rememberSystemAnimationsEnabled
 /** The app now has one Material 3 visual system. Kept as a compatibility local while
  * page implementations are being consolidated. */
@@ -40,8 +47,33 @@ private val LocalDevInfoDarkTheme = staticCompositionLocalOf { false }
 fun isInDarkTheme(): Boolean = LocalDevInfoDarkTheme.current
 
 // 静态 fallback — 用于非动态模式或 Android 12 以下
-private val DarkColorScheme = darkColorScheme(
-    primary = Teal80,
+/**
+ * Material 3 Expressive 形状尺度。分组容器（24dp）与组内行（18dp）仍由
+ * [com.fioiu8.devinfo.ui.SegmentedGroup] 自行控制，以保证嵌套圆角同心。
+ */
+private val DevInfoShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(20.dp),
+    largeIncreased = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(28.dp),
+    extraLargeIncreased = RoundedCornerShape(32.dp),
+    extraExtraLarge = RoundedCornerShape(36.dp),
+)
+
+/**
+ * 按动效等级选择 M3 Expressive 的运动方案。
+ *
+ * material3 1.5.0 没有 `MotionScheme.none()`；[MotionLevel.OFF] 只能让应用自己的
+ * 路由/入场过渡静止，Switch、Ripple 等组件内部动效仍由 Material 控制。
+ */
+private fun motionSchemeFor(level: MotionLevel): MotionScheme = when (level) {
+    MotionLevel.FULL -> MotionScheme.expressive()
+    MotionLevel.STANDARD, MotionLevel.MINIMAL, MotionLevel.OFF -> MotionScheme.standard()
+}
+
+private val DarkColorScheme = darkColorScheme(    primary = Teal80,
     onPrimary = Color(0xFF003731),
     primaryContainer = Color(0xFF005048),
     onPrimaryContainer = Color(0xFF74F8E5),
@@ -115,6 +147,7 @@ private val LightColorScheme = lightColorScheme(
  * [MotionLevel.OFF]，并在回到前台时重新读取。
  *
  * @param themeMode 主题模式
+ * @param pressAnimationEnabled 是否启用按压缩放反馈（P2 起由用户偏好控制）
  * @param content Composable 内容
  */
 @Composable
@@ -122,6 +155,7 @@ fun DevInfoTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     themeColor: ThemeColor = ThemeColor.DEFAULT,
     motionLevel: MotionLevel = MotionLevel.STANDARD,
+    pressAnimationEnabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
@@ -163,13 +197,18 @@ fun DevInfoTheme(
 
     val systemAnimationsEnabled = rememberSystemAnimationsEnabled()
     val effectiveMotion = effectiveMotionLevel(motionLevel, systemAnimationsEnabled)
+    val motionScheme = remember(effectiveMotion) { motionSchemeFor(effectiveMotion) }
 
     CompositionLocalProvider(
         LocalDevInfoDarkTheme provides darkTheme,
         LocalDevInfoMotionLevel provides effectiveMotion,
+        LocalDevInfoMotionScheme provides motionScheme,
+        LocalDevInfoPressAnimationEnabled provides pressAnimationEnabled,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
+            motionScheme = motionScheme,
+            shapes = DevInfoShapes,
             typography = Typography,
             content = content,
         )

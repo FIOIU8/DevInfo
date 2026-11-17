@@ -8,13 +8,18 @@ package com.fioiu8.devinfo
 
 import android.content.Context
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import java.util.Locale
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -28,6 +33,7 @@ import com.fioiu8.devinfo.data.LiveHardwareMonitor
 import com.fioiu8.devinfo.data.ModuleExportHelper
 import com.fioiu8.devinfo.data.ThemePreferences
 import com.fioiu8.devinfo.data.UpdateChecker
+import com.fioiu8.devinfo.data.identifiers.AndroidCnOaidProvider
 import com.fioiu8.devinfo.data.AppLanguage
 import com.fioiu8.devinfo.data.CpuUsageSampler
 import com.fioiu8.devinfo.core.model.PaletteStyle
@@ -43,6 +49,8 @@ class MainActivity : ComponentActivity() {
     // LanguagePreferences 不是单例，需要在 onDestroy 中 close
     private var languagePrefs: LanguagePreferences? = null
     private var attachLanguagePrefs: LanguagePreferences? = null
+    private val screenshotWarningState = mutableStateOf(false)
+    private var screenshotGuard: SystemScreenshotGuard? = null
 
     override fun onDestroy() {
         super.onDestroy()
@@ -94,9 +102,16 @@ class MainActivity : ComponentActivity() {
         // 模块导出助手
         val exportHelper = ModuleExportHelper(localizedAppContext)
         val themePrefs = ThemePreferences.getInstance(this)
+        // 在首帧之前设置，避免启动画面或首屏内容短暂可被截图。
+        if (themePrefs.getScreenshotProtectionSnapshot()) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
         val languagePrefs = LanguagePreferences(this).also { this.languagePrefs = it }
         val appContext = applicationContext
-        val collector = DeviceInfoCollector(localizedAppContext)
+        val collector = DeviceInfoCollector(
+            context = localizedAppContext,
+            identifierProvider = AndroidCnOaidProvider(appContext),
+        )
         val mainViewModelFactory = MainViewModel.factory(
             collector = collector,
             cpuUsageSampler = CpuUsageSampler(collector),
@@ -125,6 +140,9 @@ class MainActivity : ComponentActivity() {
             val pageScale by themePrefs.pageScale.collectAsStateWithLifecycle(initialValue = 1f)
             val enablePredictiveBack by themePrefs.enablePredictiveBack.collectAsStateWithLifecycle(initialValue = true)
             val motionLevel by themePrefs.motionLevel.collectAsStateWithLifecycle(initialValue = MotionLevel.STANDARD)
+            val pressAnimation by themePrefs.pressAnimation.collectAsStateWithLifecycle(initialValue = true)
+            val privacyMask by themePrefs.privacyMask.collectAsStateWithLifecycle(initialValue = true)
+            val screenshotProtection by themePrefs.screenshotProtection.collectAsStateWithLifecycle(initialValue = true)
             val systemDensity = LocalDensity.current
             val scaledDensity = remember(systemDensity, pageScale) {
                 Density(
@@ -143,6 +161,9 @@ class MainActivity : ComponentActivity() {
                 pageScale,
                 enablePredictiveBack,
                 motionLevel,
+                pressAnimation,
+                privacyMask,
+                screenshotProtection,
             ) {
                 MainScreenSettings(
                     themeMode = themeMode,
@@ -161,6 +182,12 @@ class MainActivity : ComponentActivity() {
                     onEnablePredictiveBackChange = themePrefs::setEnablePredictiveBack,
                     motionLevel = motionLevel,
                     onMotionLevelChange = themePrefs::setMotionLevel,
+                    pressAnimation = pressAnimation,
+                    onPressAnimationChange = themePrefs::setPressAnimation,
+                    privacyMask = privacyMask,
+                    onPrivacyMaskChange = themePrefs::setPrivacyMask,
+                    screenshotProtection = screenshotProtection,
+                    onScreenshotProtectionChange = themePrefs::setScreenshotProtection,
                     appLanguage = appLanguage,
                     customLocaleTag = customLocaleTag,
                     onAppLanguageChange = { selected ->
@@ -178,16 +205,45 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
+            // 防截屏默认开启；关闭后才注册 API 34+ 的截图检测。
+            LaunchedEffect(screenshotProtection) {
+                if (screenshotProtection) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    val guard = screenshotGuard ?: SystemScreenshotGuard(this@MainActivity) {
+                        screenshotWarningState.value = true
+                    }.also { screenshotGuard = it }
+                    guard.setEnabled(enabled = !screenshotProtection)
+                }
+            }
+            DisposableEffect(Unit) {
+                onDispose {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        screenshotGuard?.setEnabled(enabled = false)
+                    }
+                }
+            }
+
             CompositionLocalProvider(LocalDensity provides scaledDensity) {
                 DevInfoTheme(
                     themeMode = themeMode,
                     themeColor = themeColor,
                     motionLevel = motionLevel,
+                    pressAnimationEnabled = pressAnimation,
                 ) {
                     MainScreen(
                         viewModel = mainViewModel,
                         settings = mainScreenSettings,
-                        exportHelper = exportHelper
+                        exportHelper = exportHelper,
+                        showScreenshotWarning = screenshotWarningState.value,
+                        onDismissScreenshotWarning = { screenshotWarningState.value = false },
+                        onEnableScreenshotProtection = {
+                            themePrefs.setScreenshotProtection(true)
+                            screenshotWarningState.value = false
+                        },
                     )
                 }
             }

@@ -13,6 +13,7 @@ import com.fioiu8.devinfo.ui.SegmentedGroup
 import com.fioiu8.devinfo.ui.SegmentedRow
 import com.fioiu8.devinfo.ui.motion.DevInfoAnimatedValue
 import com.fioiu8.devinfo.ui.motion.DevInfoStaggeredEntrance
+import com.fioiu8.devinfo.ui.motion.devInfoPressable
 import com.fioiu8.devinfo.ui.descriptionResId
 import com.fioiu8.devinfo.ui.displayNameResId
 import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassCard
@@ -22,7 +23,9 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -88,6 +91,7 @@ import com.fioiu8.devinfo.core.model.LiveHardwareSnapshot
 import com.fioiu8.devinfo.core.model.OverviewSnapshot
 import com.fioiu8.devinfo.core.model.InfoCategory
 import com.fioiu8.devinfo.core.model.ItemWithVisibility
+import com.fioiu8.devinfo.core.privacy.displayValue
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -184,6 +188,7 @@ fun DeviceInfoOverviewPage(
     isLoading: Boolean,
     isOverviewLoading: Boolean,
     snapshot: OverviewSnapshot,
+    maskSensitive: Boolean = true,
     onRefresh: suspend () -> Unit,
     onOpenDetails: (InfoCategory) -> Unit
 ) {
@@ -256,6 +261,7 @@ fun DeviceInfoOverviewPage(
                     item(key = "categories") {
                         CategorySummaryGroup(
                             summaries = categorySummaries,
+                            maskSensitive = maskSensitive,
                             onOpenDetails = onOpenDetails,
                         )
                     }
@@ -303,7 +309,7 @@ private fun DeviceOverviewHeader(items: List<ItemWithVisibility>) {
     ) {
         Text(
             text = model,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -324,7 +330,7 @@ private fun DeviceIdentitySummaryCard(items: List<ItemWithVisibility>) {
     val supportingText = stringResource(R.string.overview_device_summary_supporting, items.size)
     LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = MaterialTheme.shapes.large,
         containerColor = MaterialTheme.colorScheme.primaryContainer,
     ) {
         Row(
@@ -384,14 +390,32 @@ private fun OverviewMetricsSection(
                 }
             }
         } else {
-            metrics.chunked(columns).forEachIndexed { rowIndex, rowMetrics ->
+            // CPU 频率摘要行数不固定，单独占满一行；否则同排卡片会被拉到同一高度，
+            // 较短的内存/存储卡下方出现大片空白。
+            val wideCpuMetric = metrics.firstOrNull {
+                it.id == OverviewMetricId.REALTIME_CPU && it.showFrequencySummary
+            }
+            val gridMetrics = if (wideCpuMetric != null) metrics - wideCpuMetric else metrics
+            if (wideCpuMetric != null) {
+                DevInfoStaggeredEntrance(index = 0) {
+                    OverviewMetricCard(
+                        metric = wideCpuMetric,
+                        wideLayout = true,
+                        onClick = { onOpenDetails(wideCpuMetric.category) },
+                    )
+                }
+            }
+            val entranceOffset = if (wideCpuMetric != null) 1 else 0
+            gridMetrics.chunked(columns).forEachIndexed { rowIndex, rowMetrics ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     rowMetrics.forEachIndexed { columnIndex, metric ->
                         Box(modifier = Modifier.weight(1f)) {
-                            DevInfoStaggeredEntrance(index = rowIndex * columns + columnIndex) {
+                            DevInfoStaggeredEntrance(
+                                index = entranceOffset + rowIndex * columns + columnIndex
+                            ) {
                                 OverviewMetricCard(
                                     metric = metric,
                                     // 多列时卡片宽度有限，CPU 仪表放到数值下方，避免横向溢出。
@@ -414,6 +438,7 @@ private fun OverviewMetricsSection(
 @Composable
 private fun CategorySummaryGroup(
     summaries: List<CategorySummaryData>,
+    maskSensitive: Boolean,
     onOpenDetails: (InfoCategory) -> Unit,
 ) {
     if (summaries.isEmpty()) return
@@ -425,7 +450,12 @@ private fun CategorySummaryGroup(
                 SegmentedRow(
                     title = stringResource(summary.category.displayNameResId()),
                     supporting = preview?.let {
-                        stringResource(it.item.keyResId) + " · " + it.item.value
+                        val value = if (maskSensitive) {
+                            displayValue(it.item.value, it.item.key, revealed = false)
+                        } else {
+                            it.item.value
+                        }
+                        stringResource(it.item.keyResId) + " · " + value
                     },
                     leadingIcon = categoryIcon(summary.category),
                     trailingValue = stringResource(R.string.items_count, summary.count),
@@ -572,6 +602,7 @@ private fun OverviewMetricCard(
     }
     val hasCpuGauge = metric.id == OverviewMetricId.REALTIME_CPU
     val hasFrequencySummary = metric.showFrequencySummary
+    val interactionSource = remember { MutableInteractionSource() }
     LiquidGlassCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -583,9 +614,14 @@ private fun OverviewMetricCard(
                 }
             )
             // clickable 的指示层需要与卡片同形状裁剪，避免方形涟漪溢出圆角。
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
+            .clip(MaterialTheme.shapes.large)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+            )
+            .devInfoPressable(interactionSource),
+        shape = MaterialTheme.shapes.large,
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         androidx.compose.foundation.layout.Column(
@@ -620,22 +656,31 @@ private fun OverviewMetricCard(
             if (wideLayout && hasCpuGauge) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    MetricValueBlock(
-                        metric = metric,
-                        displayValue = displayValue,
-                        supportingText = supportingText,
-                         modifier = Modifier.widthIn(min = 132.dp, max = 184.dp),
-                         showValue = false,
-                         showGauge = false,
+                    DashboardGauge(
+                        progress = metric.progress,
+                        value = displayValue,
+                        modifier = Modifier.size(96.dp),
                     )
-                     DashboardGauge(
-                         progress = metric.progress,
-                         value = displayValue,
-                         modifier = Modifier.size(104.dp),
-                     )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        supportingText?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (hasFrequencySummary) {
+                            CpuFrequencySummary(metric.coreMetrics)
+                        }
+                    }
                 }
             } else {
                 MetricValueBlock(
@@ -672,7 +717,7 @@ private fun CpuTrendCard(metric: OverviewMetric) {
 
     LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = MaterialTheme.shapes.large,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
@@ -720,21 +765,46 @@ private fun CpuTrendCard(metric: OverviewMetric) {
     }
 }
 
+/** 连续且频率相同的核心合并成一行，避免概览卡被 8 行频率撑高。 */
+internal data class CpuFrequencyRange(
+    val startIndex: Int,
+    val endIndex: Int,
+    val frequency: String,
+)
+
+internal fun coreFrequencyRanges(metrics: List<CpuCoreMetric>): List<CpuFrequencyRange> {
+    val result = mutableListOf<CpuFrequencyRange>()
+    metrics.filter { it.frequency != null }
+        .sortedBy { it.index }
+        .forEach { core ->
+            val frequency = core.frequency ?: return@forEach
+            val last = result.lastOrNull()
+            if (last != null && last.frequency == frequency && last.endIndex == core.index - 1) {
+                result[result.lastIndex] = last.copy(endIndex = core.index)
+            } else {
+                result.add(CpuFrequencyRange(core.index, core.index, frequency))
+            }
+        }
+    return result
+}
+
 @Composable
 private fun CpuFrequencySummary(metrics: List<CpuCoreMetric>) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        metrics.forEach { metric ->
-            metric.frequency?.let { frequency ->
-                Text(
-                    text = "CPU${metric.index} $frequency",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
-            }
+    val ranges = remember(metrics) { coreFrequencyRanges(metrics) }
+    if (ranges.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        ranges.forEach { range ->
+            Text(
+                text = if (range.startIndex == range.endIndex) {
+                    "CPU${range.startIndex} ${range.frequency}"
+                } else {
+                    "CPU${range.startIndex}–${range.endIndex} ${range.frequency}"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -891,12 +961,18 @@ private fun CpuCoreSelectionSlot(
 /** 静态信息小卡片：图标 + 标题 + 值，点击跳转到对应分类详情 */
 @Composable
 private fun StaticInfoCard(card: StaticInfoCardData, onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .height(124.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+            )
+            .devInfoPressable(interactionSource),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         Column(
@@ -1085,7 +1161,7 @@ private fun CpuTrendLegend(
             val isSelected = selectedCore == core
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(MaterialTheme.shapes.small)
                     .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
                     .clickable { onCoreSelected(core) }
                     .heightIn(min = 36.dp)
@@ -1153,7 +1229,7 @@ private fun HardwareSensorsCard(
 ) {
     LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = MaterialTheme.shapes.small,
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1211,7 +1287,7 @@ private fun SecuritySummaryCard(snapshot: OverviewSnapshot) {
     var showUsbDialog by remember { mutableStateOf(false) }
     LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = MaterialTheme.shapes.small,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1230,7 +1306,7 @@ private fun SecuritySummaryCard(snapshot: OverviewSnapshot) {
                 onClick = { if (snapshot.usbDebuggingEnabled == true) showUsbDialog = true },
                 enabled = snapshot.usbDebuggingEnabled == true,
                 colors = CardDefaults.cardColors(containerColor = if (snapshot.usbDebuggingEnabled == true) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerLow),
-                shape = RoundedCornerShape(10.dp)
+                shape = MaterialTheme.shapes.extraSmall
             ) {
                 SecurityRow(Icons.Outlined.ErrorOutline, when (snapshot.usbDebuggingEnabled) {
                     true -> stringResource(R.string.security_usb_enabled)
