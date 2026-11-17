@@ -16,6 +16,9 @@
     <!-- Device info labels -->
     <string name="device_android_id">Android ID</string>
     <string name="device_serial">序列号</string>
+    <string name="device_oaid">OAID</string>
+    <string name="device_aaid">AAID</string>
+    <string name="status_unavailable">N/A</string>
     <string name="device_brand">品牌</string>
     <string name="device_manufacturer">制造商</string>
     <string name="device_model">型号</string>
