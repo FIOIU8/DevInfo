@@ -66,6 +66,15 @@ class ThemePreferences private constructor(context: Context) :
             defaultValue = com.fioiu8.devinfo.core.model.MotionLevel.STANDARD,
         )
 
+    private val pressAnimationPreference =
+        booleanPreference(key = KEY_PRESS_ANIMATION, defaultValue = true)
+
+    private val privacyMaskPreference =
+        booleanPreference(key = KEY_PRIVACY_MASK, defaultValue = true)
+
+    private val screenshotProtectionPreference =
+        booleanPreference(key = KEY_SCREENSHOT_PROTECTION, defaultValue = true)
+
     val themeMode: StateFlow<ThemeMode> = themeModePreference.flow
 
     val themeColor: StateFlow<ThemeColor> = themeColorPreference.flow
@@ -76,6 +85,9 @@ class ThemePreferences private constructor(context: Context) :
     val pageScale: StateFlow<Float> = pageScalePreference.flow
     val enablePredictiveBack: StateFlow<Boolean> = enablePredictiveBackPreference.flow
     val motionLevel: StateFlow<com.fioiu8.devinfo.core.model.MotionLevel> = motionLevelPreference.flow
+    val pressAnimation: StateFlow<Boolean> = pressAnimationPreference.flow
+    val privacyMask: StateFlow<Boolean> = privacyMaskPreference.flow
+    val screenshotProtection: StateFlow<Boolean> = screenshotProtectionPreference.flow
 
     /** 设置并持久化主题模式 */
     fun setThemeMode(mode: ThemeMode) {
@@ -110,6 +122,18 @@ class ThemePreferences private constructor(context: Context) :
         motionLevelPreference.set(level)
     }
 
+    fun setPressAnimation(enabled: Boolean) {
+        pressAnimationPreference.set(enabled)
+    }
+
+    fun setPrivacyMask(enabled: Boolean) {
+        privacyMaskPreference.set(enabled)
+    }
+
+    fun setScreenshotProtection(enabled: Boolean) {
+        screenshotProtectionPreference.set(enabled)
+    }
+
     // ── snapshot getters ──
 
     /** 同步读取当前主题模式（非响应式，用于组合上下文之外） */
@@ -119,6 +143,8 @@ class ThemePreferences private constructor(context: Context) :
 
     fun getMotionLevelSnapshot(): com.fioiu8.devinfo.core.model.MotionLevel =
         motionLevelPreference.snapshot
+
+    fun getScreenshotProtectionSnapshot(): Boolean = screenshotProtectionPreference.snapshot
 
     companion object {
         // 单例：避免每次 Activity 重建都新建实例并注册一组永不注销的
@@ -143,5 +169,8 @@ class ThemePreferences private constructor(context: Context) :
         const val KEY_PAGE_SCALE = "page_scale"
         const val KEY_ENABLE_PREDICTIVE_BACK = "enable_predictive_back"
         const val KEY_MOTION_LEVEL = "motion_level"
+        const val KEY_PRESS_ANIMATION = "press_animation"
+        const val KEY_PRIVACY_MASK = "privacy_mask"
+        const val KEY_SCREENSHOT_PROTECTION = "screenshot_protection"
     }
 }

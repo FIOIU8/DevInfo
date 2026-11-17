@@ -11,8 +11,21 @@
     <uses-permission android:name="android.permission.NFC" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
 
+    <!-- 截图检测（Android 14+ 的普通权限） -->
+    <uses-permission android:name="android.permission.DETECT_SCREEN_CAPTURE" />
+
+    <!--
+      OAID 库为兼容旧系统会合并以下权限；本项目只读取匿名标识，
+      按最小必要原则移除，避免安装时出现与功能不符的敏感权限。
+    -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+
 
     <application
+        android:name=".DevInfoApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"
