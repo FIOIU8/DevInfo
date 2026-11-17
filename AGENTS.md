@@ -169,7 +169,7 @@ Test locations:
 ## 10. Licensing
 
 - The project is released under the MIT License. Every new Kotlin source file starts with the same SPDX header used across the repository.
-- Runtime third-party components and their licenses are recorded in `THIRD-PARTY-NOTICES.md`. Adding or removing a runtime dependency requires updating that file in the same change.
-- Do not copy code from GPL, LGPL, or AGPL projects. When external code must be adapted, keep it under a permissive license (MIT or Apache-2.0), preserve the upstream attribution, and record it in `THIRD-PARTY-NOTICES.md`.
+- Runtime third-party components and their licenses are recorded in `legal/THIRD-PARTY-NOTICES.md`. Adding or removing a runtime dependency requires updating that file in the same change.
+- Do not copy code from GPL, LGPL, or AGPL projects. When external code must be adapted, keep it under a permissive license (MIT or Apache-2.0), preserve the upstream attribution, and record it in `legal/THIRD-PARTY-NOTICES.md`.
 - The license text shipped inside the APK is `feature-main/src/main/res/raw/license.txt`; it must stay identical to `LICENSE`.
 - Releases `v1.0.0`–`v1.3.3` and releases after the MIT restoration are MIT; `v1.3.4`–`v1.4.3` remain GPL-3.0-or-later. Never rewrite tags or history to alter that record.
