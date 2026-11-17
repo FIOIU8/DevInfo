@@ -60,6 +60,12 @@ class ThemePreferences private constructor(context: Context) :
     private val enablePredictiveBackPreference =
         booleanPreference(key = KEY_ENABLE_PREDICTIVE_BACK, defaultValue = true)
 
+    private val motionLevelPreference =
+        enumPreference(
+            key = KEY_MOTION_LEVEL,
+            defaultValue = com.fioiu8.devinfo.core.model.MotionLevel.STANDARD,
+        )
+
     val themeMode: StateFlow<ThemeMode> = themeModePreference.flow
 
     val themeColor: StateFlow<ThemeColor> = themeColorPreference.flow
@@ -69,6 +75,7 @@ class ThemePreferences private constructor(context: Context) :
     val colorSpec: StateFlow<com.fioiu8.devinfo.core.model.ColorSpec> = colorSpecPreference.flow
     val pageScale: StateFlow<Float> = pageScalePreference.flow
     val enablePredictiveBack: StateFlow<Boolean> = enablePredictiveBackPreference.flow
+    val motionLevel: StateFlow<com.fioiu8.devinfo.core.model.MotionLevel> = motionLevelPreference.flow
 
     /** 设置并持久化主题模式 */
     fun setThemeMode(mode: ThemeMode) {
@@ -99,12 +106,19 @@ class ThemePreferences private constructor(context: Context) :
         enablePredictiveBackPreference.set(enabled)
     }
 
+    fun setMotionLevel(level: com.fioiu8.devinfo.core.model.MotionLevel) {
+        motionLevelPreference.set(level)
+    }
+
     // ── snapshot getters ──
 
     /** 同步读取当前主题模式（非响应式，用于组合上下文之外） */
     fun getThemeModeSnapshot(): ThemeMode = themeModePreference.snapshot
 
     fun getCheckUpdateSnapshot(): Boolean = checkUpdatePreference.snapshot
+
+    fun getMotionLevelSnapshot(): com.fioiu8.devinfo.core.model.MotionLevel =
+        motionLevelPreference.snapshot
 
     companion object {
         // 单例：避免每次 Activity 重建都新建实例并注册一组永不注销的
@@ -128,5 +142,6 @@ class ThemePreferences private constructor(context: Context) :
         const val KEY_COLOR_SPEC = "color_spec"
         const val KEY_PAGE_SCALE = "page_scale"
         const val KEY_ENABLE_PREDICTIVE_BACK = "enable_predictive_back"
+        const val KEY_MOTION_LEVEL = "motion_level"
     }
 }

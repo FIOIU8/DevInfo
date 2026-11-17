@@ -29,6 +29,18 @@ class MonitorModeTest {
     }
 
     @Test
+    fun `settings routes stop monitoring entirely`() {
+        assertEquals(
+            MonitorMode.STOPPED,
+            monitorModeFor(
+                isForeground = true,
+                isOverviewVisible = false,
+                isDataPageVisible = false,
+            )
+        )
+    }
+
+    @Test
     fun `visible sensor detail uses sensor sampling without full overview monitoring`() {
         assertEquals(
             MonitorMode.SENSORS,

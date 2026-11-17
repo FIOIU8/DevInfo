@@ -7,8 +7,11 @@
 package com.fioiu8.devinfo.feature.main
 import com.fioiu8.devinfo.feature.main.R
 import com.fioiu8.devinfo.ui.DevInfoExpressiveSwitch
+import com.fioiu8.devinfo.ui.DevInfoSegmentedControl
 import com.fioiu8.devinfo.ui.DevInfoSegmentedDropdownItem
+import com.fioiu8.devinfo.ui.SegmentedGroup
 import com.fioiu8.devinfo.ui.displayNameResId
+import com.fioiu8.devinfo.ui.motion.rememberSystemAnimationsEnabled
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -66,6 +69,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fioiu8.devinfo.core.model.PaletteStyle
+import com.fioiu8.devinfo.core.model.MotionLevel
 import com.fioiu8.devinfo.core.model.ThemeColor
 import com.fioiu8.devinfo.core.model.ThemeMode
 import com.fioiu8.devinfo.ui.theme.color
@@ -137,6 +141,8 @@ fun ThemeSettingsPage(
     onPageScaleChange: (Float) -> Unit,
     enablePredictiveBack: Boolean,
     onEnablePredictiveBackChange: (Boolean) -> Unit,
+    motionLevel: MotionLevel,
+    onMotionLevelChange: (MotionLevel) -> Unit,
     onBack: () -> Unit,
 ) {
     MaterialThemeSettingsPage(
@@ -152,6 +158,8 @@ fun ThemeSettingsPage(
         onPageScaleChange = onPageScaleChange,
         enablePredictiveBack = enablePredictiveBack,
         onEnablePredictiveBackChange = onEnablePredictiveBackChange,
+        motionLevel = motionLevel,
+        onMotionLevelChange = onMotionLevelChange,
         onBack = onBack,
     )
 }
@@ -171,6 +179,8 @@ private fun MaterialThemeSettingsPage(
     onPageScaleChange: (Float) -> Unit,
     enablePredictiveBack: Boolean,
     onEnablePredictiveBackChange: (Boolean) -> Unit,
+    motionLevel: MotionLevel,
+    onMotionLevelChange: (MotionLevel) -> Unit,
     onBack: () -> Unit,
 ) {
     val selectedThemeIndex = themeMode.baseIndex
@@ -226,6 +236,35 @@ private fun MaterialThemeSettingsPage(
                                 count = themeTabs.size,
                             ),
                             label = { MaterialText(label) },
+                        )
+                    }
+                }
+            }
+
+            item {
+                val systemAnimationsEnabled = rememberSystemAnimationsEnabled()
+                SegmentedGroup(title = stringResource(R.string.theme_motion_level)) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        DevInfoSegmentedControl(
+                            options = MotionLevel.entries.map { stringResource(it.labelRes()) },
+                            selectedIndex = MotionLevel.entries.indexOf(motionLevel),
+                            onSelected = { index ->
+                                MotionLevel.entries.getOrNull(index)?.let(onMotionLevelChange)
+                            },
+                        )
+                        MaterialText(
+                            text = stringResource(
+                                if (systemAnimationsEnabled) {
+                                    R.string.theme_motion_level_summary
+                                } else {
+                                    R.string.motion_system_disabled
+                                }
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -547,4 +586,11 @@ private fun ThemeMode.withMonet(enabled: Boolean): ThemeMode = when (baseIndex) 
     0 -> if (enabled) ThemeMode.DYNAMIC_SYSTEM else ThemeMode.SYSTEM
     1 -> if (enabled) ThemeMode.DYNAMIC_LIGHT else ThemeMode.LIGHT
     else -> if (enabled) ThemeMode.DYNAMIC_DARK else ThemeMode.DARK
+}
+
+private fun MotionLevel.labelRes(): Int = when (this) {
+    MotionLevel.FULL -> R.string.motion_full
+    MotionLevel.STANDARD -> R.string.motion_standard
+    MotionLevel.MINIMAL -> R.string.motion_minimal
+    MotionLevel.OFF -> R.string.motion_off
 }

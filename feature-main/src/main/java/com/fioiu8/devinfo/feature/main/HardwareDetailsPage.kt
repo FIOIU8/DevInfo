@@ -9,6 +9,7 @@ package com.fioiu8.devinfo.feature.main
 import android.content.ClipData
 import android.hardware.camera2.CameraCharacteristics
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,9 +24,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
@@ -36,12 +38,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryScrollableTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,94 +72,46 @@ import com.fioiu8.devinfo.core.model.OverviewSnapshot
 import com.fioiu8.devinfo.core.model.SensorHardwareInfo
 import com.fioiu8.devinfo.core.model.hardwareDetailPage
 import com.fioiu8.devinfo.ui.DevInfoPullToRefresh
+import com.fioiu8.devinfo.ui.DevInfoSegmentHeader
 import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassCard
 import com.fioiu8.devinfo.ui.rememberDevInfoMessageHandler
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.absoluteValue
 
 private val hardwarePages = HardwareDetailPage.entries
+private const val SENSOR_SECTION_KEY_PREFIX = "sensors_section:"
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HardwareDetailsPage(
     itemsState: List<ItemWithVisibility>,
     isLoading: Boolean,
-    overviewSnapshot: OverviewSnapshot,
-    hardwareDetails: HardwareDetailsSnapshot,
-    motionSensors: MotionSensorSnapshot,
+    overviewSnapshot: StateFlow<OverviewSnapshot>,
+    hardwareDetails: StateFlow<HardwareDetailsSnapshot>,
+    motionSensors: StateFlow<MotionSensorSnapshot>,
     initialPage: HardwareDetailPage,
     onRefresh: suspend () -> Unit,
     onSensorPageVisibilityChanged: (Boolean) -> Unit
 ) {
-    val pagerState = rememberPagerState(
-        initialPage = hardwarePages.indexOf(initialPage).coerceAtLeast(0),
-        pageCount = { hardwarePages.size }
-    )
+    val overview by overviewSnapshot.collectAsStateWithLifecycle()
+    val hardware by hardwareDetails.collectAsStateWithLifecycle()
     val itemsByPage = remember(itemsState) {
-        itemsState.groupBy { it.item.hardwareDetailPage() }
+        itemsState
+            .groupBy { it.item.hardwareDetailPage() }
+            .mapValues { (_, items) -> items.map(ItemWithVisibility::item) }
     }
-    val pagerScope = rememberCoroutineScope()
-
-    LaunchedEffect(pagerState.currentPage) {
-        onSensorPageVisibilityChanged(hardwarePages[pagerState.currentPage] == HardwareDetailPage.SENSORS)
+    // 只在首次组合时估算目标分段位置；后续数据更新不应把用户拉回顶部。
+    val initialIndex = remember(initialPage) {
+        estimateSectionIndex(initialPage, overview, hardware, itemsByPage)
     }
-    DisposableEffect(Unit) {
-        onDispose { onSensorPageVisibilityChanged(false) }
-    }
-
-    Column(Modifier.fillMaxSize()) {
-        PrimaryScrollableTabRow(
-            selectedTabIndex = pagerState.currentPage,
-            edgePadding = 16.dp,
-            divider = {}
-        ) {
-            hardwarePages.forEachIndexed { index, page ->
-                Tab(
-                    selected = pagerState.currentPage == index,
-                    onClick = { pagerScope.launch { pagerState.animateScrollToPage(index) } },
-                    text = {
-                        Text(
-                            text = stringResource(page.titleRes()),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                )
-            }
-        }
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { pageIndex ->
-            val page = hardwarePages[pageIndex]
-            HardwareDetailPageContent(
-                page = page,
-                items = itemsByPage[page].orEmpty(),
-                isLoading = isLoading,
-                overviewSnapshot = overviewSnapshot,
-                hardwareDetails = hardwareDetails,
-                motionSensors = motionSensors,
-                onRefresh = onRefresh
-            )
-        }
-    }
-}
-
-@Composable
-private fun HardwareDetailPageContent(
-    page: HardwareDetailPage,
-    items: List<ItemWithVisibility>,
-    isLoading: Boolean,
-    overviewSnapshot: OverviewSnapshot,
-    hardwareDetails: HardwareDetailsSnapshot,
-    motionSensors: MotionSensorSnapshot,
-    onRefresh: suspend () -> Unit
-) {
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     val clipboard = LocalClipboard.current
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val showMessage = rememberDevInfoMessageHandler()
-    val itemList = remember(items) { items.map(ItemWithVisibility::item) }
     var isRefreshing by remember { mutableStateOf(false) }
 
     LaunchedEffect(isRefreshing) {
@@ -168,17 +121,73 @@ private fun HardwareDetailPageContent(
         }
     }
 
+    // 传感器采样只在传感器分段真正进入视口时开启，滚动离开后立即停止。
+    val sensorsVisible by remember(listState) {
+        derivedStateOf {
+            listState.layoutInfo.visibleItemsInfo.any { info ->
+                info.key.toString().startsWith(SENSOR_SECTION_KEY_PREFIX)
+            }
+        }
+    }
+    LaunchedEffect(sensorsVisible) {
+        onSensorPageVisibilityChanged(sensorsVisible)
+    }
+    DisposableEffect(Unit) {
+        onDispose { onSensorPageVisibilityChanged(false) }
+    }
+
     DevInfoPullToRefresh(
         isRefreshing = isRefreshing,
         onRefresh = { isRefreshing = true },
         modifier = Modifier.fillMaxSize()
     ) {
-      LazyColumn(
-          modifier = Modifier.fillMaxSize(),
-          verticalArrangement = Arrangement.spacedBy(12.dp),
-          contentPadding = PaddingValues(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 24.dp)
-      ) {
-        when (page) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 24.dp),
+        ) {
+            if (isLoading && itemsState.isEmpty()) {
+                item(key = "loading") {
+                    EmptyState(stringResource(R.string.overview_loading))
+                }
+            }
+            hardwarePages.forEach { page ->
+                stickyHeader(key = "section:${page.name}") {
+                    DevInfoSegmentHeader(stringResource(page.titleRes()))
+                }
+                hardwarePageItems(
+                    page = page,
+                    items = itemsByPage[page].orEmpty(),
+                    overview = overview,
+                    hardware = hardware,
+                    motionSensors = motionSensors,
+                    resources = resources,
+                    clipboard = clipboard,
+                    coroutineScope = scope,
+                    showMessage = showMessage,
+                )
+            }
+            item(key = "bottom_spacer") {
+                Spacer(Modifier.height(4.dp))
+            }
+        }
+    }
+}
+
+private fun LazyListScope.hardwarePageItems(
+    page: HardwareDetailPage,
+    items: List<DeviceInfoItem>,
+    overview: OverviewSnapshot,
+    hardware: HardwareDetailsSnapshot,
+    motionSensors: StateFlow<MotionSensorSnapshot>,
+    resources: android.content.res.Resources,
+    clipboard: androidx.compose.ui.platform.Clipboard,
+    coroutineScope: kotlinx.coroutines.CoroutineScope,
+    showMessage: (String) -> Unit,
+) {
+    val itemList = items
+    when (page) {
             HardwareDetailPage.DEVICE -> {
                 item {
                     val model = itemList.firstValue("device_model")
@@ -190,7 +199,7 @@ private fun HardwareDetailPageContent(
                         supporting = stringResource(R.string.hardware_device_summary)
                     )
                 }
-                addInfoRows(this, itemList, resources, clipboard, scope, showMessage)
+                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
             }
 
             HardwareDetailPage.DISPLAY -> {
@@ -203,7 +212,7 @@ private fun HardwareDetailPageContent(
                             ?: stringResource(R.string.hardware_display_summary)
                     )
                 }
-                addInfoRows(this, itemList, resources, clipboard, scope, showMessage)
+                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
             }
 
             HardwareDetailPage.SOC_STORAGE -> {
@@ -211,17 +220,17 @@ private fun HardwareDetailPageContent(
                     DetailHero(
                         icon = Icons.Outlined.Memory,
                         title = itemList.firstValue("device_soc_model") ?: stringResource(R.string.title_page_soc),
-                        value = overviewSnapshot.cpuFrequency ?: stringResource(R.string.status_unavailable),
+                        value = overview.cpuFrequency ?: stringResource(R.string.status_unavailable),
                         supporting = stringResource(R.string.hardware_cpu_frequency)
                     )
                 }
                 item {
                     RuntimeMetricSection(
                         title = stringResource(R.string.hardware_cpu_usage),
-                        percent = overviewSnapshot.cpuUsage
+                        percent = overview.cpuUsage
                     )
                 }
-                overviewSnapshot.gpuUsage?.let { percent ->
+                overview.gpuUsage?.let { percent ->
                     item {
                         RuntimeMetricSection(
                             title = stringResource(R.string.hardware_gpu_usage),
@@ -229,7 +238,7 @@ private fun HardwareDetailPageContent(
                         )
                     }
                 }
-                addInfoRows(this, itemList, resources, clipboard, scope, showMessage)
+                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
             }
 
             HardwareDetailPage.BATTERY_NETWORK -> {
@@ -244,10 +253,10 @@ private fun HardwareDetailPageContent(
                             ?: stringResource(R.string.hardware_network_summary)
                     )
                 }
-                overviewSnapshot.batteryLevel?.let { level ->
+                overview.batteryLevel?.let { level ->
                     item { RuntimeMetricSection(stringResource(R.string.title_page_battery), level.toFloat()) }
                 }
-                addInfoRows(this, itemList, resources, clipboard, scope, showMessage)
+                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
             }
 
             HardwareDetailPage.CAMERA -> {
@@ -258,26 +267,26 @@ private fun HardwareDetailPageContent(
                         value = stringResource(
                             R.string.hardware_camera_count,
                             itemList.firstValue("network_camera_count")
-                                ?: if (hardwareDetails.cameraAccessAvailable) {
-                                    hardwareDetails.cameras.size.toString()
+                                ?: if (hardware.cameraAccessAvailable) {
+                                    hardware.cameras.size.toString()
                                 } else {
                                     stringResource(R.string.status_unavailable)
                                 }
                         ),
-                        supporting = if (hardwareDetails.cameraAccessAvailable) {
+                        supporting = if (hardware.cameraAccessAvailable) {
                             stringResource(R.string.hardware_camera_summary)
                         } else {
                             stringResource(R.string.hardware_camera_access_unavailable)
                         }
                     )
                 }
-                items(hardwareDetails.cameras, key = CameraHardwareInfo::id) { camera ->
+                items(hardware.cameras, key = CameraHardwareInfo::id) { camera ->
                     CameraInfoCard(camera)
                 }
-                if (hardwareDetails.cameras.isEmpty() && hardwareDetails.cameraAccessAvailable) {
+                if (hardware.cameras.isEmpty() && hardware.cameraAccessAvailable) {
                     item { EmptyState(stringResource(R.string.hardware_no_cameras)) }
                 }
-                addInfoRows(this, itemList, resources, clipboard, scope, showMessage)
+                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
             }
 
             HardwareDetailPage.SENSORS -> {
@@ -285,26 +294,26 @@ private fun HardwareDetailPageContent(
                     DetailHero(
                         icon = Icons.Outlined.Sensors,
                         title = stringResource(R.string.title_page_sensors),
-                        value = if (hardwareDetails.sensorAccessAvailable) {
-                            stringResource(R.string.hardware_sensor_count, hardwareDetails.sensors.size)
+                        value = if (hardware.sensorAccessAvailable) {
+                            stringResource(R.string.hardware_sensor_count, hardware.sensors.size)
                         } else {
                             stringResource(R.string.status_unavailable)
                         },
-                        supporting = if (hardwareDetails.sensorAccessAvailable) {
+                        supporting = if (hardware.sensorAccessAvailable) {
                             stringResource(R.string.hardware_sensor_summary)
                         } else {
                             stringResource(R.string.hardware_sensor_access_unavailable)
                         }
                     )
                 }
-                item {
-                    LiveMotionCard(motionSensors)
+                item(key = "sensors_section:live") {
+                    MotionSensorSection(motionSensors)
                 }
-                if (hardwareDetails.sensors.isEmpty()) {
-                    item {
+                if (hardware.sensors.isEmpty()) {
+                    item(key = "sensors_section:empty") {
                         EmptyState(
                             stringResource(
-                                if (hardwareDetails.sensorAccessAvailable) {
+                                if (hardware.sensorAccessAvailable) {
                                     R.string.hardware_no_sensors
                                 } else {
                                     R.string.hardware_sensor_access_unavailable
@@ -313,11 +322,14 @@ private fun HardwareDetailPageContent(
                         )
                     }
                 } else {
-                    items(hardwareDetails.sensors, key = { "${it.type}:${it.name}:${it.vendor}" }) { sensor ->
+                    itemsIndexed(
+                        hardware.sensors,
+                        key = { index, sensor -> "sensors_section:item:$index:${sensor.type}" }
+                    ) { _, sensor ->
                         SensorInfoCard(sensor)
                     }
                 }
-                addInfoRows(this, itemList, resources, clipboard, scope, showMessage)
+                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
             }
 
             HardwareDetailPage.MORE -> {
@@ -329,16 +341,10 @@ private fun HardwareDetailPageContent(
                         supporting = stringResource(R.string.hardware_more_summary)
                     )
                 }
-                addInfoRows(this, itemList, resources, clipboard, scope, showMessage)
+                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
             }
         }
-          if (isLoading && itemList.isEmpty()) {
-              item { EmptyState(stringResource(R.string.overview_loading)) }
-          }
-          item { Spacer(Modifier.height(4.dp)) }
-      }
     }
-}
 
 private fun addInfoRows(
     scope: androidx.compose.foundation.lazy.LazyListScope,
@@ -658,6 +664,46 @@ private fun EmptyState(message: String) {
 }
 
 private fun List<DeviceInfoItem>.firstValue(key: String): String? = firstOrNull { it.key == key }?.value
+
+private fun infoRowsCount(items: List<DeviceInfoItem>): Int =
+    if (items.isEmpty()) 0 else 1 + items.size
+
+/**
+ * 估算某个分段标题在单列表中的索引，供从概览分类直接跳转使用。
+ *
+ * 计数必须与 [hardwarePageItems] 的实际发射顺序一致；可选的运行指标只在数据
+ * 已存在时发射，因此这里同样按当前快照判断。
+ */
+private fun estimateSectionIndex(
+    page: HardwareDetailPage,
+    overview: OverviewSnapshot,
+    hardware: HardwareDetailsSnapshot,
+    itemsByPage: Map<HardwareDetailPage, List<DeviceInfoItem>>,
+): Int {
+    var index = 0
+    for (candidate in hardwarePages) {
+        if (candidate == page) return index
+        index += 1 // sticky header
+        index += when (candidate) {
+            HardwareDetailPage.DEVICE -> 1
+            HardwareDetailPage.DISPLAY -> 1
+            HardwareDetailPage.SOC_STORAGE -> 2 + if (overview.gpuUsage != null) 1 else 0
+            HardwareDetailPage.BATTERY_NETWORK -> 1 + if (overview.batteryLevel != null) 1 else 0
+            HardwareDetailPage.CAMERA -> 1 + hardware.cameras.size +
+                if (hardware.cameras.isEmpty() && hardware.cameraAccessAvailable) 1 else 0
+            HardwareDetailPage.SENSORS -> 2 + if (hardware.sensors.isEmpty()) 1 else hardware.sensors.size
+            HardwareDetailPage.MORE -> 1
+        }
+        index += infoRowsCount(itemsByPage[candidate].orEmpty())
+    }
+    return index
+}
+
+@Composable
+private fun MotionSensorSection(motionSensors: StateFlow<MotionSensorSnapshot>) {
+    val motion by motionSensors.collectAsStateWithLifecycle()
+    LiveMotionCard(motion)
+}
 
 private fun HardwareDetailPage.titleRes(): Int = when (this) {
     HardwareDetailPage.DEVICE -> R.string.title_page_device
