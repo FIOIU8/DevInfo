@@ -102,9 +102,9 @@ DevInfo/
 
 ## CI 与发布
 
-- `build.yml` 在 `main`、`dev`、`test` 分支 push、目标分支 Pull Request 和手动运行时执行测试、ktlint、Android lint 与构建。
+- `build.yml` 在 Pull Request、手动运行以及 `dev`/`test` 分支 push 时执行测试、ktlint、Android lint 与构建；合并到 `main` 的 push 只构建并上传 APK。
 - 手动构建可输入版本名和 `debug`/`release` 签名类型，并上传 APK 与构建信息 Artifact。
-- `release.yml` 支持 `main` push、`vMAJOR.MINOR.PATCH` tag 和从 `main` 发起的手动发布。
+- `release.yml` 仅支持从 `main` 发起的手动发布，版本号需为 `MAJOR.MINOR.PATCH`。
 - Release 流程先通过测试、ktlint 和 lint，再使用 `KEYSTORE_BASE64`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD` 创建签名 APK 和 Draft Release。
 
 ## 贡献

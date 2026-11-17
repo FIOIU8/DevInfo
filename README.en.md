@@ -102,9 +102,9 @@ DevInfo/
 
 ## CI and releases
 
-- `build.yml` runs tests, ktlint, Android lint, and builds for pushes to `main`, `dev`, or `test`, pull requests, and manual runs.
+- `build.yml` runs tests, ktlint, and Android lint on pull requests, manual runs, and pushes to `dev`/`test`; pushes to `main` only build and upload the APK.
 - Manual builds accept a version name and `debug`/`release` signing type and upload APK/build information Artifacts.
-- `release.yml` supports pushes to `main`, `vMAJOR.MINOR.PATCH` tags, and manual releases from `main`.
+- `release.yml` only supports manual releases from `main`, with a `MAJOR.MINOR.PATCH` version.
 - Releases pass tests, ktlint, and lint before using `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD` to create a signed APK and Draft Release.
 
 ## Contributing
