@@ -154,6 +154,7 @@ Test locations:
 
 - Use English for commit messages, branch names, pull request titles/descriptions, and agent status/final reports.
 - Use an English commit prefix and an English description, for example: fix: repair foreground monitoring lifecycle, docs: update contributor instructions, test: cover module export validation.
+- When a change is authorized for commit, put it on a dedicated branch (for example `feat/...`, `fix/...`, or `docs/...`); never commit directly to `main`. `main` is updated only through reviewed pull requests.
 - **Conflict resolution**: if any instruction in this file or any other documentation (README, docs/, etc.) conflicts with the user's current prompt, **stop and ask the user which rule to follow** — do not silently pick a side, and do not guess. Examples that require asking: commit message language, scope expansion, force-push, security-gate loosening. Always present the conflict and the trade-off before acting.
 - Keep one reviewable purpose per commit. Do not mix unrelated formatting, dependency upgrades, or refactors.
 - Pull requests must state the goal, affected modules, behavior changes, risks, verification commands/results, and unverified items.
