@@ -35,18 +35,23 @@ DevInfo is an Android device information viewer built with Kotlin and Jetpack Co
 ### UI and localization
 
 - A unified Material 3 technical dashboard. Details use top category tabs and horizontal paging, with back and settings actions in the top bar; the main screen has no bottom navigation and uses a navigation rail on wide screens. Overview and detail cards, along with top bar actions, use liquid glass surfaces.
-- All pages use Material 3. AndroidLiquidGlass provides the liquid-glass effects.
-- System, light, dark, and dynamic-color modes with theme colors, palette styles, and page scale settings.
+- All pages use Material 3 Expressive: shared-element page-title transitions, large in-content headings, press-scale feedback, shape-morphing loading indicators, and a unified shape scale. Press animation can be disabled in theme settings.
+- AndroidLiquidGlass provides the liquid-glass effects.
+- System, light, dark, and dynamic-color modes with theme colors, palette styles, and page scale settings; settings use segmented lists.
 - Simplified Chinese, English, Japanese, and custom BCP-47 locale tags.
-- Predictive back gestures on Android 14+, splash screens, and app-wide pull-to-refresh.
+- Predictive back gestures with progress preview on Android 14+, splash screens, and app-wide pull-to-refresh.
 
 ## Data availability and privacy
 
 Readable fields depend on the manufacturer, Android version, permission policy, and `/proc`/`/sys` restrictions. Individual failures do not block the rest of the screen, and unavailable CPU utilization is never presented as `0%`.
 
+Android ID, serial, build fingerprint/host/user, and OAID/AAID are masked with a fixed-length asterisk string by default and must be revealed with the eye icon. They are hidden again after leaving the page, refreshing, or rotating. Exported ZIPs do not contain these identifiers.
+
+Screenshot protection (`FLAG_SECURE`) is on by default. When disabled, Android 14+ detects captures and shows which sensitive fields are present on the current page; Android 13 and below cannot detect captures, and the UI says so. OAID/AAID are read locally through Android_CN_OAID with no network request; AAID relies on the GMS advertising ID, so the `AD_ID` permission is merged.
+
 The app has no custom backend and does not upload device information. Update checks contact the GitHub API; inspect exported ZIP contents before sharing or flashing. Root mode is optional.
 
-The manifest declares `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, and `NFC`; NFC is an optional device feature. No Bluetooth permission is currently declared.
+The manifest declares `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `NFC`, `DETECT_SCREEN_CAPTURE`, and the GMS `AD_ID` permission required for AAID; NFC is an optional device feature. Phone, storage, and system-settings permissions merged by the OAID library are removed, and no Bluetooth permission is declared.
 
 ## Download and build
 
@@ -102,9 +107,9 @@ DevInfo/
 
 ## CI and releases
 
-- `build.yml` runs tests, ktlint, and Android lint on pull requests, manual runs, and pushes to `dev`/`test`; pushes to `main` only build and upload the APK.
+- `build.yml` runs tests, ktlint, Android lint, and builds for pushes to `main`, `dev`, or `test`, pull requests, and manual runs.
 - Manual builds accept a version name and `debug`/`release` signing type and upload APK/build information Artifacts.
-- `release.yml` only supports manual releases from `main`, with a `MAJOR.MINOR.PATCH` version.
+- `release.yml` supports pushes to `main`, `vMAJOR.MINOR.PATCH` tags, and manual releases from `main`.
 - Releases pass tests, ktlint, and lint before using `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD` to create a signed APK and Draft Release.
 
 ## Contributing

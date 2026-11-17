@@ -40,3 +40,10 @@
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }
+
+# Android_CN_OAID binds vendor services by package name and references
+# vendor SDK classes that are absent on most devices.
+-keep class com.github.gzuliyujiang.oaid.** { *; }
+-dontwarn com.huawei.**
+-dontwarn com.hihonor.**
+-dontwarn com.bun.**

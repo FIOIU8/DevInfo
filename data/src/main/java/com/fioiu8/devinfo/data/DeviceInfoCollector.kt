@@ -34,6 +34,8 @@ import android.util.Log
 import android.view.Display
 import android.util.Size
 import com.fioiu8.devinfo.data.BuildConfig
+import com.fioiu8.devinfo.data.identifiers.IdentifierProvider
+import com.fioiu8.devinfo.data.identifiers.NoopIdentifierProvider
 import com.fioiu8.devinfo.core.cpu.CPU_USAGE_SAMPLE_DELAY_MS
 import com.fioiu8.devinfo.core.cpu.CpuTimes
 import com.fioiu8.devinfo.core.cpu.CpuUptimeTimes
@@ -86,7 +88,10 @@ private inline fun safeGet(
     }
 }
 
-class DeviceInfoCollector(private val context: Context) {
+class DeviceInfoCollector(
+    private val context: Context,
+    private val identifierProvider: IdentifierProvider = NoopIdentifierProvider,
+) {
     private val locale: Locale = context.resources.configuration.locales[0]
 
     // 写于 Default/IO 线程（loadDeviceInfo），读于主线程（appVersionName 懒加载）
@@ -187,7 +192,7 @@ class DeviceInfoCollector(private val context: Context) {
 
     suspend fun collectDeviceInfo(): List<DeviceInfoItem> = withContext(Dispatchers.IO) {
         val session = newCollectionSession()
-        infoItemSuppliers(session).mapNotNull { supplier ->
+        identifierInfoItems() + infoItemSuppliers(session).mapNotNull { supplier ->
             try {
                 supplier()
             } catch (_: Exception) {
@@ -267,6 +272,30 @@ class DeviceInfoCollector(private val context: Context) {
             }
             item?.let { onItem(it) }
         }
+        // 标识符读取可能等待厂商服务；放在常规字段之后，避免拖慢首屏。
+        identifierInfoItems().forEach { onItem(it) }
+    }
+
+    /**
+     * OAID/AAID 即使在当前设备不可用也保留行，用明确的“不可用”文案代替空白，
+     * 避免用户误以为数据为 0 或读取失败。读取在 IO 线程完成并带超时。
+     */
+    private suspend fun identifierInfoItems(): List<DeviceInfoItem> {
+        val snapshot = identifierProvider.read()
+        return listOf(
+            DeviceInfoItem(
+                key = context.resources.getResourceEntryName(R.string.device_oaid),
+                keyResId = R.string.device_oaid,
+                value = snapshot.oaid ?: context.getString(R.string.status_unavailable),
+                category = InfoCategory.IDENTIFIERS,
+            ),
+            DeviceInfoItem(
+                key = context.resources.getResourceEntryName(R.string.device_aaid),
+                keyResId = R.string.device_aaid,
+                value = snapshot.aaid ?: context.getString(R.string.status_unavailable),
+                category = InfoCategory.IDENTIFIERS,
+            ),
+        )
     }
 
     private fun infoItemSuppliers(session: CollectionSession): List<() -> DeviceInfoItem?> = buildList {

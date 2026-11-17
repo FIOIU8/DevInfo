@@ -24,6 +24,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,26 +45,26 @@ import com.fioiu8.devinfo.core.model.MotionLevel
 val LocalDevInfoMotionLevel = staticCompositionLocalOf { MotionLevel.STANDARD }
 
 /**
- * Expressive 风格的弹簧参数。
+ * 当前生效的 M3 Expressive 运动方案，供 `transitionSpec` 等非 Composable 调用点使用。
  *
- * material3 1.4.0 的 `MotionScheme` 在 Kotlin 元数据中仍是 internal，因此这里按
- * M3 Expressive 的空间/效果曲线手写等效规格：空间动效使用低阻尼弹簧，效果动效
- * 使用短时缓出，避免为实验 API 引入 RC 依赖。
+ * material3 1.5.0 起 `MotionScheme` 已是公开 API，与 [MaterialTheme.motionScheme] 保持一致。
+ */
+val LocalDevInfoMotionScheme = staticCompositionLocalOf { MotionScheme.standard() }
+
+/**
+ * 手写的空间/效果曲线，仅用于列表入场与数值交叉淡入。
+ *
+ * 路由过渡已经改用 Material 的 [MotionScheme]；这里保留较小的弹簧规格，避免
+ * 大段列表入场时出现过冲。
  */
 private fun <T> expressiveSpatialSpec(): FiniteAnimationSpec<T> =
     spring(dampingRatio = 0.8f, stiffness = 380f)
-
-private fun <T> expressiveFastSpatialSpec(): FiniteAnimationSpec<T> =
-    spring(dampingRatio = 0.85f, stiffness = 900f)
 
 private fun <T> expressiveEffectsSpec(): FiniteAnimationSpec<T> =
     tween(durationMillis = 320, easing = FastOutSlowInEasing)
 
 private fun <T> expressiveFastEffectsSpec(): FiniteAnimationSpec<T> =
     tween(durationMillis = 160, easing = FastOutSlowInEasing)
-
-private fun <T> standardSpatialSpec(): FiniteAnimationSpec<T> =
-    spring(dampingRatio = 0.9f, stiffness = 700f)
 
 private fun <T> standardEffectsSpec(): FiniteAnimationSpec<T> =
     tween(durationMillis = 200, easing = FastOutSlowInEasing)
@@ -74,30 +75,32 @@ private fun <T> standardEffectsSpec(): FiniteAnimationSpec<T> =
  * FULL 使用容器变换（缩放 + 淡入淡出 + 弹簧空间曲线）；STANDARD 保留方向感但幅度更小；
  * MINIMAL 只做 90ms 透明度过渡；OFF 直接切换。
  *
- * 该函数在 `transitionSpec` 中调用（非 Composable），因此动效等级与 motion scheme
- * 由调用方从组合中读取后传入。
+ * 该函数在 `transitionSpec` 中调用（非 Composable），因此 [MotionScheme] 由调用方从
+ * [LocalDevInfoMotionScheme] 读取后传入。
  */
 fun devInfoRouteTransform(
     forward: Boolean,
     level: MotionLevel,
+    scheme: MotionScheme,
 ): ContentTransform {
     val direction = if (forward) 1 else -1
 
     return when (level) {
         MotionLevel.FULL -> (
-            fadeIn(expressiveEffectsSpec()) +
-                scaleIn(initialScale = 0.92f, animationSpec = expressiveSpatialSpec())
+            fadeIn(scheme.fastEffectsSpec()) +
+                scaleIn(initialScale = 0.92f, animationSpec = scheme.defaultSpatialSpec())
             ).togetherWith(
-                fadeOut(expressiveFastEffectsSpec()) +
-                    scaleOut(targetScale = 0.96f, animationSpec = expressiveFastSpatialSpec())
+                fadeOut(scheme.defaultEffectsSpec()) +
+                    scaleOut(targetScale = 0.90f, animationSpec = scheme.defaultSpatialSpec())
             )
 
         MotionLevel.STANDARD -> (
-            fadeIn(standardEffectsSpec()) +
-                slideInHorizontally(standardSpatialSpec<IntOffset>()) { direction * it / 4 }
+            fadeIn(scheme.defaultEffectsSpec()) +
+                slideInHorizontally(scheme.defaultSpatialSpec<IntOffset>()) { direction * it / 4 }
             ).togetherWith(
-                fadeOut(standardEffectsSpec()) +
-                    slideOutHorizontally(standardSpatialSpec<IntOffset>()) { -direction * it / 8 }
+                fadeOut(scheme.defaultEffectsSpec()) +
+                    // 1/8 宽度在 0.5x 系统动画下几乎不可见；提高到 1/3 让退出方向可感知。
+                    slideOutHorizontally(scheme.defaultSpatialSpec<IntOffset>()) { -direction * it / 3 }
             )
 
         MotionLevel.MINIMAL -> fadeIn(tween(90)) togetherWith fadeOut(tween(90))

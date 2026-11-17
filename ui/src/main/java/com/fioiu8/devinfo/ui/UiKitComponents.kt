@@ -11,22 +11,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.Switch
@@ -128,57 +126,16 @@ private fun SwipeDismissSnackbarHost(
 @Composable
 private fun MaterialDevInfoSnackbar(data: SnackbarData) = Snackbar(
     snackbarData = data,
-    shape = RoundedCornerShape(16.dp),
+    shape = MaterialTheme.shapes.medium,
     containerColor = MaterialTheme.colorScheme.inverseSurface,
     contentColor = MaterialTheme.colorScheme.inverseOnSurface,
 )
 
-@Composable
-fun DevInfoNavigationBar(
-    items: List<DevInfoNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    MaterialNavigationBar(
-        items = items,
-        selectedIndex = selectedIndex,
-        onItemSelected = onItemSelected,
-        modifier = modifier,
-    )
-}
-
-@Composable
-private fun MaterialNavigationBar(
-    items: List<DevInfoNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit,
-    modifier: Modifier,
-) {
-    NavigationBar(
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surface,
-    ) {
-        items.forEachIndexed { index, item ->
-            NavigationBarItem(
-                icon = {
-                    Icon(
-                        imageVector = if (selectedIndex == index) item.selectedIcon else item.unselectedIcon,
-                        contentDescription = null,
-                    )
-                },
-                label = { Text(item.label) },
-                selected = selectedIndex == index,
-                onClick = { onItemSelected(index) },
-            )
-        }
-    }
-}
-
-/** Uses the component system selected by the user for initial data loading. */
+/** M3 Expressive 形状变形加载指示器。 */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DevInfoLoadingIndicator(modifier: Modifier = Modifier) {
-    CircularProgressIndicator(
+    LoadingIndicator(
         modifier = modifier,
         color = MaterialTheme.colorScheme.primary,
     )
@@ -304,7 +261,7 @@ private fun DropdownSettingCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
         ListItem(

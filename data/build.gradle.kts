@@ -42,6 +42,9 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
+    // OAID / AAID (Mulan PSL v2; see legal/THIRD-PARTY-NOTICES.md)
+    implementation(libs.android.cn.oaid)
+
     // JSON (org.json is part of Android, no extra dep needed)
 
     // Test

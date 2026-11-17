@@ -10,7 +10,9 @@ import android.content.ClipData
 import android.hardware.camera2.CameraCharacteristics
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,12 +30,13 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Sensors
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -57,6 +60,8 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -71,9 +76,12 @@ import com.fioiu8.devinfo.core.model.MotionSensorType
 import com.fioiu8.devinfo.core.model.OverviewSnapshot
 import com.fioiu8.devinfo.core.model.SensorHardwareInfo
 import com.fioiu8.devinfo.core.model.hardwareDetailPage
+import com.fioiu8.devinfo.core.privacy.MASKED_VALUE
+import com.fioiu8.devinfo.core.privacy.SensitiveKeys
 import com.fioiu8.devinfo.ui.DevInfoPullToRefresh
 import com.fioiu8.devinfo.ui.DevInfoSegmentHeader
 import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassCard
+import com.fioiu8.devinfo.ui.motion.devInfoPressable
 import com.fioiu8.devinfo.ui.rememberDevInfoMessageHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.StateFlow
@@ -93,6 +101,7 @@ fun HardwareDetailsPage(
     hardwareDetails: StateFlow<HardwareDetailsSnapshot>,
     motionSensors: StateFlow<MotionSensorSnapshot>,
     initialPage: HardwareDetailPage,
+    maskSensitive: Boolean = true,
     onRefresh: suspend () -> Unit,
     onSensorPageVisibilityChanged: (Boolean) -> Unit
 ) {
@@ -113,6 +122,9 @@ fun HardwareDetailsPage(
     val scope = rememberCoroutineScope()
     val showMessage = rememberDevInfoMessageHandler()
     var isRefreshing by remember { mutableStateOf(false) }
+    // 揭示状态不持久化：刷新、切换分类或旋转后重新遮罩。
+    var revealedKeys by remember { mutableStateOf(emptySet<String>()) }
+    LaunchedEffect(itemsState, initialPage) { revealedKeys = emptySet() }
 
     LaunchedEffect(isRefreshing) {
         if (isRefreshing) {
@@ -166,6 +178,15 @@ fun HardwareDetailsPage(
                     clipboard = clipboard,
                     coroutineScope = scope,
                     showMessage = showMessage,
+                    maskSensitive = maskSensitive,
+                    revealedKeys = revealedKeys,
+                    onToggleReveal = { key ->
+                        revealedKeys = if (key in revealedKeys) {
+                            revealedKeys - key
+                        } else {
+                            revealedKeys + key
+                        }
+                    },
                 )
             }
             item(key = "bottom_spacer") {
@@ -185,6 +206,9 @@ private fun LazyListScope.hardwarePageItems(
     clipboard: androidx.compose.ui.platform.Clipboard,
     coroutineScope: kotlinx.coroutines.CoroutineScope,
     showMessage: (String) -> Unit,
+    maskSensitive: Boolean,
+    revealedKeys: Set<String>,
+    onToggleReveal: (String) -> Unit,
 ) {
     val itemList = items
     when (page) {
@@ -199,7 +223,17 @@ private fun LazyListScope.hardwarePageItems(
                         supporting = stringResource(R.string.hardware_device_summary)
                     )
                 }
-                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
+                addInfoRows(
+                    this,
+                    itemList,
+                    resources,
+                    clipboard,
+                    coroutineScope,
+                    showMessage,
+                    maskSensitive,
+                    revealedKeys,
+                    onToggleReveal,
+                )
             }
 
             HardwareDetailPage.DISPLAY -> {
@@ -212,7 +246,17 @@ private fun LazyListScope.hardwarePageItems(
                             ?: stringResource(R.string.hardware_display_summary)
                     )
                 }
-                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
+                addInfoRows(
+                    this,
+                    itemList,
+                    resources,
+                    clipboard,
+                    coroutineScope,
+                    showMessage,
+                    maskSensitive,
+                    revealedKeys,
+                    onToggleReveal,
+                )
             }
 
             HardwareDetailPage.SOC_STORAGE -> {
@@ -238,7 +282,17 @@ private fun LazyListScope.hardwarePageItems(
                         )
                     }
                 }
-                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
+                addInfoRows(
+                    this,
+                    itemList,
+                    resources,
+                    clipboard,
+                    coroutineScope,
+                    showMessage,
+                    maskSensitive,
+                    revealedKeys,
+                    onToggleReveal,
+                )
             }
 
             HardwareDetailPage.BATTERY_NETWORK -> {
@@ -256,7 +310,17 @@ private fun LazyListScope.hardwarePageItems(
                 overview.batteryLevel?.let { level ->
                     item { RuntimeMetricSection(stringResource(R.string.title_page_battery), level.toFloat()) }
                 }
-                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
+                addInfoRows(
+                    this,
+                    itemList,
+                    resources,
+                    clipboard,
+                    coroutineScope,
+                    showMessage,
+                    maskSensitive,
+                    revealedKeys,
+                    onToggleReveal,
+                )
             }
 
             HardwareDetailPage.CAMERA -> {
@@ -286,7 +350,17 @@ private fun LazyListScope.hardwarePageItems(
                 if (hardware.cameras.isEmpty() && hardware.cameraAccessAvailable) {
                     item { EmptyState(stringResource(R.string.hardware_no_cameras)) }
                 }
-                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
+                addInfoRows(
+                    this,
+                    itemList,
+                    resources,
+                    clipboard,
+                    coroutineScope,
+                    showMessage,
+                    maskSensitive,
+                    revealedKeys,
+                    onToggleReveal,
+                )
             }
 
             HardwareDetailPage.SENSORS -> {
@@ -329,7 +403,17 @@ private fun LazyListScope.hardwarePageItems(
                         SensorInfoCard(sensor)
                     }
                 }
-                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
+                addInfoRows(
+                    this,
+                    itemList,
+                    resources,
+                    clipboard,
+                    coroutineScope,
+                    showMessage,
+                    maskSensitive,
+                    revealedKeys,
+                    onToggleReveal,
+                )
             }
 
             HardwareDetailPage.MORE -> {
@@ -341,7 +425,17 @@ private fun LazyListScope.hardwarePageItems(
                         supporting = stringResource(R.string.hardware_more_summary)
                     )
                 }
-                addInfoRows(this, itemList, resources, clipboard, coroutineScope, showMessage)
+                addInfoRows(
+                    this,
+                    itemList,
+                    resources,
+                    clipboard,
+                    coroutineScope,
+                    showMessage,
+                    maskSensitive,
+                    revealedKeys,
+                    onToggleReveal,
+                )
             }
         }
     }
@@ -352,7 +446,10 @@ private fun addInfoRows(
     resources: android.content.res.Resources,
     clipboard: androidx.compose.ui.platform.Clipboard,
     coroutineScope: kotlinx.coroutines.CoroutineScope,
-    showMessage: (String) -> Unit
+    showMessage: (String) -> Unit,
+    maskSensitive: Boolean,
+    revealedKeys: Set<String>,
+    onToggleReveal: (String) -> Unit,
 ) {
     if (items.isEmpty()) return
     scope.item {
@@ -367,6 +464,10 @@ private fun addInfoRows(
         InfoValueRow(
             label = resources.getString(item.keyResId),
             value = item.value,
+            key = item.key,
+            maskSensitive = maskSensitive,
+            revealed = item.key in revealedKeys,
+            onToggleReveal = { onToggleReveal(item.key) },
             onCopy = {
                 coroutineScope.launch {
                     clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(null, item.value)))
@@ -386,7 +487,7 @@ private fun DetailHero(
 ) {
     LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.largeIncreased,
         containerColor = MaterialTheme.colorScheme.secondaryContainer,
     ) {
         Column(
@@ -424,24 +525,60 @@ private fun DetailHero(
 }
 
 @Composable
-private fun InfoValueRow(label: String, value: String, onCopy: () -> Unit) {
+private fun InfoValueRow(
+    label: String,
+    value: String,
+    key: String,
+    maskSensitive: Boolean,
+    revealed: Boolean,
+    onToggleReveal: () -> Unit,
+    onCopy: () -> Unit,
+) {
+    val sensitive = SensitiveKeys.isSensitive(key)
+    val masked = sensitive && maskSensitive && !revealed
+    val interactionSource = remember { MutableInteractionSource() }
+    val hiddenLabel = stringResource(R.string.privacy_value_hidden)
     LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.small,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onCopy)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = LocalIndication.current,
+                    onClick = { if (masked) onToggleReveal() else onCopy() },
+                )
+                .devInfoPressable(interactionSource)
                 .padding(start = 14.dp, top = 11.dp, end = 6.dp, bottom = 11.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    text = if (masked) MASKED_VALUE else value,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = if (masked) {
+                        Modifier.clearAndSetSemantics { contentDescription = hiddenLabel }
+                    } else {
+                        Modifier
+                    },
+                )
             }
-            IconButton(onClick = onCopy) {
+            if (sensitive && maskSensitive) {
+                IconButton(onClick = onToggleReveal) {
+                    Icon(
+                        imageVector = if (revealed) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                        contentDescription = stringResource(
+                            if (revealed) R.string.privacy_hide_value else R.string.privacy_show_value
+                        ),
+                    )
+                }
+            }
+            IconButton(onClick = onCopy, enabled = !masked) {
                 Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.hardware_copy_value))
             }
         }
@@ -452,7 +589,7 @@ private fun InfoValueRow(label: String, value: String, onCopy: () -> Unit) {
 private fun RuntimeMetricSection(title: String, percent: Float?) {
     LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -541,7 +678,7 @@ private fun HardwareDataCard(
 ) {
     LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -568,7 +705,7 @@ private fun LiveMotionCard(snapshot: MotionSensorSnapshot) {
     val gyroscope = snapshot.gyroscope
     LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = MaterialTheme.shapes.large,
         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -12,8 +12,20 @@ requirements of those licenses are met when an APK or a source archive is redist
 | Jetpack Compose (UI, Material 3, Material Icons) | Apache-2.0 | https://developer.android.com/jetpack/compose |
 | Kotlin standard library, kotlinx-coroutines | Apache-2.0 | https://github.com/JetBrains/kotlin |
 | Backdrop (`io.github.kyant0:backdrop`) | Apache-2.0 | https://github.com/Kyant0/AndroidLiquidGlass |
+| Android_CN_OAID (`com.github.gzu-liyujiang:Android_CN_OAID`) | Mulan PSL v2 (see note) | https://github.com/gzu-liyujiang/Android_CN_OAID |
+| Huawei Ads Identifier (`com.huawei.hms:ads-identifier`) | Huawei SDK license | https://developer.huawei.com/consumer/cn/ |
+| Honor Ads Identifier (`com.hihonor.mcs:ads-identifier`) | Honor SDK license | https://developer.hihonor.com/ |
 
 No runtime dependency is licensed under GPL, LGPL, or AGPL.
+
+### Android_CN_OAID license note
+
+The upstream README declares the **Mulan PSL v2** license, while the published POM metadata
+still lists Apache-2.0. This project records the stricter/upstream-declared Mulan PSL v2 here.
+Mulan PSL v2 is a permissive, OSI-approved license, but it is not MIT or Apache-2.0; review it
+before redistributing modified versions of that library. The library is consumed as an
+unmodified binary. Its vendor sub-SDKs (Huawei/Honor ads-identifier) remain under their own
+vendor licenses.
 
 ## Build and test only (not bundled into the APK)
 

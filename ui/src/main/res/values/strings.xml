@@ -3,6 +3,9 @@
     <!-- Test version warning -->
     <string name="test_version_warning">测试版本</string>
     <string name="test_version_desc">当前为开发测试版，不建议在生产环境使用</string>
+    <string name="test_version_detail">调试构建可能包含未完成功能与额外日志；反馈问题时请附上版本号与构建类型。</string>
+    <string name="test_version_expand">展开警告</string>
+    <string name="test_version_collapse">收起警告</string>
     <string name="warning_icon_desc">警告</string>
 
     <!-- InfoCategory display names -->

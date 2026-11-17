@@ -10,11 +10,16 @@ import com.fioiu8.devinfo.ui.DevInfoExpressiveSwitch
 import com.fioiu8.devinfo.ui.DevInfoSegmentedControl
 import com.fioiu8.devinfo.ui.DevInfoSegmentedDropdownItem
 import com.fioiu8.devinfo.ui.SegmentedGroup
+import com.fioiu8.devinfo.ui.SegmentedRow
+import com.fioiu8.devinfo.ui.SegmentedSliderRow
 import com.fioiu8.devinfo.ui.displayNameResId
+import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassCard
 import com.fioiu8.devinfo.ui.motion.rememberSystemAnimationsEnabled
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,41 +28,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.rounded.AspectRatio
 import androidx.compose.material.icons.rounded.Wallpaper
-import androidx.compose.material3.Card as MaterialCard
-import androidx.compose.material3.CardDefaults as MaterialCardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon as MaterialIcon
-import androidx.compose.material3.IconButton as MaterialIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold as MaterialScaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Slider as MaterialSlider
 import androidx.compose.material3.Text as MaterialText
-import androidx.compose.material3.TopAppBar as MaterialTopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -143,6 +125,8 @@ fun ThemeSettingsPage(
     onEnablePredictiveBackChange: (Boolean) -> Unit,
     motionLevel: MotionLevel,
     onMotionLevelChange: (MotionLevel) -> Unit,
+    pressAnimation: Boolean,
+    onPressAnimationChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     MaterialThemeSettingsPage(
@@ -160,11 +144,12 @@ fun ThemeSettingsPage(
         onEnablePredictiveBackChange = onEnablePredictiveBackChange,
         motionLevel = motionLevel,
         onMotionLevelChange = onMotionLevelChange,
+        pressAnimation = pressAnimation,
+        onPressAnimationChange = onPressAnimationChange,
         onBack = onBack,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MaterialThemeSettingsPage(
     themeMode: ThemeMode,
@@ -181,6 +166,8 @@ private fun MaterialThemeSettingsPage(
     onEnablePredictiveBackChange: (Boolean) -> Unit,
     motionLevel: MotionLevel,
     onMotionLevelChange: (MotionLevel) -> Unit,
+    pressAnimation: Boolean,
+    onPressAnimationChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     val selectedThemeIndex = themeMode.baseIndex
@@ -189,30 +176,12 @@ private fun MaterialThemeSettingsPage(
         stringResource(R.string.theme_mode_light),
         stringResource(R.string.theme_mode_dark),
     )
-    MaterialScaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            MaterialTopAppBar(
-                title = {
-                    MaterialText(
-                        text = stringResource(R.string.theme_settings_title),
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                },
-                navigationIcon = {
-                    MaterialIconButton(onClick = onBack) {
-                        MaterialIcon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-            )
-        },
+    DevInfoPageScaffold(
+        title = stringResource(R.string.theme_settings_title),
+        showBackButton = true,
+        onBack = onBack,
     ) { innerPadding ->
+        val systemAnimationsEnabled = rememberSystemAnimationsEnabled()
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -226,104 +195,61 @@ private fun MaterialThemeSettingsPage(
             }
 
             item {
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    themeTabs.forEachIndexed { index, label ->
-                        SegmentedButton(
-                            selected = selectedThemeIndex == index,
-                            onClick = { onThemeModeChange(themeMode.withBaseIndex(index)) },
-                            shape = SegmentedButtonDefaults.itemShape(
-                                index = index,
-                                count = themeTabs.size,
-                            ),
-                            label = { MaterialText(label) },
-                        )
-                    }
-                }
-            }
-
-            item {
-                val systemAnimationsEnabled = rememberSystemAnimationsEnabled()
-                SegmentedGroup(title = stringResource(R.string.theme_motion_level)) {
+                SegmentedGroup(title = stringResource(R.string.category_appearance)) {
                     Column(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         DevInfoSegmentedControl(
-                            options = MotionLevel.entries.map { stringResource(it.labelRes()) },
-                            selectedIndex = MotionLevel.entries.indexOf(motionLevel),
+                            options = themeTabs,
+                            selectedIndex = selectedThemeIndex,
                             onSelected = { index ->
-                                MotionLevel.entries.getOrNull(index)?.let(onMotionLevelChange)
+                                onThemeModeChange(themeMode.withBaseIndex(index))
                             },
                         )
-                        MaterialText(
-                            text = stringResource(
-                                if (systemAnimationsEnabled) {
-                                    R.string.theme_motion_level_summary
-                                } else {
-                                    R.string.motion_system_disabled
-                                }
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                     }
-                }
-            }
-
-            item {
-                MaterialCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = MaterialCardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    ),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            MaterialIcon(
-                                imageVector = Icons.Rounded.Wallpaper,
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                MaterialText(
-                                    text = stringResource(R.string.theme_monet),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
-                                )
-                                MaterialText(
-                                    text = stringResource(R.string.theme_monet_summary),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                    SegmentedRow(
+                        title = stringResource(R.string.theme_monet),
+                        supporting = stringResource(R.string.theme_monet_summary),
+                        leadingIcon = Icons.Rounded.Wallpaper,
+                        trailing = {
                             DevInfoExpressiveSwitch(
                                 checked = themeMode.isDynamic,
                                 onCheckedChange = { enabled ->
                                     onThemeModeChange(themeMode.withMonet(enabled))
                                 },
                             )
-                        }
-
-                    }
-                }
-            }
-
-            if (themeMode.isDynamic) {
-                item {
-                    MaterialCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = MaterialCardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        ),
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        },
+                    )
+                    if (themeMode.isDynamic) {
+                        DevInfoSegmentedDropdownItem(
+                            icon = Icons.Rounded.Wallpaper,
+                            title = stringResource(R.string.theme_palette_style),
+                            summary = PaletteStyle.entries[
+                                PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0)
+                            ].name,
+                            items = PaletteStyle.entries.map { it.name },
+                            selectedIndex = PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0),
+                            onItemSelected = { index ->
+                                PaletteStyle.entries.getOrNull(index)?.let(onPaletteStyleChange)
+                            },
+                        )
+                        DevInfoSegmentedDropdownItem(
+                            icon = Icons.Rounded.Wallpaper,
+                            title = stringResource(R.string.theme_color_spec),
+                            summary = com.fioiu8.devinfo.core.model.ColorSpec.entries[
+                                com.fioiu8.devinfo.core.model.ColorSpec.entries
+                                    .indexOf(colorSpec).coerceAtLeast(0)
+                            ].name,
+                            items = com.fioiu8.devinfo.core.model.ColorSpec.entries.map { it.name },
+                            selectedIndex = com.fioiu8.devinfo.core.model.ColorSpec.entries
+                                .indexOf(colorSpec).coerceAtLeast(0),
+                            onItemSelected = { index ->
+                                com.fioiu8.devinfo.core.model.ColorSpec.entries
+                                    .getOrNull(index)?.let(onColorSpecChange)
+                            },
+                        )
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
                             MaterialText(
                                 text = stringResource(R.string.theme_key_color),
                                 style = MaterialTheme.typography.titleSmall,
@@ -351,150 +277,72 @@ private fun MaterialThemeSettingsPage(
                 }
             }
 
+            item {
+                SegmentedGroup(title = stringResource(R.string.theme_motion_level)) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        DevInfoSegmentedControl(
+                            options = MotionLevel.entries.map { stringResource(it.labelRes()) },
+                            selectedIndex = MotionLevel.entries.indexOf(motionLevel),
+                            onSelected = { index ->
+                                MotionLevel.entries.getOrNull(index)?.let(onMotionLevelChange)
+                            },
+                        )
+                        MaterialText(
+                            text = stringResource(
+                                if (systemAnimationsEnabled) {
+                                    R.string.theme_motion_level_summary
+                                } else {
+                                    R.string.motion_system_disabled
+                                }
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    SegmentedRow(
+                        title = stringResource(R.string.settings_press_animation),
+                        supporting = stringResource(R.string.settings_press_animation_summary),
+                        trailing = {
+                            DevInfoExpressiveSwitch(
+                                checked = pressAnimation,
+                                onCheckedChange = onPressAnimationChange,
+                            )
+                        },
+                    )
+                }
+            }
 
             item {
-                MaterialThemeSwitchGroup(
-                    enablePredictiveBack = enablePredictiveBack,
-                    onEnablePredictiveBackChange = onEnablePredictiveBackChange,
-                )
+                SegmentedGroup(title = stringResource(R.string.settings_group_navigation)) {
+                    SegmentedRow(
+                        title = stringResource(R.string.theme_predictive_back),
+                        supporting = stringResource(R.string.theme_predictive_back_summary),
+                        trailing = {
+                            DevInfoExpressiveSwitch(
+                                checked = enablePredictiveBack,
+                                onCheckedChange = onEnablePredictiveBackChange,
+                            )
+                        },
+                    )
+                }
             }
+
             item {
-                MaterialPageScaleCard(
-                    pageScale = pageScale,
-                    onPageScaleChange = onPageScaleChange,
-                )
+                SegmentedGroup(title = stringResource(R.string.settings_group_display)) {
+                    SegmentedSliderRow(
+                        title = stringResource(R.string.theme_page_scale),
+                        supporting = stringResource(R.string.theme_page_scale_summary),
+                        value = pageScale,
+                        valueRange = 0.8f..1.1f,
+                        valueFormatter = { value -> "${(value * 100).toInt()}%" },
+                        onValueChangeFinished = onPageScaleChange,
+                    )
+                }
             }
             item { Spacer(Modifier.height(24.dp)) }
-            if (themeMode.isDynamic) {
-                item {
-                    DevInfoSegmentedDropdownItem(
-                        icon = Icons.Rounded.Wallpaper,
-                        title = stringResource(R.string.theme_palette_style),
-                        summary = PaletteStyle.entries[PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0)].name,
-                        items = PaletteStyle.entries.map { it.name },
-                        selectedIndex = PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0),
-                        onItemSelected = { index ->
-                            PaletteStyle.entries.getOrNull(index)?.let(onPaletteStyleChange)
-                        },
-                    )
-                }
-                item {
-                    DevInfoSegmentedDropdownItem(
-                        icon = Icons.Rounded.Wallpaper,
-                        title = stringResource(R.string.theme_color_spec),
-                        summary = com.fioiu8.devinfo.core.model.ColorSpec.entries[com.fioiu8.devinfo.core.model.ColorSpec.entries.indexOf(colorSpec).coerceAtLeast(0)].name,
-                        items = com.fioiu8.devinfo.core.model.ColorSpec.entries.map { it.name },
-                        selectedIndex = com.fioiu8.devinfo.core.model.ColorSpec.entries.indexOf(colorSpec).coerceAtLeast(0),
-                        onItemSelected = { index ->
-                            com.fioiu8.devinfo.core.model.ColorSpec.entries.getOrNull(index)?.let(onColorSpecChange)
-                        },
-                    )
-                }
-            }
-
-        }
-    }
-}
-
-@Composable
-private fun MaterialThemeSwitchGroup(
-    enablePredictiveBack: Boolean,
-    onEnablePredictiveBackChange: (Boolean) -> Unit,
-) {
-    MaterialCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = MaterialCardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-    ) {
-        Column {
-            MaterialThemeSwitchRow(
-                title = stringResource(R.string.theme_predictive_back),
-                summary = stringResource(R.string.theme_predictive_back_summary),
-                checked = enablePredictiveBack,
-                onCheckedChange = onEnablePredictiveBackChange,
-            )
-        }
-    }
-}
-
-@Composable
-private fun MaterialThemeSwitchRow(
-    title: String,
-    summary: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            MaterialText(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-            )
-            MaterialText(
-                text = summary,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        DevInfoExpressiveSwitch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-        )
-    }
-}
-
-@Composable
-private fun MaterialPageScaleCard(
-    pageScale: Float,
-    onPageScaleChange: (Float) -> Unit,
-) {
-    var sliderValue by remember(pageScale) { mutableFloatStateOf(pageScale) }
-
-    MaterialCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = MaterialCardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    MaterialText(
-                        text = stringResource(R.string.theme_page_scale),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    MaterialText(
-                        text = stringResource(R.string.theme_page_scale_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                MaterialText(
-                    text = "${(sliderValue * 100).toInt()}%",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            MaterialSlider(
-                value = sliderValue,
-                onValueChange = { sliderValue = it },
-                onValueChangeFinished = { onPageScaleChange(sliderValue) },
-                valueRange = 0.8f..1.1f,
-                modifier = Modifier.fillMaxWidth(),
-            )
         }
     }
 }
@@ -509,14 +357,12 @@ private fun MaterialThemePreviewCard(
     } else {
         MaterialTheme.colorScheme.primary
     }
-    MaterialCard(
+    LiquidGlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(184.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = MaterialCardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
+        shape = MaterialTheme.shapes.extraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column(
             modifier = Modifier

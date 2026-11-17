@@ -9,12 +9,11 @@ import com.fioiu8.devinfo.ui.DevInfoFeedbackScope
 import com.fioiu8.devinfo.feature.main.R
 import com.fioiu8.devinfo.ui.DevInfoNavigationItem
 import com.fioiu8.devinfo.ui.DevInfoSnackbarHost
-import com.fioiu8.devinfo.ui.TestVersionWarningCard
 import com.fioiu8.devinfo.ui.motion.LocalDevInfoMotionLevel
+import com.fioiu8.devinfo.ui.motion.LocalDevInfoMotionScheme
 import com.fioiu8.devinfo.ui.motion.devInfoRouteTransform
+import com.fioiu8.devinfo.ui.motion.devInfoSqueeze
 import com.fioiu8.devinfo.ui.rememberDevInfoMessageHandler
-import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassBackdropHost
-import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassIconButton
 
 import android.content.Context
 import android.content.Intent
@@ -24,12 +23,12 @@ import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -47,30 +46,31 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.NavigationRailItemDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -83,6 +83,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -111,6 +112,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 
 /** App-owned settings and callbacks required by the main UI. */
 data class MainScreenSettings(
@@ -130,6 +132,12 @@ data class MainScreenSettings(
     val onEnablePredictiveBackChange: (Boolean) -> Unit,
     val motionLevel: MotionLevel,
     val onMotionLevelChange: (MotionLevel) -> Unit,
+    val pressAnimation: Boolean,
+    val onPressAnimationChange: (Boolean) -> Unit,
+    val privacyMask: Boolean,
+    val onPrivacyMaskChange: (Boolean) -> Unit,
+    val screenshotProtection: Boolean,
+    val onScreenshotProtectionChange: (Boolean) -> Unit,
     val appLanguage: AppLanguage,
     val customLocaleTag: String,
     val onAppLanguageChange: (AppLanguage) -> Unit,
@@ -142,7 +150,10 @@ data class MainScreenSettings(
 fun MainScreen(
     viewModel: MainViewModel,
     settings: MainScreenSettings,
-    exportHelper: ModuleExportHelper
+    exportHelper: ModuleExportHelper,
+    showScreenshotWarning: Boolean = false,
+    onDismissScreenshotWarning: () -> Unit = {},
+    onEnableScreenshotProtection: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -467,6 +478,19 @@ fun MainScreen(
         fileUri = exportedFileUri,
         onDismiss = { showExportSuccessDialog = false }
     )
+
+    val screenshotLabels = if (showScreenshotWarning) {
+        sensitiveItemsFor(navigator.currentRoute, uiState.deviceInfoItems)
+            .map { stringResource(it.keyResId) }
+    } else {
+        emptyList()
+    }
+    ScreenshotWarningDialog(
+        show = showScreenshotWarning,
+        sensitiveLabels = screenshotLabels,
+        onEnableProtection = onEnableScreenshotProtection,
+        onDismiss = onDismissScreenshotWarning,
+    )
 }
 
 @Composable
@@ -502,10 +526,34 @@ private fun MainNavigationHost(
 
     val canGoBack = navigator.backStack.size > 1
     val atSettingsRoot = navigator.currentRoute == MainRoute.Settings
+    // 用普通状态而不是 Animatable：PredictiveBackHandler 在取消手势时会取消协程，
+    // 取消后任何挂起的动画都会立刻再次抛出 CancellationException。
+    var backProgress by remember { mutableFloatStateOf(0f) }
+    // 预测返回完成时保持退出页的预览姿态，等路由过渡结束再复位；
+    // 否则会先跳回 1.0 再播放退出动画，看起来像没有退出。
+    var predictiveRoute by remember { mutableStateOf<MainRoute?>(null) }
+    LaunchedEffect(navigator.currentRoute) {
+        delay(PREDICTIVE_BACK_SETTLE_MS)
+        predictiveRoute = null
+        backProgress = 0f
+    }
     if (enablePredictiveBack && canGoBack) {
         PredictiveBackHandler(enabled = true) { events ->
-            events.collect { }
-            navigator.pop()
+            try {
+                events.collect { event ->
+                    val source = navigator.currentRoute
+                    if (predictiveRoute != source) {
+                        predictiveRoute = source
+                        backProgress = 0f
+                    }
+                    backProgress = event.progress
+                }
+                navigator.pop()
+            } catch (cancelled: CancellationException) {
+                predictiveRoute = null
+                backProgress = 0f
+                throw cancelled
+            }
         }
     } else {
         // 设置是第二个根页：栈里只有它时，系统返回应回到概览而不是退出应用。
@@ -516,20 +564,57 @@ private fun MainNavigationHost(
 
     val stateHolder = rememberSaveableStateHolder()
     val motionLevel = LocalDevInfoMotionLevel.current
-    Box(modifier = hostModifier) {
+    val motionScheme = LocalDevInfoMotionScheme.current
+    SharedTransitionLayout(modifier = hostModifier) {
+        val sharedScope = this
         AnimatedContent(
             targetState = navigator.currentRoute,
             transitionSpec = {
                 devInfoRouteTransform(
                     forward = mainRouteForward(initialState, targetState),
                     level = motionLevel,
+                    scheme = motionScheme,
                 )
             },
             label = "mainNavigationTransition",
         ) { route ->
-            // SaveableStateHolder keys must be Bundle-compatible on Android.
-            stateHolder.SaveableStateProvider(route.toSavedKey()) {
-                routeContent(route)
+            val animatedScope = this
+            // 低动效档位不挂共享元素，避免在关闭动画时仍然创建过渡图层。
+            val titleModifier = if (motionLevel.isAnimated) {
+                with(sharedScope) {
+                    Modifier.sharedBounds(
+                        sharedContentState = rememberSharedContentState("page-title"),
+                        animatedVisibilityScope = animatedScope,
+                    )
+                }
+            } else {
+                Modifier
+            }
+            CompositionLocalProvider(LocalDevInfoPageTitleModifier provides titleModifier) {
+                // SaveableStateHolder keys must be Bundle-compatible on Android.
+                stateHolder.SaveableStateProvider(route.toSavedKey()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                // 只有手势来源页保留预览姿态；正在进入的页面不受影响。
+                                val progress = if (
+                                    motionLevel.isAnimated && route == predictiveRoute
+                                ) {
+                                    backProgress
+                                } else {
+                                    0f
+                                }
+                                val scale = 1f - 0.06f * progress
+                                scaleX = scale
+                                scaleY = scale
+                                alpha = 1f - 0.25f * progress
+                                translationX = -24.dp.toPx() * progress
+                            },
+                    ) {
+                        routeContent(route)
+                    }
+                }
             }
         }
     }
@@ -568,6 +653,7 @@ private fun MainRouteContent(
                     isLoading = uiState.isDeviceInfoLoading,
                     isOverviewLoading = uiState.isOverviewLoading,
                     snapshot = overviewSnapshot,
+                    maskSensitive = settings.privacyMask,
                     onRefresh = { viewModel.refreshAndAwait() },
                     onOpenDetails = navigator::openDetails,
                 )
@@ -597,6 +683,10 @@ private fun MainRouteContent(
                     appLanguage = settings.appLanguage,
                     checkUpdate = settings.checkUpdate,
                     onCheckUpdateChange = settings.onCheckUpdateChange,
+                    privacyMask = settings.privacyMask,
+                    onPrivacyMaskChange = settings.onPrivacyMaskChange,
+                    screenshotProtection = settings.screenshotProtection,
+                    onScreenshotProtectionChange = settings.onScreenshotProtectionChange,
                     languageOptions = languageOptions,
                     onLanguageChange = { index ->
                         settings.onAppLanguageChange(AppLanguage.entries[index])
@@ -623,6 +713,7 @@ private fun MainRouteContent(
                 overviewSnapshot = viewModel.overviewSnapshot,
                 hardwareDetails = viewModel.hardwareDetails,
                 motionSensors = viewModel.motionSensors,
+                maskSensitive = settings.privacyMask,
                 onRefresh = { viewModel.refreshAndAwait() },
                 initialPage = navigator.detailsPage(route),
                 onSensorPageVisibilityChanged = viewModel::onSensorsPageVisibilityChanged,
@@ -644,6 +735,8 @@ private fun MainRouteContent(
             onEnablePredictiveBackChange = settings.onEnablePredictiveBackChange,
             motionLevel = settings.motionLevel,
             onMotionLevelChange = settings.onMotionLevelChange,
+            pressAnimation = settings.pressAnimation,
+            onPressAnimationChange = settings.onPressAnimationChange,
             onBack = { navigator.pop() },
         )
 
@@ -671,9 +764,8 @@ private fun MainAppScaffold(
     content: @Composable () -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
-        MainScaffold(
+        DevInfoPageScaffold(
             modifier = Modifier.fillMaxSize(),
-            consumedStartInsets = WindowInsets(0, 0, 0, 0),
             title = title,
             showBackButton = showBackButton,
             onBack = onBack,
@@ -732,106 +824,6 @@ private fun MainRootScaffold(
 }
 
 @Composable
-private fun MainScaffold(
-    modifier: Modifier,
-    consumedStartInsets: WindowInsets,
-    title: String,
-    showBackButton: Boolean,
-    onBack: () -> Unit,
-    onSettingsClick: (() -> Unit)?,
-    content: @Composable (PaddingValues) -> Unit
-) {
-    Box(modifier = modifier.consumeWindowInsets(consumedStartInsets)) {
-        LiquidGlassBackdropHost(modifier = Modifier.fillMaxSize()) {
-            Scaffold(
-                modifier = Modifier.fillMaxSize(),
-                topBar = {
-                    MainTopBar(
-                        title = title,
-                        showBackButton = showBackButton,
-                        onBack = onBack,
-                        onSettingsClick = onSettingsClick
-                    )
-                },
-                containerColor = MaterialTheme.colorScheme.background,
-                content = content,
-            )
-        }
-    }
-}
-
-@Composable
-private fun MainTopBar(
-    title: String,
-    showBackButton: Boolean,
-    onBack: () -> Unit,
-    onSettingsClick: (() -> Unit)?
-) {
-    Column {
-        MaterialMainTopBar(
-            title = title,
-            showBackButton = showBackButton,
-            onBack = onBack,
-            onSettingsClick = onSettingsClick,
-        )
-
-        if (!BuildConfig.IS_OFFICIAL) {
-            TestVersionWarningCard(
-                versionName = BuildConfig.VERSION_NAME,
-                buildType = BuildConfig.BUILD_TYPE_NAME,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MaterialMainTopBar(
-    title: String,
-    showBackButton: Boolean,
-    onBack: () -> Unit,
-    onSettingsClick: (() -> Unit)?
-) {
-    val navigationIcon: @Composable () -> Unit = {
-        if (showBackButton) {
-            LiquidGlassIconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.back),
-                )
-            }
-        }
-    }
-    val titleContent: @Composable () -> Unit = {
-        Text(
-            text = title,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-    val colors = TopAppBarDefaults.topAppBarColors(
-        containerColor = MaterialTheme.colorScheme.surface,
-        titleContentColor = MaterialTheme.colorScheme.onSurface,
-    )
-
-    TopAppBar(
-        navigationIcon = navigationIcon,
-        title = titleContent,
-        actions = {
-            onSettingsClick?.let { openSettings ->
-                LiquidGlassIconButton(onClick = openSettings) {
-                    Icon(
-                        imageVector = Icons.Outlined.Settings,
-                        contentDescription = stringResource(R.string.nav_settings)
-                    )
-                }
-            }
-        },
-        colors = colors,
-    )
-}
-
-@Composable
 private fun MainNavigationRail(
     items: List<MainNavigationItem>,
     selectedIndex: Int,
@@ -883,6 +875,7 @@ private fun MaterialMainNavigationRail(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun BoxScope.RootModeFab(
     isRootModeEnabled: Boolean,
@@ -891,9 +884,12 @@ private fun BoxScope.RootModeFab(
     modifier: Modifier = Modifier,
 ) {
     if (!isVisible) return
+    val interactionSource = remember { MutableInteractionSource() }
     FloatingActionButton(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.devInfoSqueeze(interactionSource),
+        interactionSource = interactionSource,
+        shape = MaterialShapes.Cookie4Sided.toShape(),
         containerColor = if (isRootModeEnabled) {
             MaterialTheme.colorScheme.primaryContainer
         } else {
@@ -971,6 +967,9 @@ private fun openUrl(
 }
 
 private const val TABLET_NAVIGATION_RAIL_MIN_WIDTH_DP = 600
+
+/** 等退出过渡结束后再清空预测返回预览，避免视觉回弹。 */
+private const val PREDICTIVE_BACK_SETTLE_MS = 600L
 
 private val UriSaver = Saver<Uri?, String>(
     save = { it?.toString() },

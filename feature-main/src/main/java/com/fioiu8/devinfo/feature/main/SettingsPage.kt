@@ -5,6 +5,8 @@
  */
 
 package com.fioiu8.devinfo.feature.main
+
+import android.os.Build
 import com.fioiu8.devinfo.ui.DevInfoExpressiveSwitch
 import com.fioiu8.devinfo.ui.DevInfoSegmentedDropdownItem
 import com.fioiu8.devinfo.ui.SegmentedGroup
@@ -22,12 +24,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lock
 
 import androidx.compose.material.icons.outlined.Palette
 
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -56,6 +60,10 @@ fun SettingsPage(
     onRootHelpClick: () -> Unit,
     checkUpdate: Boolean,
     onCheckUpdateChange: (Boolean) -> Unit,
+    privacyMask: Boolean,
+    onPrivacyMaskChange: (Boolean) -> Unit,
+    screenshotProtection: Boolean,
+    onScreenshotProtectionChange: (Boolean) -> Unit,
     appLanguage: AppLanguage = AppLanguage.SYSTEM,
     languageOptions: List<String> = emptyList(),
     onLanguageChange: (Int) -> Unit = {},
@@ -71,6 +79,10 @@ fun SettingsPage(
         onRootHelpClick = onRootHelpClick,
         checkUpdate = checkUpdate,
         onCheckUpdateChange = onCheckUpdateChange,
+        privacyMask = privacyMask,
+        onPrivacyMaskChange = onPrivacyMaskChange,
+        screenshotProtection = screenshotProtection,
+        onScreenshotProtectionChange = onScreenshotProtectionChange,
         appLanguage = appLanguage,
         languageOptions = languageOptions,
         onLanguageChange = onLanguageChange,
@@ -89,6 +101,10 @@ private fun MaterialSettingsPage(
     onRootHelpClick: () -> Unit,
     checkUpdate: Boolean,
     onCheckUpdateChange: (Boolean) -> Unit,
+    privacyMask: Boolean,
+    onPrivacyMaskChange: (Boolean) -> Unit,
+    screenshotProtection: Boolean,
+    onScreenshotProtectionChange: (Boolean) -> Unit,
     appLanguage: AppLanguage,
     languageOptions: List<String>,
     onLanguageChange: (Int) -> Unit,
@@ -184,6 +200,38 @@ private fun MaterialSettingsPage(
                     leadingIcon = Icons.Outlined.Palette,
                     showChevron = true,
                     onClick = onThemeSettingsClick,
+                )
+            }
+        }
+        item {
+            SegmentedGroup(title = stringResource(R.string.settings_group_privacy)) {
+                SegmentedRow(
+                    title = stringResource(R.string.settings_privacy_mask),
+                    supporting = stringResource(R.string.settings_privacy_mask_summary),
+                    leadingIcon = Icons.Outlined.Lock,
+                    trailing = {
+                        DevInfoExpressiveSwitch(
+                            checked = privacyMask,
+                            onCheckedChange = onPrivacyMaskChange,
+                        )
+                    },
+                )
+                SegmentedRow(
+                    title = stringResource(R.string.settings_screenshot_protection),
+                    supporting = stringResource(
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                            R.string.settings_screenshot_protection_summary
+                        } else {
+                            R.string.settings_screenshot_protection_summary_legacy
+                        }
+                    ),
+                    leadingIcon = Icons.Outlined.VisibilityOff,
+                    trailing = {
+                        DevInfoExpressiveSwitch(
+                            checked = screenshotProtection,
+                            onCheckedChange = onScreenshotProtectionChange,
+                        )
+                    },
                 )
             }
         }

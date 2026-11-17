@@ -7,6 +7,7 @@
 package com.fioiu8.devinfo.ui.kit.liquid
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
+import com.fioiu8.devinfo.ui.motion.devInfoSqueeze
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -97,20 +100,25 @@ fun LiquidGlassIconButton(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    IconButton(
-        onClick = onClick,
-        modifier = modifier,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .liquidGlassSurface(
-                    shape = CircleShape,
-                    fallbackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                ),
-            contentAlignment = Alignment.Center,
-            content = { content() },
-        )
+    val interactionSource = remember { MutableInteractionSource() }
+    // IconButton 内部有 .size(40dp).clip(shape)，挤压必须放在它外层，
+    // 否则放大后的圆形会被 IconButton 自己的蒙版裁掉。
+    Box(modifier = modifier.devInfoSqueeze(interactionSource)) {
+        IconButton(
+            onClick = onClick,
+            interactionSource = interactionSource,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .liquidGlassSurface(
+                        shape = CircleShape,
+                        fallbackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
+                contentAlignment = Alignment.Center,
+                content = { content() },
+            )
+        }
     }
 }
 
