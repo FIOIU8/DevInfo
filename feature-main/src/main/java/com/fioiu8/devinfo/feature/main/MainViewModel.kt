@@ -55,9 +55,11 @@ enum class MonitorMode {
 fun monitorModeFor(
     isForeground: Boolean,
     isOverviewVisible: Boolean,
-    isSensorsPageVisible: Boolean = false
+    isSensorsPageVisible: Boolean = false,
+    isDataPageVisible: Boolean = true,
 ): MonitorMode = when {
     !isForeground -> MonitorMode.STOPPED
+    !isDataPageVisible -> MonitorMode.STOPPED
     isOverviewVisible -> MonitorMode.ACTIVE
     isSensorsPageVisible -> MonitorMode.SENSORS
     else -> MonitorMode.LOW_FREQUENCY
@@ -75,20 +77,39 @@ class MainViewModel(
 
     private val reloadMutex = Mutex()
     private val refreshMutex = Mutex()
+    private val dynamicMetricsMutex = Mutex()
 
     @Immutable
     data class MainUiState(
         val deviceInfoItems: List<ItemWithVisibility> = emptyList(),
-        val hardwareDetails: HardwareDetailsSnapshot = HardwareDetailsSnapshot(),
-        val motionSensors: MotionSensorSnapshot = MotionSensorSnapshot(),
         val isDeviceInfoLoading: Boolean = true,
-        val overviewSnapshot: OverviewSnapshot = OverviewSnapshot(),
         val isOverviewLoading: Boolean = true,
         val isRootModeEnabled: Boolean = false,
     )
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+
+    /**
+     * Live metrics 与传感器快照刻意独立于 [uiState]。
+     *
+     * 传感器在详情页以 10 Hz 发布快照；若并入 uiState，收集整个状态的页面
+     * （包括设置页）都会每 100 ms 重组。拆开后只有真正渲染该数据的页面订阅。
+     */
+    private val _overviewSnapshot = MutableStateFlow(OverviewSnapshot())
+    val overviewSnapshot: StateFlow<OverviewSnapshot> = _overviewSnapshot.asStateFlow()
+
+    /** 相机/传感器静态清单只在刷新时变化，与实时流分开可避免详情页重复重组。 */
+    private val _hardwareDetails = MutableStateFlow(HardwareDetailsSnapshot())
+    val hardwareDetails: StateFlow<HardwareDetailsSnapshot> = _hardwareDetails.asStateFlow()
+
+    /** 运动传感器快照直接来自硬件监听器，ViewModel 不再复制。 */
+    val motionSensors: StateFlow<MotionSensorSnapshot> = liveHardwareMonitor.motionSensorSnapshot
+
+    private val _refreshFailed = MutableStateFlow(false)
+
+    /** 最近一次刷新是否以可向用户说明的失败结束；UI 读取后调用 [consumeRefreshFailure]。 */
+    val refreshFailed: StateFlow<Boolean> = _refreshFailed.asStateFlow()
 
     val updateState: StateFlow<UpdateState> = updateChecker.state
     val releaseInfo: StateFlow<GitHubClient.ReleaseInfo?> = updateChecker.releaseInfo
@@ -102,6 +123,7 @@ class MainViewModel(
     private var hardwareMonitoringJob: Job? = null
     private var hardwareMonitoringGeneration = 0L
     private var isForeground = false
+    private var isDataPageVisible = true
     private var isOverviewVisible = true
     private var isSensorsPageVisible = false
     private val _monitorMode = MutableStateFlow(MonitorMode.STOPPED)
@@ -110,10 +132,10 @@ class MainViewModel(
     private var hasStarted = false
 
     init {
-        viewModelScope.launch {
-            liveHardwareMonitor.motionSensorSnapshot.collect { snapshot ->
-                _uiState.update { it.copy(motionSensors = snapshot) }
-            }
+        // PackageManager 查询是阻塞调用；预取到 IO 线程，避免首次打开设置页时卡在主线程。
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { collector.getAppVersionName() }
+            runCatching { collector.getAppVersionCode() }
         }
     }
 
@@ -190,10 +212,17 @@ class MainViewModel(
         return RootAccess.Granted
     }
 
-    /** 概览页是否为当前可见的根页面；参数名与 [monitorModeFor] 保持一致。 */
+    /**
+     * 路由可见性统一入口。
+     *
+     * 概览与详情渲染实时数据，设置/主题/关于不渲染任何采集结果；后者继续轮询只会
+     * 白白唤醒硬件与电池监听，因此把「是否数据页」也纳入监控策略。
+     */
     @MainThread
-    fun onOverviewVisibilityChanged(visible: Boolean) {
-        isOverviewVisible = visible
+    fun onRouteVisibilityChanged(isDataPageVisible: Boolean, isOverviewVisible: Boolean) {
+        this.isDataPageVisible = isDataPageVisible
+        this.isOverviewVisible = isOverviewVisible
+        if (!isDataPageVisible) isSensorsPageVisible = false
         updateMonitoring()
     }
 
@@ -242,18 +271,27 @@ class MainViewModel(
             }
 
             try {
+                val session = withContext(Dispatchers.IO) { collector.newCollectionSession() }
                 coroutineScope {
                     // 概览采集读取 /proc、/sys 并可能派生 top 子进程，走 IO 调度器
                     val overviewJob = async(Dispatchers.IO) { loadOverviewSnapshot() }
-                    val deviceInfoJob = async { loadDeviceInfo(publishBatches = isInitialLoad) }
-                    val hardwareDetailsJob = async(Dispatchers.IO) { collector.collectHardwareDetails() }
+                    val deviceInfoJob = async { loadDeviceInfo(session, publishBatches = isInitialLoad) }
+                    val hardwareDetailsJob = async(Dispatchers.IO) {
+                        collector.collectHardwareDetails(session)
+                    }
                     overviewJob.await()
                     deviceInfoJob.await()
                     val hardwareDetails = hardwareDetailsJob.await()
                     withContext(Dispatchers.Main.immediate) {
-                        _uiState.update { it.copy(hardwareDetails = hardwareDetails) }
+                        _hardwareDetails.value = hardwareDetails
                     }
                 }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                // 刷新失败保留旧数据，只向 UI 暴露一个可提示的标记；
+                // 否则异常会逃出 viewModelScope 并终止进程。
+                _refreshFailed.value = true
             } finally {
                 _uiState.update {
                     it.copy(isDeviceInfoLoading = false, isOverviewLoading = false)
@@ -262,7 +300,7 @@ class MainViewModel(
         }
     }
 
-    private suspend fun loadDeviceInfo(publishBatches: Boolean) {
+    private suspend fun loadDeviceInfo(session: DeviceInfoCollector.CollectionSession, publishBatches: Boolean) {
         withContext(Dispatchers.IO) {
             // Accumulate into a single buffer and publish in batches. This avoids
             // the previous per-item `delay` (which pushed full-load time to ~3s) and
@@ -270,7 +308,7 @@ class MainViewModel(
             // Entrance animation is handled by the UI layer (AnimatedVisibility), so
             // no artificial delay is needed here.
             val buffer = ArrayList<ItemWithVisibility>(EXPECTED_ITEM_COUNT)
-            collector.collectDeviceInfo { item ->
+            collector.collectDeviceInfo(session) { item ->
                 buffer.add(ItemWithVisibility(item = item, visible = true))
                 if (publishBatches && buffer.size % ITEM_BATCH_SIZE == 0) {
                     val snapshot = buffer.toList()
@@ -289,25 +327,14 @@ class MainViewModel(
     private suspend fun loadOverviewSnapshot() {
         val hardware = runCatching { liveHardwareMonitor.snapshot() }.getOrDefault(LiveHardwareSnapshot())
         val cpuFrequency = runCatching { collector.getCpuFrequency() }.getOrNull()
-        val coreMetrics = try {
-            collector.getCpuCoreMetrics()
+        val cpuReading = try {
+            collector.readCpuUsageReading(useRoot = _uiState.value.isRootModeEnabled)
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            emptyList()
+            CpuUsageReading(emptyList(), null)
         }
-        val overallUsage = coreMetrics.mapNotNull { it.usagePercent }
-            .average()
-            .toFloat()
-            .takeIf { !it.isNaN() }
-            ?: try {
-                collector.getCpuUsagePercent()
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Exception) {
-                null
-            }
-        val cpuReading = CpuUsageReading(coreMetrics, overallUsage)
+        val coreMetrics = cpuReading.coreMetrics
         val dynamicMetrics = readDynamicMetrics()
         updateOverview { snapshot ->
             // 基于旧快照 copy 而非新建，保住 cpuUsageHistory 等字段——
@@ -324,7 +351,7 @@ class MainViewModel(
     }
 
     private suspend fun refreshDynamicMetrics() {
-        reloadMutex.withLock {
+        dynamicMetricsMutex.withLock {
             val dynamicMetrics = readDynamicMetrics()
             updateOverview { snapshot -> snapshot.withDynamicMetrics(dynamicMetrics) }
         }
@@ -344,7 +371,12 @@ class MainViewModel(
     }
 
     private fun updateMonitoring() {
-        val mode = monitorModeFor(isForeground, isOverviewVisible, isSensorsPageVisible)
+        val mode = monitorModeFor(
+            isForeground = isForeground,
+            isDataPageVisible = isDataPageVisible,
+            isOverviewVisible = isOverviewVisible,
+            isSensorsPageVisible = isSensorsPageVisible,
+        )
         if (_monitorMode.value == mode) return
         _monitorMode.value = mode
 
@@ -393,8 +425,9 @@ class MainViewModel(
                     throw error
                 } catch (_: Exception) {
                     updateOverview { snapshot -> snapshot.copy(batteryLevel = null, batteryCharging = false) }
-                    delay(BATTERY_RETRY_INTERVAL_MS)
                 }
+                // 无论正常结束还是异常都退避：flow 正常完成时立即重订阅会形成忙等。
+                delay(BATTERY_RETRY_INTERVAL_MS)
             }
         }
     }
@@ -409,9 +442,13 @@ class MainViewModel(
 
         startCpuSampling()
         dynamicMetricsJob = viewModelScope.launch {
+            // 首次延迟一个周期：初始刷新已经读取过一轮动态指标。
+            delay(ACTIVE_REFRESH_INTERVAL_MS)
             while (isActive) {
-                delay(ACTIVE_REFRESH_INTERVAL_MS)
+                val startedAt = android.os.SystemClock.uptimeMillis()
                 refreshDynamicMetrics()
+                val elapsed = android.os.SystemClock.uptimeMillis() - startedAt
+                delay((ACTIVE_REFRESH_INTERVAL_MS - elapsed).coerceAtLeast(0L))
             }
         }
     }
@@ -444,6 +481,7 @@ class MainViewModel(
         }
         hardwareMonitoringJob = viewModelScope.launch {
             while (isActive) {
+                val startedAt = android.os.SystemClock.uptimeMillis()
                 val hardware = try {
                     withContext(Dispatchers.IO) {
                         liveHardwareMonitor.snapshot(includeStorageReadSpeed = mode == MonitorMode.ACTIVE)
@@ -457,7 +495,8 @@ class MainViewModel(
                 hardware?.let {
                     updateOverview { snapshot -> snapshot.copy(hardware = hardware) }
                 }
-                delay(interval)
+                val elapsed = android.os.SystemClock.uptimeMillis() - startedAt
+                delay((interval - elapsed).coerceAtLeast(0L))
             }
         }
     }
@@ -478,11 +517,11 @@ class MainViewModel(
         }
     }
 
-    @MainThread
+    /** 读取并清除本次刷新失败标记；返回 true 表示 UI 应提示用户。 */
+    fun consumeRefreshFailure(): Boolean = _refreshFailed.value.also { _refreshFailed.value = false }
+
     private fun updateOverview(transform: (OverviewSnapshot) -> OverviewSnapshot) {
-        _uiState.update {
-            it.copy(overviewSnapshot = transform(it.overviewSnapshot))
-        }
+        _overviewSnapshot.update(transform)
     }
 
     override fun onCleared() {

@@ -8,6 +8,11 @@ package com.fioiu8.devinfo.feature.main
 import com.fioiu8.devinfo.ui.theme.isInDarkTheme
 import com.fioiu8.devinfo.ui.DevInfoLoadingIndicator
 import com.fioiu8.devinfo.ui.DevInfoPullToRefresh
+import com.fioiu8.devinfo.ui.DevInfoSegmentHeader
+import com.fioiu8.devinfo.ui.SegmentedGroup
+import com.fioiu8.devinfo.ui.SegmentedRow
+import com.fioiu8.devinfo.ui.motion.DevInfoAnimatedValue
+import com.fioiu8.devinfo.ui.motion.DevInfoStaggeredEntrance
 import com.fioiu8.devinfo.ui.descriptionResId
 import com.fioiu8.devinfo.ui.displayNameResId
 import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassCard
@@ -35,10 +40,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
@@ -174,6 +177,7 @@ private fun buildCategorySummaries(items: List<ItemWithVisibility>): List<Catego
         }
     }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DeviceInfoOverviewPage(
     itemsState: List<ItemWithVisibility>,
@@ -202,21 +206,18 @@ fun DeviceInfoOverviewPage(
     } else {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val compactLayout = maxWidth < 600.dp
-            val useSingleColumn = maxWidth < 320.dp
+            val metricColumns = when {
+                maxWidth < 320.dp -> 1
+                compactLayout -> 2
+                else -> 3
+            }
 
             DevInfoPullToRefresh(
                 isRefreshing = isRefreshing,
                 onRefresh = { isRefreshing = true },
                 modifier = Modifier.fillMaxSize()
             ) {
-                LazyVerticalGrid(
-                    columns = if (useSingleColumn) {
-                        GridCells.Fixed(1)
-                    } else if (compactLayout) {
-                        GridCells.Fixed(2)
-                    } else {
-                        GridCells.Adaptive(minSize = 148.dp)
-                    },
+                LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
                         start = if (compactLayout) 12.dp else 20.dp,
@@ -224,55 +225,57 @@ fun DeviceInfoOverviewPage(
                         end = if (compactLayout) 12.dp else 20.dp,
                         bottom = if (compactLayout) 12.dp else 20.dp,
                     ),
-                    horizontalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(if (compactLayout) 10.dp else 12.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
+                    item(key = "header") {
                         DeviceOverviewHeader(itemsState)
                     }
-                    item(span = { GridItemSpan(maxLineSpan) }) {
+                    item(key = "identity") {
                         DeviceIdentitySummaryCard(itemsState)
                     }
-                    items(
-                    items = metrics,
-                        key = { metric -> metric.id },
-                        span = { metric ->
-                            GridItemSpan(
-                                if (useSingleColumn) {
-                                    maxLineSpan
-                                } else {
-                                    metric.size.span
-                                }
-                            )
-                        }
-                    ) { metric ->
-                        OverviewMetricCard(
-                            metric = metric,
-                            wideLayout = !compactLayout,
-                            onClick = { onOpenDetails(metric.category) }
+                    stickyHeader(key = "realtime_header") {
+                        DevInfoSegmentHeader(stringResource(R.string.overview_realtime_title))
+                    }
+                    item(key = "realtime_metrics") {
+                        OverviewMetricsSection(
+                            metrics = metrics,
+                            columns = metricColumns,
+                            onOpenDetails = onOpenDetails,
                         )
                     }
                     metrics.firstOrNull { it.id == OverviewMetricId.REALTIME_CPU }
                         ?.takeIf { it.history.isNotEmpty() }
                         ?.let { cpuMetric ->
-                            item(span = { GridItemSpan(maxLineSpan) }) {
+                            item(key = "cpu_trend") {
                                 CpuTrendCard(metric = cpuMetric)
                             }
                         }
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        CategorySummaryList(
+                    stickyHeader(key = "details_header") {
+                        DevInfoSegmentHeader(stringResource(R.string.title_device_details))
+                    }
+                    item(key = "categories") {
+                        CategorySummaryGroup(
                             summaries = categorySummaries,
                             onOpenDetails = onOpenDetails,
                         )
                     }
-                    item(span = { GridItemSpan(maxLineSpan) }) {
+                    stickyHeader(key = "sensors_header") {
+                        DevInfoSegmentHeader(stringResource(R.string.overview_hardware_title))
+                    }
+                    item(key = "sensors") {
                         HardwareSensorsCard(
                             snapshot = snapshot.hardware,
-                            stackValues = useSingleColumn
+                            stackValues = metricColumns == 1,
                         )
                     }
-                    item(span = { GridItemSpan(maxLineSpan) }) {
+                    stickyHeader(key = "security_header") {
+                        DevInfoSegmentHeader(stringResource(R.string.overview_security_title))
+                    }
+                    item(key = "security") {
                         SecuritySummaryCard(snapshot)
+                    }
+                    item(key = "bottom_spacer") {
+                        Spacer(Modifier.height(4.dp))
                     }
                 }
             }
@@ -354,6 +357,80 @@ private fun DeviceIdentitySummaryCard(items: List<ItemWithVisibility>) {
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/** 指标卡按固定列数排布；CPU 等小卡两两成行，避免整页重建网格。 */
+@Composable
+private fun OverviewMetricsSection(
+    metrics: List<OverviewMetric>,
+    columns: Int,
+    onOpenDetails: (InfoCategory) -> Unit,
+) {
+    if (metrics.isEmpty()) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (columns == 1) {
+            metrics.forEachIndexed { index, metric ->
+                DevInfoStaggeredEntrance(index = index) {
+                    OverviewMetricCard(
+                        metric = metric,
+                        wideLayout = true,
+                        onClick = { onOpenDetails(metric.category) },
+                    )
+                }
+            }
+        } else {
+            metrics.chunked(columns).forEachIndexed { rowIndex, rowMetrics ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    rowMetrics.forEachIndexed { columnIndex, metric ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            DevInfoStaggeredEntrance(index = rowIndex * columns + columnIndex) {
+                                OverviewMetricCard(
+                                    metric = metric,
+                                    // 多列时卡片宽度有限，CPU 仪表放到数值下方，避免横向溢出。
+                                    wideLayout = false,
+                                    onClick = { onOpenDetails(metric.category) },
+                                )
+                            }
+                        }
+                    }
+                    repeat(columns - rowMetrics.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 分类入口：一个分组容器 + 每类一张行卡片，无分割线。 */
+@Composable
+private fun CategorySummaryGroup(
+    summaries: List<CategorySummaryData>,
+    onOpenDetails: (InfoCategory) -> Unit,
+) {
+    if (summaries.isEmpty()) return
+
+    SegmentedGroup {
+        summaries.forEachIndexed { index, summary ->
+            val preview = summary.preview
+            DevInfoStaggeredEntrance(index = index) {
+                SegmentedRow(
+                    title = stringResource(summary.category.displayNameResId()),
+                    supporting = preview?.let {
+                        stringResource(it.item.keyResId) + " · " + it.item.value
+                    },
+                    leadingIcon = categoryIcon(summary.category),
+                    trailingValue = stringResource(R.string.items_count, summary.count),
+                    showChevron = true,
+                    onClick = { onOpenDetails(summary.category) },
                 )
             }
         }
@@ -505,6 +582,8 @@ private fun OverviewMetricCard(
                     Modifier.height(148.dp)
                 }
             )
+            // clickable 的指示层需要与卡片同形状裁剪，避免方形涟漪溢出圆角。
+            .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -686,8 +765,8 @@ private fun MetricValueBlock(
             }
         } else if (showValue) {
             displayValue?.let {
-                Text(
-                    text = it,
+                DevInfoAnimatedValue(
+                    value = it,
                     style = if (metric.size == OverviewCardSize.LARGE) {
                         MaterialTheme.typography.headlineSmall
                     } else {
@@ -696,7 +775,7 @@ private fun MetricValueBlock(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -805,102 +884,6 @@ private fun CpuCoreSelectionSlot(
                     ?: metric.history.lastOrNull()?.valuesByCore?.get(coreIndex),
                 color = coreColor
             )
-        }
-    }
-}
-
-/** 首页分类入口：用一组紧凑列表行替代大量静态信息小卡片。 */
-@Composable
-private fun CategorySummaryList(
-    summaries: List<CategorySummaryData>,
-    onOpenDetails: (InfoCategory) -> Unit,
-) {
-    if (summaries.isEmpty()) return
-
-    LiquidGlassCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-    ) {
-        Column(
-            modifier = Modifier.padding(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.title_device_details),
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            summaries.forEachIndexed { index, summary ->
-                val preview = summary.preview
-                Card(
-                    onClick = { onOpenDetails(summary.category) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.Transparent,
-                    ),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Icon(
-                            imageVector = categoryIcon(summary.category),
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text(
-                                    text = stringResource(summary.category.displayNameResId()),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text = stringResource(R.string.items_count, summary.count),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            preview?.let { item ->
-                                Text(
-                                    text = stringResource(item.item.keyResId) + " · " + item.item.value,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                            contentDescription = stringResource(R.string.title_device_details),
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                if (index < summaries.lastIndex) {
-                    androidx.compose.material3.HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 18.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-                    )
-                }
-            }
         }
     }
 }

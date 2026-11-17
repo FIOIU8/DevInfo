@@ -26,8 +26,12 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.fioiu8.devinfo.core.model.MotionLevel
 import com.fioiu8.devinfo.core.model.ThemeColor
 import com.fioiu8.devinfo.core.model.ThemeMode
+import com.fioiu8.devinfo.core.model.effectiveMotionLevel
+import com.fioiu8.devinfo.ui.motion.LocalDevInfoMotionLevel
+import com.fioiu8.devinfo.ui.motion.rememberSystemAnimationsEnabled
 /** The app now has one Material 3 visual system. Kept as a compatibility local while
  * page implementations are being consolidated. */
 private val LocalDevInfoDarkTheme = staticCompositionLocalOf { false }
@@ -107,6 +111,9 @@ private val LightColorScheme = lightColorScheme(
 /**
  * DevInfo 主题 — 支持完整的 Material 动态颜色（Android 12+）和手动浅色/深色。
  *
+ * [motionLevel] 控制 M3 Expressive 动效强度；系统「移除动画」会强制折算为
+ * [MotionLevel.OFF]，并在回到前台时重新读取。
+ *
  * @param themeMode 主题模式
  * @param content Composable 内容
  */
@@ -114,6 +121,7 @@ private val LightColorScheme = lightColorScheme(
 fun DevInfoTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     themeColor: ThemeColor = ThemeColor.DEFAULT,
+    motionLevel: MotionLevel = MotionLevel.STANDARD,
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
@@ -153,7 +161,13 @@ fun DevInfoTheme(
         else -> LightColorScheme
     }
 
-    CompositionLocalProvider(LocalDevInfoDarkTheme provides darkTheme) {
+    val systemAnimationsEnabled = rememberSystemAnimationsEnabled()
+    val effectiveMotion = effectiveMotionLevel(motionLevel, systemAnimationsEnabled)
+
+    CompositionLocalProvider(
+        LocalDevInfoDarkTheme provides darkTheme,
+        LocalDevInfoMotionLevel provides effectiveMotion,
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,

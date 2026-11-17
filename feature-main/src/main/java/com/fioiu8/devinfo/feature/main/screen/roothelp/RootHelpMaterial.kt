@@ -18,11 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,9 +33,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.feature.main.R
+import com.fioiu8.devinfo.ui.SegmentedGroup
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,49 +82,36 @@ fun RootHelpScreenMaterial(
                 )
             }
 
-            items(state.sections) { section ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = section.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        section.steps.forEachIndexed { index, step ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                            ) {
+            items(state.sections, key = { it.title }) { section ->
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    SegmentedGroup(title = section.title) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            section.steps.forEachIndexed { index, step ->
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        text = "${index + 1}.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.width(24.dp),
+                                    )
+                                    Text(
+                                        text = step,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            }
+                            section.note?.let { note ->
+                                Spacer(Modifier.height(4.dp))
                                 Text(
-                                    text = "${index + 1}.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.width(24.dp),
-                                )
-                                Text(
-                                    text = step,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.weight(1f),
+                                    text = note,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
                                 )
                             }
-                        }
-                        section.note?.let { note ->
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                text = note,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                            )
                         }
                     }
                 }

@@ -8,6 +8,7 @@ package com.fioiu8.devinfo.data
 
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import com.fioiu8.devinfo.core.model.CpuUsageReading
 import java.lang.ref.WeakReference
 import kotlinx.coroutines.CancellationException
@@ -20,6 +21,10 @@ import kotlinx.coroutines.withContext
 
 fun cpuSamplingIntervalMs(consecutiveFailures: Int): Long =
     if (consecutiveFailures >= 3) 5_000L else 2_000L
+
+/** 固定频率调度：扣除本次读取耗时，避免读得越慢周期越长的漂移。 */
+fun cpuSamplingDelayMs(elapsedMs: Long, consecutiveFailures: Int): Long =
+    (cpuSamplingIntervalMs(consecutiveFailures) - elapsedMs).coerceAtLeast(0L)
 
 /** Handler-driven sampler whose scheduled task cannot retain a disposed screen. */
 class CpuUsageSampler(private val collector: DeviceInfoCollector) {
@@ -45,7 +50,9 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
                 if (!sampler.running) return
                 val runGeneration = sampler.generation
                 sampler.scope.launch {
+                    val startedAt = SystemClock.uptimeMillis()
                     val reading = sampler.read()
+                    val elapsed = SystemClock.uptimeMillis() - startedAt
                     withContext(Dispatchers.Main.immediate) {
                         if (!sampler.running || sampler.generation != runGeneration) return@withContext
                         if (reading != sampler.lastDeliveredReading) {
@@ -53,7 +60,10 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
                             runCatching { sampler.onSample?.invoke(reading) }
                         }
                         if (sampler.running) {
-                            sampler.handler.postDelayed(sampler.task, sampler.nextDelay(reading))
+                            sampler.handler.postDelayed(
+                                sampler.task,
+                                sampler.nextDelay(reading, elapsed),
+                            )
                         }
                     }
                 }
@@ -84,53 +94,31 @@ class CpuUsageSampler(private val collector: DeviceInfoCollector) {
     }
 
     private suspend fun read(): CpuUsageReading {
-        val cores = try {
+        return try {
             if (useRoot) {
-                collector.getCpuCoreMetricsWithRoot().ifEmpty { collector.getCpuCoreMetrics() }
+                val rooted = collector.readCpuUsageReading(useRoot = true)
+                if (rooted.coreMetrics.isNotEmpty() || rooted.overallUsage != null) {
+                    rooted
+                } else {
+                    collector.readCpuUsageReading()
+                }
             } else {
-                collector.getCpuCoreMetrics()
+                collector.readCpuUsageReading()
             }
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            emptyList()
-        }
-        return if (cores.isNotEmpty()) {
-            val perCoreAverage = cores.mapNotNull { it.usagePercent }
-                .average()
-                .toFloat()
-                .takeIf { !it.isNaN() }
-            CpuUsageReading(
-                cores,
-                perCoreAverage ?: try {
-                    collector.getCpuUsagePercent()
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    null
-                }
-            )
-        } else {
-            CpuUsageReading(
-                emptyList(),
-                try {
-                    collector.getCpuUsagePercent()
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    null
-                }
-            )
+            CpuUsageReading(emptyList(), null)
         }
     }
 
-    private fun nextDelay(reading: CpuUsageReading): Long {
+    private fun nextDelay(reading: CpuUsageReading, elapsedMs: Long): Long {
         if (reading.overallUsage == null && reading.coreMetrics.none { it.usagePercent != null }) {
             consecutiveFailures++
         } else {
             consecutiveFailures = 0
         }
-        return cpuSamplingIntervalMs(consecutiveFailures)
+        return cpuSamplingDelayMs(elapsedMs, consecutiveFailures)
     }
 
 }

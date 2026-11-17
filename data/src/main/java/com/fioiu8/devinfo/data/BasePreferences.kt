@@ -39,7 +39,7 @@ abstract class BasePreferences<T : CharSequence>(
         key: T,
         defaultValue: V,
     ): PersistentValue<V> {
-        val values = defaultValue.declaringJavaClass.enumConstants
+        val values = defaultValue.declaringJavaClass.enumConstants.orEmpty()
         return persistentValue(
             key = key,
             deserialize = { storedValue ->
