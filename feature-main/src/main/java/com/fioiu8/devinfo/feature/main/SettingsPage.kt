@@ -7,24 +7,19 @@
 package com.fioiu8.devinfo.feature.main
 import com.fioiu8.devinfo.ui.DevInfoExpressiveSwitch
 import com.fioiu8.devinfo.ui.DevInfoSegmentedDropdownItem
-import com.fioiu8.devinfo.ui.CategoryHeader
+import com.fioiu8.devinfo.ui.SegmentedGroup
+import com.fioiu8.devinfo.ui.SegmentedRow
 import com.fioiu8.devinfo.feature.main.R
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
 
@@ -34,9 +29,6 @@ import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -47,11 +39,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.fioiu8.devinfo.data.PreferenceValidators
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.data.AppLanguage
 
@@ -70,7 +60,7 @@ fun SettingsPage(
     languageOptions: List<String> = emptyList(),
     onLanguageChange: (Int) -> Unit = {},
     customLocaleTag: String = "",
-    onCustomLocaleTagChange: (String) -> Unit = {},
+    onCustomLocaleTagChange: (String) -> Boolean = { false },
 ) {
     MaterialSettingsPage(
         versionName = versionName,
@@ -103,7 +93,7 @@ private fun MaterialSettingsPage(
     languageOptions: List<String>,
     onLanguageChange: (Int) -> Unit,
     customLocaleTag: String,
-    onCustomLocaleTagChange: (String) -> Unit,
+    onCustomLocaleTagChange: (String) -> Boolean,
 ) {
 
     var showCustomLocaleDialog by rememberSaveable { mutableStateOf(false) }
@@ -144,10 +134,13 @@ private fun MaterialSettingsPage(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (PreferenceValidators.isValidLocaleTag(customLocaleInput)) {
-                            onCustomLocaleTagChange(customLocaleInput.trim())
+                        if (!PreferenceValidators.isValidLocaleTag(customLocaleInput)) {
+                            customLocaleError = true
+                        } else if (onCustomLocaleTagChange(customLocaleInput.trim())) {
                             showCustomLocaleDialog = false
                         } else {
+                            // 偏好层拒绝（例如存储写入失败）时保持对话框打开并给出反馈，
+                            // 不再静默关闭让用户以为已生效。
                             customLocaleError = true
                         }
                     },
@@ -166,140 +159,94 @@ private fun MaterialSettingsPage(
             top = 12.dp,
             bottom = 12.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            // 检查更新开关（置于顶部）
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Update,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.settings_check_update),
-                            style = MaterialTheme.typography.bodyLarge,
+            SegmentedGroup(title = stringResource(R.string.settings_category_app)) {
+                SegmentedRow(
+                    title = stringResource(R.string.settings_check_update),
+                    supporting = stringResource(R.string.settings_check_update_summary),
+                    leadingIcon = Icons.Outlined.Update,
+                    trailing = {
+                        DevInfoExpressiveSwitch(
+                            checked = checkUpdate,
+                            onCheckedChange = onCheckUpdateChange,
                         )
-                        Text(
-                            text = stringResource(R.string.settings_check_update_summary),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    DevInfoExpressiveSwitch(
-                        checked = checkUpdate,
-                        onCheckedChange = onCheckUpdateChange,
-                    )
-                }
+                    },
+                )
             }
         }
-        item { CategoryHeader(stringResource(R.string.category_appearance)) }
         item {
-            MaterialPreferenceAction(
-                icon = Icons.Outlined.Palette,
-                title = stringResource(R.string.theme_settings_title),
-                summary = stringResource(R.string.theme_settings_summary),
-                onClick = onThemeSettingsClick,
-            )
-        }
-
-        item {
-            Spacer(Modifier.height(8.dp))
-            CategoryHeader(stringResource(R.string.category_language))
+            SegmentedGroup(title = stringResource(R.string.category_appearance)) {
+                SegmentedRow(
+                    title = stringResource(R.string.theme_settings_title),
+                    supporting = stringResource(R.string.theme_settings_summary),
+                    leadingIcon = Icons.Outlined.Palette,
+                    showChevron = true,
+                    onClick = onThemeSettingsClick,
+                )
+            }
         }
         item {
-            MaterialLanguageDropdown(
-                icon = Icons.Outlined.Translate,
-                title = stringResource(R.string.language_setting),
-                summary = languageOptions.getOrElse(AppLanguage.entries.indexOf(appLanguage)) {
-                    stringResource(R.string.language_system)
-                },
-                items = languageOptions,
-                selectedIndex = AppLanguage.entries.indexOf(appLanguage),
-                onSelectedIndexChange = { index ->
-                    val selected = AppLanguage.entries.getOrNull(index) ?: return@MaterialLanguageDropdown
-                    if (selected.isCustom) {
-                        customLocaleInput = customLocaleTag
-                        showCustomLocaleDialog = true
-                    } else {
-                        onLanguageChange(index)
-                    }
-                },
-            )
-        }
-
-        item {
-            Spacer(Modifier.height(8.dp))
-            CategoryHeader(stringResource(R.string.category_tools))
+            SegmentedGroup(title = stringResource(R.string.category_language)) {
+                MaterialLanguageDropdown(
+                    icon = Icons.Outlined.Translate,
+                    title = stringResource(R.string.language_setting),
+                    summary = stringResource(R.string.language_setting_summary),
+                    items = languageOptions,
+                    selectedIndex = AppLanguage.entries.indexOf(appLanguage),
+                    onSelectedIndexChange = { index ->
+                        val selected = AppLanguage.entries.getOrNull(index)
+                            ?: return@MaterialLanguageDropdown
+                        if (selected.isCustom) {
+                            customLocaleInput = customLocaleTag
+                            showCustomLocaleDialog = true
+                        } else {
+                            onLanguageChange(index)
+                        }
+                    },
+                )
+            }
         }
         item {
-            MaterialPreferenceAction(
-                icon = Icons.Outlined.FileDownload,
-                title = stringResource(R.string.export_tool),
-                summary = stringResource(R.string.export_summary),
-                onClick = onExportClick,
-            )
+            SegmentedGroup(title = stringResource(R.string.category_tools)) {
+                SegmentedRow(
+                    title = stringResource(R.string.export_tool),
+                    supporting = stringResource(R.string.export_summary),
+                    leadingIcon = Icons.Outlined.FileDownload,
+                    showChevron = true,
+                    onClick = onExportClick,
+                )
+                SegmentedRow(
+                    title = stringResource(R.string.root_help_title),
+                    supporting = stringResource(R.string.root_help_settings_summary),
+                    leadingIcon = Icons.Outlined.Security,
+                    showChevron = true,
+                    onClick = onRootHelpClick,
+                )
+            }
         }
         item {
-            MaterialPreferenceAction(
-                icon = Icons.Outlined.Security,
-                title = stringResource(R.string.root_help_title),
-                summary = stringResource(R.string.root_help_settings_summary),
-                onClick = onRootHelpClick,
-            )
-        }
-
-        item {
-            Spacer(Modifier.height(8.dp))
-            CategoryHeader(stringResource(R.string.category_about))
+            SegmentedGroup(title = stringResource(R.string.category_about)) {
+                SegmentedRow(
+                    title = stringResource(R.string.about_app),
+                    supporting = stringResource(R.string.about_summary),
+                    leadingIcon = Icons.Outlined.Info,
+                    showChevron = true,
+                    onClick = onAboutClick,
+                )
+            }
         }
         item {
-            MaterialPreferenceAction(
-                icon = Icons.Outlined.Info,
-                title = stringResource(R.string.about_app),
-                summary = stringResource(R.string.about_summary),
-                onClick = onAboutClick,
-            )
-        }
-
-        item {
-            Column(
+            Text(
+                text = "${stringResource(R.string.copyright)} · ${stringResource(R.string.version)} $versionName ($versionCode)",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp, bottom = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = stringResource(R.string.footer_tag),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = stringResource(R.string.version) + " $versionName ($versionCode)",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = stringResource(R.string.copyright),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+                    .padding(vertical = 8.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
         }
     }
 }
@@ -323,55 +270,4 @@ private fun MaterialLanguageDropdown(
         onItemSelected = onSelectedIndexChange,
         valueColor = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-}
-
-@Composable
-private fun MaterialPreferenceAction(
-    icon: ImageVector,
-    title: String,
-    summary: String,
-    onClick: () -> Unit,
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                )
-                Text(
-                    text = summary,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
 }

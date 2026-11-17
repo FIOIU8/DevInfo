@@ -148,3 +148,11 @@ internal fun MainRoute.navigationDepth(): Int = when (this) {
     MainRoute.About,
     MainRoute.RootHelp -> 1
 }
+
+/** 只有数据页需要前台轮询；设置类页面不渲染任何实时采集结果。 */
+internal fun MainRoute.showsLiveData(): Boolean = when (this) {
+    MainRoute.Overview,
+    is MainRoute.Details -> true
+
+    else -> false
+}

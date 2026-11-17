@@ -45,15 +45,21 @@ fun AboutScreen(
         id = R.string.about_source_link,
         "<b><a href=\"https://github.com/FIOIU8/DevInfo\">GitHub</a></b>"
     )
-    val state = AboutUiState(
-        title = stringResource(R.string.about_app),
-        appName = stringResource(R.string.app_name),
-        versionName = versionName,
-        links = extractLinks(htmlString) + LinkInfo(
-            fullText = stringResource(R.string.view_license),
-            url = LICENSE_URI,
-        ),
-    )
+    val title = stringResource(R.string.about_app)
+    val appName = stringResource(R.string.app_name)
+    val licenseLabel = stringResource(R.string.view_license)
+    // HTML 解析与链接提取是纯计算，但没必要每次重组都重做。
+    val state = remember(versionName, htmlString, title, appName, licenseLabel) {
+        AboutUiState(
+            title = title,
+            appName = appName,
+            versionName = versionName,
+            links = extractLinks(htmlString) + LinkInfo(
+                fullText = licenseLabel,
+                url = LICENSE_URI,
+            ),
+        )
+    }
     val actions = AboutScreenActions(
         onBack = onBack,
         onOpenLink = { url ->

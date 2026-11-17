@@ -9,7 +9,6 @@ import com.fioiu8.devinfo.feature.main.R
 import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -22,13 +21,9 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
@@ -44,6 +39,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.fioiu8.devinfo.ui.SegmentedGroup
+import com.fioiu8.devinfo.ui.SegmentedRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,31 +103,13 @@ fun AboutScreenMaterial(
             }
 
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
-                ) {
-                    state.links.forEachIndexed { index, linkInfo ->
-                        if (index > 0) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                            )
-                        }
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { actions.onOpenLink(linkInfo.url) }
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                        ) {
-                            Text(
-                                text = linkInfo.fullText,
-                                style = MaterialTheme.typography.bodyLarge,
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    SegmentedGroup {
+                        state.links.forEach { linkInfo ->
+                            SegmentedRow(
+                                title = linkInfo.fullText,
+                                showChevron = true,
+                                onClick = { actions.onOpenLink(linkInfo.url) },
                             )
                         }
                     }

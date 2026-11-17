@@ -31,6 +31,7 @@ import com.fioiu8.devinfo.data.UpdateChecker
 import com.fioiu8.devinfo.data.AppLanguage
 import com.fioiu8.devinfo.data.CpuUsageSampler
 import com.fioiu8.devinfo.core.model.PaletteStyle
+import com.fioiu8.devinfo.core.model.MotionLevel
 import com.fioiu8.devinfo.feature.main.MainScreen
 import com.fioiu8.devinfo.feature.main.MainScreenSettings
 import com.fioiu8.devinfo.feature.main.MainViewModel
@@ -123,6 +124,7 @@ class MainActivity : ComponentActivity() {
             val colorSpec by themePrefs.colorSpec.collectAsStateWithLifecycle(initialValue = com.fioiu8.devinfo.core.model.ColorSpec.DEFAULT)
             val pageScale by themePrefs.pageScale.collectAsStateWithLifecycle(initialValue = 1f)
             val enablePredictiveBack by themePrefs.enablePredictiveBack.collectAsStateWithLifecycle(initialValue = true)
+            val motionLevel by themePrefs.motionLevel.collectAsStateWithLifecycle(initialValue = MotionLevel.STANDARD)
             val systemDensity = LocalDensity.current
             val scaledDensity = remember(systemDensity, pageScale) {
                 Density(
@@ -140,6 +142,7 @@ class MainActivity : ComponentActivity() {
                 colorSpec,
                 pageScale,
                 enablePredictiveBack,
+                motionLevel,
             ) {
                 MainScreenSettings(
                     themeMode = themeMode,
@@ -156,6 +159,8 @@ class MainActivity : ComponentActivity() {
                     onPageScaleChange = themePrefs::setPageScale,
                     enablePredictiveBack = enablePredictiveBack,
                     onEnablePredictiveBackChange = themePrefs::setEnablePredictiveBack,
+                    motionLevel = motionLevel,
+                    onMotionLevelChange = themePrefs::setMotionLevel,
                     appLanguage = appLanguage,
                     customLocaleTag = customLocaleTag,
                     onAppLanguageChange = { selected ->
@@ -163,16 +168,22 @@ class MainActivity : ComponentActivity() {
                         if (!selected.isCustom) recreate()
                     },
                     onCustomLocaleTagChange = { tag ->
-                        if (languagePrefs.setCustomLocaleTag(tag)) {
+                        val applied = languagePrefs.setCustomLocaleTag(tag)
+                        if (applied) {
                             languagePrefs.setAppLanguage(AppLanguage.CUSTOM)
                             recreate()
                         }
+                        applied
                     }
                 )
             }
 
             CompositionLocalProvider(LocalDensity provides scaledDensity) {
-                DevInfoTheme(themeMode = themeMode, themeColor = themeColor) {
+                DevInfoTheme(
+                    themeMode = themeMode,
+                    themeColor = themeColor,
+                    motionLevel = motionLevel,
+                ) {
                     MainScreen(
                         viewModel = mainViewModel,
                         settings = mainScreenSettings,

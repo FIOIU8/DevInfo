@@ -10,6 +10,8 @@ import com.fioiu8.devinfo.feature.main.R
 import com.fioiu8.devinfo.ui.DevInfoNavigationItem
 import com.fioiu8.devinfo.ui.DevInfoSnackbarHost
 import com.fioiu8.devinfo.ui.TestVersionWarningCard
+import com.fioiu8.devinfo.ui.motion.LocalDevInfoMotionLevel
+import com.fioiu8.devinfo.ui.motion.devInfoRouteTransform
 import com.fioiu8.devinfo.ui.rememberDevInfoMessageHandler
 import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassBackdropHost
 import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassIconButton
@@ -22,15 +24,6 @@ import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -106,6 +99,7 @@ import com.fioiu8.devinfo.feature.main.BuildConfig
 import com.fioiu8.devinfo.data.GitHubClient
 import com.fioiu8.devinfo.data.ModuleExportHelper
 import com.fioiu8.devinfo.core.model.UpdateState
+import com.fioiu8.devinfo.core.model.MotionLevel
 import com.fioiu8.devinfo.core.root.RootAccess
 import com.fioiu8.devinfo.data.AppLanguage
 import com.fioiu8.devinfo.core.model.PaletteStyle
@@ -134,10 +128,12 @@ data class MainScreenSettings(
     val onPageScaleChange: (Float) -> Unit,
     val enablePredictiveBack: Boolean,
     val onEnablePredictiveBackChange: (Boolean) -> Unit,
+    val motionLevel: MotionLevel,
+    val onMotionLevelChange: (MotionLevel) -> Unit,
     val appLanguage: AppLanguage,
     val customLocaleTag: String,
     val onAppLanguageChange: (AppLanguage) -> Unit,
-    val onCustomLocaleTagChange: (String) -> Unit
+    val onCustomLocaleTagChange: (String) -> Boolean
 )
 
 /** Renders navigation and UI effects while [MainViewModel] owns data coordination. */
@@ -250,8 +246,19 @@ fun MainScreen(
         }
     }
 
-    LaunchedEffect(navigator.isOverviewVisible, viewModel) {
-        viewModel.onOverviewVisibilityChanged(navigator.isOverviewVisible)
+    LaunchedEffect(navigator.currentRoute, navigator.isOverviewVisible, viewModel) {
+        viewModel.onRouteVisibilityChanged(
+            isDataPageVisible = navigator.currentRoute.showsLiveData(),
+            isOverviewVisible = navigator.isOverviewVisible,
+        )
+    }
+
+    val refreshFailed by viewModel.refreshFailed.collectAsStateWithLifecycle()
+    val refreshFailedMessage = stringResource(R.string.refresh_failed)
+    LaunchedEffect(refreshFailed) {
+        if (refreshFailed && viewModel.consumeRefreshFailure()) {
+            showMessage(refreshFailedMessage)
+        }
     }
 
     LaunchedEffect(updateState) {
@@ -259,14 +266,20 @@ fun MainScreen(
             UpdateState.UP_TO_DATE -> {
                 // “已是最新版本”提示仅在用户手动触发检查时弹出，
                 // 避免每次冷启动自动检查都打扰
-                if (viewModel.consumeUserInitiatedUpdateCheck()) {
+                val userInitiated = viewModel.consumeUserInitiatedUpdateCheck()
+                if (shouldNotifyAlreadyLatest(updateState, userInitiated)) {
                     showMessage(alreadyLatestMessage)
                 }
                 viewModel.resetUpdateState()
             }
 
             UpdateState.NEW_VERSION_AVAILABLE,
-            UpdateState.ERROR -> showUpdateDialog = true
+            UpdateState.ERROR -> {
+                // 发现新版本/失败同样是终态：必须清掉手动标记，
+                // 否则下一次自动检查可能误弹“已是最新”。
+                viewModel.consumeUserInitiatedUpdateCheck()
+                showUpdateDialog = true
+            }
 
             else -> Unit
         }
@@ -353,7 +366,6 @@ fun MainScreen(
                         },
                         navigator = navigator,
                         viewModel = viewModel,
-                        uiState = uiState,
                         settings = settings,
                         rootFabBottomPadding = snackbarBottomPadding,
                         onExportClick = { showExportDialog = true },
@@ -463,7 +475,6 @@ private fun MainNavigationHost(
     consumedStartInsets: WindowInsets,
     navigator: MainNavigator,
     viewModel: MainViewModel,
-    uiState: MainViewModel.MainUiState,
     settings: MainScreenSettings,
     rootFabBottomPadding: androidx.compose.ui.unit.Dp,
     onExportClick: () -> Unit,
@@ -482,7 +493,6 @@ private fun MainNavigationHost(
             route = route,
             navigator = navigator,
             viewModel = viewModel,
-            uiState = uiState,
             settings = settings,
             rootFabBottomPadding = rootFabBottomPadding,
             onExportClick = onExportClick,
@@ -491,22 +501,30 @@ private fun MainNavigationHost(
     }
 
     val canGoBack = navigator.backStack.size > 1
-    if (enablePredictiveBack) {
-        PredictiveBackHandler(enabled = canGoBack) { events ->
+    val atSettingsRoot = navigator.currentRoute == MainRoute.Settings
+    if (enablePredictiveBack && canGoBack) {
+        PredictiveBackHandler(enabled = true) { events ->
             events.collect { }
             navigator.pop()
         }
     } else {
-        BackHandler(enabled = canGoBack) {
-            navigator.pop()
+        // 设置是第二个根页：栈里只有它时，系统返回应回到概览而不是退出应用。
+        BackHandler(enabled = canGoBack || atSettingsRoot) {
+            if (!navigator.pop()) navigator.selectTab(INFO_TAB_INDEX)
         }
     }
 
     val stateHolder = rememberSaveableStateHolder()
+    val motionLevel = LocalDevInfoMotionLevel.current
     Box(modifier = hostModifier) {
         AnimatedContent(
             targetState = navigator.currentRoute,
-            transitionSpec = { mainRouteTransition(initialState, targetState) },
+            transitionSpec = {
+                devInfoRouteTransform(
+                    forward = mainRouteForward(initialState, targetState),
+                    level = motionLevel,
+                )
+            },
             label = "mainNavigationTransition",
         ) { route ->
             // SaveableStateHolder keys must be Bundle-compatible on Android.
@@ -523,31 +541,37 @@ private fun MainRouteContent(
     route: MainRoute,
     navigator: MainNavigator,
     viewModel: MainViewModel,
-    uiState: MainViewModel.MainUiState,
     settings: MainScreenSettings,
     rootFabBottomPadding: androidx.compose.ui.unit.Dp,
     onExportClick: () -> Unit,
     onRootFabClick: () -> Unit,
 ) {
+    // 结构状态（条目、加载、Root）变化频率很低；实时数据由各路由自行订阅，
+    // 避免 2–10 Hz 的指标更新把整棵路由树一起重组。
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
     when (route) {
-        MainRoute.Overview -> MainAppScaffold(
-            title = stringResource(R.string.overview_title),
-            showBackButton = false,
-            onBack = {},
-            onSettingsClick = navigator::openSettings,
-            showRootFab = false,
-            isRootModeEnabled = uiState.isRootModeEnabled,
-            rootFabBottomPadding = rootFabBottomPadding,
-            onRootFabClick = onRootFabClick,
-        ) {
-            DeviceInfoOverviewPage(
-                itemsState = uiState.deviceInfoItems,
-                isLoading = uiState.isDeviceInfoLoading,
-                isOverviewLoading = uiState.isOverviewLoading,
-                snapshot = uiState.overviewSnapshot,
-                onRefresh = { viewModel.refreshAndAwait() },
-                onOpenDetails = navigator::openDetails,
-            )
+        MainRoute.Overview -> {
+            val overviewSnapshot by viewModel.overviewSnapshot.collectAsStateWithLifecycle()
+            MainAppScaffold(
+                title = stringResource(R.string.overview_title),
+                showBackButton = false,
+                onBack = {},
+                onSettingsClick = navigator::openSettings,
+                showRootFab = false,
+                isRootModeEnabled = uiState.isRootModeEnabled,
+                rootFabBottomPadding = rootFabBottomPadding,
+                onRootFabClick = onRootFabClick,
+            ) {
+                DeviceInfoOverviewPage(
+                    itemsState = uiState.deviceInfoItems,
+                    isLoading = uiState.isDeviceInfoLoading,
+                    isOverviewLoading = uiState.isOverviewLoading,
+                    snapshot = overviewSnapshot,
+                    onRefresh = { viewModel.refreshAndAwait() },
+                    onOpenDetails = navigator::openDetails,
+                )
+            }
         }
 
         MainRoute.Settings -> {
@@ -596,9 +620,9 @@ private fun MainRouteContent(
             HardwareDetailsPage(
                 itemsState = uiState.deviceInfoItems,
                 isLoading = uiState.isDeviceInfoLoading,
-                overviewSnapshot = uiState.overviewSnapshot,
-                hardwareDetails = uiState.hardwareDetails,
-                motionSensors = uiState.motionSensors,
+                overviewSnapshot = viewModel.overviewSnapshot,
+                hardwareDetails = viewModel.hardwareDetails,
+                motionSensors = viewModel.motionSensors,
                 onRefresh = { viewModel.refreshAndAwait() },
                 initialPage = navigator.detailsPage(route),
                 onSensorPageVisibilityChanged = viewModel::onSensorsPageVisibilityChanged,
@@ -618,6 +642,8 @@ private fun MainRouteContent(
             onPageScaleChange = settings.onPageScaleChange,
             enablePredictiveBack = settings.enablePredictiveBack,
             onEnablePredictiveBackChange = settings.onEnablePredictiveBackChange,
+            motionLevel = settings.motionLevel,
+            onMotionLevelChange = settings.onMotionLevelChange,
             onBack = { navigator.pop() },
         )
 
@@ -675,29 +701,22 @@ private fun MainAppScaffold(
     }
 }
 
-private fun mainRouteTransition(
+/** “已是最新版本”只应在用户主动检查且结果确实为最新时提示。 */
+internal fun shouldNotifyAlreadyLatest(state: UpdateState, userInitiated: Boolean): Boolean =
+    state == UpdateState.UP_TO_DATE && userInitiated
+
+private fun mainRouteForward(
     initialState: MainRoute,
     targetState: MainRoute,
-): ContentTransform {
-    val initialDepth = initialState.navigationDepth()
+): Boolean {    val initialDepth = initialState.navigationDepth()
     val targetDepth = targetState.navigationDepth()
-    val direction = when {
-        targetDepth > initialDepth -> FORWARD_DIRECTION
-        targetDepth < initialDepth -> BACKWARD_DIRECTION
-        targetState == MainRoute.Settings && initialState == MainRoute.Overview -> FORWARD_DIRECTION
-        targetState == MainRoute.Overview && initialState == MainRoute.Settings -> BACKWARD_DIRECTION
-        else -> FORWARD_DIRECTION
+    return when {
+        targetDepth > initialDepth -> true
+        targetDepth < initialDepth -> false
+        targetState == MainRoute.Settings && initialState == MainRoute.Overview -> true
+        targetState == MainRoute.Overview && initialState == MainRoute.Settings -> false
+        else -> true
     }
-    return (fadeIn(tween(260, easing = FastOutSlowInEasing)) +
-        slideInHorizontally(
-            animationSpec = tween(320, easing = FastOutSlowInEasing),
-        ) { direction * it })
-        .togetherWith(
-            fadeOut(tween(180, easing = LinearOutSlowInEasing)) +
-                slideOutHorizontally(
-                    animationSpec = tween(240, easing = LinearOutSlowInEasing),
-                ) { -direction * it / 4 },
-        )
 }
 
 private typealias MainNavigationItem = DevInfoNavigationItem
@@ -951,8 +970,6 @@ private fun openUrl(
     }
 }
 
-private const val FORWARD_DIRECTION = 1
-private const val BACKWARD_DIRECTION = -1
 private const val TABLET_NAVIGATION_RAIL_MIN_WIDTH_DP = 600
 
 private val UriSaver = Saver<Uri?, String>(

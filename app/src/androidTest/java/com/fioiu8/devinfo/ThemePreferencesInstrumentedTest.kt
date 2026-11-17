@@ -9,10 +9,12 @@ package com.fioiu8.devinfo
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.fioiu8.devinfo.core.model.MotionLevel
 import com.fioiu8.devinfo.core.model.ThemeMode
 import com.fioiu8.devinfo.data.ThemePreferences
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -24,7 +26,12 @@ class ThemePreferencesInstrumentedTest {
     @Test
     fun legacyUiStyleValueIsPreservedAndIgnored() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        context.deleteSharedPreferences("devinfo_theme_prefs")
+        // clear() 会清空值但保留 SharedPreferences 实例；deleteSharedPreferences
+        // 会让 ThemePreferences 单例持有的实例失效，影响同一进程内的后续测试。
+        context.getSharedPreferences("devinfo_theme_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
         try {
             val seeded = context.getSharedPreferences("devinfo_theme_prefs", Context.MODE_PRIVATE)
                 .edit()
@@ -41,7 +48,33 @@ class ThemePreferencesInstrumentedTest {
                     .getString("ui_style", null),
             )
         } finally {
-            context.deleteSharedPreferences("devinfo_theme_prefs")
+            context.getSharedPreferences("devinfo_theme_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .commit()
         }
+    }
+
+    @Test
+    fun motionLevelPersistsAndInvalidValuesFallBackToStandard() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val preferences = ThemePreferences.getInstance(context)
+        try {
+            preferences.setMotionLevel(MotionLevel.FULL)
+            assertEquals(MotionLevel.FULL, preferences.motionLevel.first())
+
+            context.getSharedPreferences("devinfo_theme_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putString("motion_level", "NOT_A_LEVEL")
+                .commit()
+
+            // 偏好变更通过监听器异步回传到 StateFlow，等待其落到默认值。
+            withTimeout(2_000) {
+                preferences.motionLevel.first { it == MotionLevel.STANDARD }
+            }
+        } finally {
+            preferences.setMotionLevel(MotionLevel.STANDARD)
+        }
+        Unit
     }
 }

@@ -44,6 +44,7 @@ import com.fioiu8.devinfo.core.cpu.parseCpuTimes
 import com.fioiu8.devinfo.core.cpu.parseCpuUptime
 import com.fioiu8.devinfo.core.cpu.parseTopCpuUsage
 import com.fioiu8.devinfo.core.model.CpuCoreMetric
+import com.fioiu8.devinfo.core.model.CpuUsageReading
 import com.fioiu8.devinfo.core.root.ROOT_AUTHORIZATION_TIMEOUT_MS
 import com.fioiu8.devinfo.core.root.ROOT_PROBE_COMMAND
 import com.fioiu8.devinfo.core.root.RootAccess
@@ -55,9 +56,7 @@ import com.fioiu8.devinfo.core.model.SensorHardwareInfo
 import com.fioiu8.devinfo.core.model.DeviceInfoItem
 import com.fioiu8.devinfo.core.model.InfoCategory
 import java.io.File
-import java.text.SimpleDateFormat
 import java.util.Currency
-import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.CountDownLatch
@@ -116,33 +115,79 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     /**
-     * 一次采集内的共享资源。电池广播、内存信息、网络能力、包信息这些 binder/IPC
-     * 调用代价较高，整次采集只获取一次，既避免重复开销，也保证同一时间点的快照一致性。
+     * 一次采集内的共享资源。
+     *
+     * 电池广播、内存信息、网络能力、包信息、相机/传感器清单与存储容量这些
+     * binder/IPC 调用代价较高；整次刷新（概览、字段列表、硬件详情三个并行任务）
+     * 只获取一次，既避免重复开销，也保证同一时间点的快照一致性。
      */
-    private class CollectContext(
-        val batteryIntent: Intent?,
-        val memoryInfo: ActivityManager.MemoryInfo,
-        val connectivityManager: ConnectivityManager?,
-        val networkCapabilities: NetworkCapabilities?,
-        val packageInfo: PackageInfo?,
+    class CollectionSession internal constructor(
+        internal val batteryIntent: Intent?,
+        internal val memoryInfo: ActivityManager.MemoryInfo,
+        internal val connectivityManager: ConnectivityManager?,
+        internal val networkCapabilities: NetworkCapabilities?,
+        internal val packageInfo: PackageInfo?,
+        internal val cameraIds: List<String>?,
+        internal val sensorList: List<Sensor>?,
+        internal val installedPackageCount: Int?,
+        internal val externalStorageTotalBytes: Long?,
+        internal val externalStorageFreeBytes: Long?,
+        internal val dataStorageTotalBytes: Long?,
+        internal val dataStorageFreeBytes: Long?,
     )
 
-    private fun newCollectContext(): CollectContext {
+    /** 构建一次刷新共享的采集会话；包含阻塞调用，必须在 IO 线程执行。 */
+    fun newCollectionSession(): CollectionSession {
         // 粘性广播：registerReceiver(null, filter) 返回最近一次系统广播，本次采集内的
         // 所有电池字段都从这份快照读取，后续广播更新不影响本次采集（符合预期）。
-        val batteryIntent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val batteryIntent = runCatching {
+            context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        }.getOrNull()
         val memoryInfo = ActivityManager.MemoryInfo().also {
-            (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(it)
+            runCatching {
+                (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(it)
+            }
         }
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-        val networkCapabilities = connectivityManager?.activeNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
-        val packageInfo = runCatching { context.packageManager.getPackageInfo(context.packageName, 0) }.getOrNull()
-        return CollectContext(batteryIntent, memoryInfo, connectivityManager, networkCapabilities, packageInfo)
+        val networkCapabilities = runCatching {
+            connectivityManager?.activeNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
+        }.getOrNull()
+        val packageInfo = runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0)
+        }.getOrNull()
+        val cameraIds = runCatching {
+            (context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager)?.cameraIdList?.toList()
+        }.getOrNull()
+        val sensorList = runCatching {
+            (context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager)
+                ?.getSensorList(Sensor.TYPE_ALL)
+        }.getOrNull()
+        val installedPackageCount = runCatching {
+            // minSdk 33：直接使用带 PackageInfoFlags 的版本。
+            context.packageManager
+                .getInstalledPackages(PackageManager.PackageInfoFlags.of(0)).size
+        }.getOrNull()
+        val externalDir = Environment.getExternalStorageDirectory()
+        val dataDir = Environment.getDataDirectory()
+        return CollectionSession(
+            batteryIntent = batteryIntent,
+            memoryInfo = memoryInfo,
+            connectivityManager = connectivityManager,
+            networkCapabilities = networkCapabilities,
+            packageInfo = packageInfo,
+            cameraIds = cameraIds,
+            sensorList = sensorList,
+            installedPackageCount = installedPackageCount,
+            externalStorageTotalBytes = runCatching { externalDir.totalSpace }.getOrNull(),
+            externalStorageFreeBytes = runCatching { externalDir.freeSpace }.getOrNull(),
+            dataStorageTotalBytes = runCatching { dataDir.totalSpace }.getOrNull(),
+            dataStorageFreeBytes = runCatching { dataDir.freeSpace }.getOrNull(),
+        )
     }
 
     suspend fun collectDeviceInfo(): List<DeviceInfoItem> = withContext(Dispatchers.IO) {
-        val ctx = newCollectContext()
-        infoItemSuppliers(ctx).mapNotNull { supplier ->
+        val session = newCollectionSession()
+        infoItemSuppliers(session).mapNotNull { supplier ->
             try {
                 supplier()
             } catch (_: Exception) {
@@ -153,66 +198,68 @@ class DeviceInfoCollector(private val context: Context) {
 
     /** Reads camera characteristics and the static sensor inventory without opening the camera. */
     suspend fun collectHardwareDetails(): HardwareDetailsSnapshot = withContext(Dispatchers.IO) {
-        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
-        val cameraIds = try {
-            cameraManager?.cameraIdList
-        } catch (_: Exception) {
-            null
-        }
-        val cameras = cameraIds.orEmpty().map { id ->
-            val characteristics = try {
-                cameraManager?.getCameraCharacteristics(id)
-            } catch (_: Exception) {
-                null
-            }
-            val pixelArray: Size? = characteristics?.get(CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE)
-            val physicalSize = characteristics?.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
-            CameraHardwareInfo(
-                id = id,
-                characteristicsAvailable = characteristics != null,
-                lensFacing = characteristics?.get(CameraCharacteristics.LENS_FACING),
-                focalLengthsMm = characteristics
-                    ?.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
-                    ?.toList()
-                    .orEmpty(),
-                physicalWidthMm = physicalSize?.width,
-                physicalHeightMm = physicalSize?.height,
-                pixelWidth = pixelArray?.width,
-                pixelHeight = pixelArray?.height,
-                sensorOrientationDegrees = characteristics?.get(CameraCharacteristics.SENSOR_ORIENTATION)
-            )
-        }
-        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
-        val sensorList = try {
-            sensorManager?.getSensorList(Sensor.TYPE_ALL)
-        } catch (_: Exception) {
-            null
-        }
-        val sensors = sensorList.orEmpty()
-            .map { sensor ->
-                SensorHardwareInfo(
-                    name = sensor.name,
-                    vendor = sensor.vendor,
-                    type = sensor.type,
-                    typeName = sensor.stringType,
-                    maxRange = sensor.maximumRange.takeIf { it.isFinite() },
-                    resolution = sensor.resolution.takeIf { it.isFinite() },
-                    powerMilliAmps = sensor.power.takeIf { it.isFinite() },
-                    minDelayMicros = sensor.minDelay.takeIf { it >= 0 }
+        collectHardwareDetails(newCollectionSession())
+    }
+
+    suspend fun collectHardwareDetails(session: CollectionSession): HardwareDetailsSnapshot =
+        withContext(Dispatchers.IO) {
+            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
+            val cameraIds = session.cameraIds
+            val cameras = cameraIds.orEmpty().map { id ->
+                val characteristics = try {
+                    cameraManager?.getCameraCharacteristics(id)
+                } catch (_: Exception) {
+                    null
+                }
+                val pixelArray: Size? = characteristics?.get(CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE)
+                val physicalSize = characteristics?.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
+                CameraHardwareInfo(
+                    id = id,
+                    characteristicsAvailable = characteristics != null,
+                    lensFacing = characteristics?.get(CameraCharacteristics.LENS_FACING),
+                    focalLengthsMm = characteristics
+                        ?.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
+                        ?.toList()
+                        .orEmpty(),
+                    physicalWidthMm = physicalSize?.width,
+                    physicalHeightMm = physicalSize?.height,
+                    pixelWidth = pixelArray?.width,
+                    pixelHeight = pixelArray?.height,
+                    sensorOrientationDegrees = characteristics?.get(CameraCharacteristics.SENSOR_ORIENTATION)
                 )
             }
-        HardwareDetailsSnapshot(
-            cameras = cameras,
-            sensors = sensors,
-            cameraAccessAvailable = cameraIds != null,
-            sensorAccessAvailable = sensorList != null
-        )
-    }
+            val sensorList = session.sensorList
+            val sensors = sensorList.orEmpty()
+                .map { sensor ->
+                    SensorHardwareInfo(
+                        name = sensor.name,
+                        vendor = sensor.vendor,
+                        type = sensor.type,
+                        typeName = sensor.stringType,
+                        maxRange = sensor.maximumRange.takeIf { it.isFinite() },
+                        resolution = sensor.resolution.takeIf { it.isFinite() },
+                        powerMilliAmps = sensor.power.takeIf { it.isFinite() },
+                        minDelayMicros = sensor.minDelay.takeIf { it >= 0 }
+                    )
+                }
+            HardwareDetailsSnapshot(
+                cameras = cameras,
+                sensors = sensors,
+                cameraAccessAvailable = cameraIds != null,
+                sensorAccessAvailable = sensorList != null
+            )
+        }
 
     /** Reads one item at a time so the UI can publish successful results in source order. */
     suspend fun collectDeviceInfo(onItem: suspend (DeviceInfoItem) -> Unit) = withContext(Dispatchers.IO) {
-        val ctx = newCollectContext()
-        infoItemSuppliers(ctx).forEach { supplier ->
+        collectDeviceInfo(newCollectionSession(), onItem)
+    }
+
+    suspend fun collectDeviceInfo(
+        session: CollectionSession,
+        onItem: suspend (DeviceInfoItem) -> Unit,
+    ) = withContext(Dispatchers.IO) {
+        infoItemSuppliers(session).forEach { supplier ->
             val item = try {
                 supplier()
             } catch (_: Exception) {
@@ -222,16 +269,16 @@ class DeviceInfoCollector(private val context: Context) {
         }
     }
 
-    private fun infoItemSuppliers(ctx: CollectContext): List<() -> DeviceInfoItem?> = buildList {
+    private fun infoItemSuppliers(session: CollectionSession): List<() -> DeviceInfoItem?> = buildList {
         addAll(identifierInfoItemSuppliers())
         addAll(deviceInfoItemSuppliers())
-        addAll(systemInfoItemSuppliers())
+        addAll(systemInfoItemSuppliers(session))
         addAll(localeInfoItemSuppliers())
         addAll(displayInfoItemSuppliers())
-        addAll(storageInfoItemSuppliers(ctx))
-        addAll(batteryInfoItemSuppliers(ctx))
-        addAll(networkInfoItemSuppliers(ctx))
-        addAll(appInfoItemSuppliers(ctx))
+        addAll(storageInfoItemSuppliers(session))
+        addAll(batteryInfoItemSuppliers(session))
+        addAll(networkInfoItemSuppliers(session))
+        addAll(appInfoItemSuppliers(session))
     }
 
     private fun identifierInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
@@ -261,7 +308,7 @@ class DeviceInfoCollector(private val context: Context) {
         { infoItem(R.string.device_soc_model, getSocModel(), InfoCategory.DEVICE) }
     )
 
-    private fun systemInfoItemSuppliers(): List<() -> DeviceInfoItem?> = listOf(
+    private fun systemInfoItemSuppliers(session: CollectionSession): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.system_cpu_arch, Build.SUPPORTED_ABIS.joinToString(), InfoCategory.SYSTEM) },
         { infoItem(R.string.system_cpu_cores, Runtime.getRuntime().availableProcessors().toString(), InfoCategory.SYSTEM) },
         { infoItem(R.string.system_sdk_version, Build.VERSION.SDK_INT.toString(), InfoCategory.SYSTEM) },
@@ -277,7 +324,7 @@ class DeviceInfoCollector(private val context: Context) {
         { infoItem(R.string.system_opengl_version, getOpenGlVersion(), InfoCategory.SYSTEM) },
         { infoItem(R.string.system_google_play_services, getGooglePlayServicesVersion(), InfoCategory.SYSTEM) },
         { infoItem(R.string.system_treble, getTrebleSupport(), InfoCategory.SYSTEM) },
-        { infoItem(R.string.system_sensor_count, getSensorCount(), InfoCategory.SYSTEM) },
+        { infoItem(R.string.system_sensor_count, getSensorCount(session.sensorList), InfoCategory.SYSTEM) },
         { infoItem(R.string.system_boot_time, getBootTime(), InfoCategory.SYSTEM) },
         { infoItem(R.string.system_usb_debugging, getUsbDebuggingState(), InfoCategory.SYSTEM) },
         { infoItem(R.string.system_lock_screen, getLockScreenState(), InfoCategory.SYSTEM) }
@@ -312,63 +359,63 @@ class DeviceInfoCollector(private val context: Context) {
         { infoItem(R.string.display_supported_refresh_rates, getSupportedRefreshRates(), InfoCategory.DISPLAY) }
     )
 
-    private fun storageInfoItemSuppliers(ctx: CollectContext): List<() -> DeviceInfoItem?> = listOf(
-        { infoItem(R.string.storage_total_ram, getTotalMemory(ctx.memoryInfo), InfoCategory.STORAGE) },
-        { infoItem(R.string.storage_available_ram, getAvailMemory(ctx.memoryInfo), InfoCategory.STORAGE) },
-        { infoItem(R.string.storage_low_memory, getLowMemoryState(ctx.memoryInfo), InfoCategory.STORAGE) },
-        { infoItem(R.string.storage_memory_threshold, getMemoryThreshold(ctx.memoryInfo), InfoCategory.STORAGE) },
-        { infoItem(R.string.storage_total, getTotalStorage(), InfoCategory.STORAGE) },
-        { infoItem(R.string.storage_available, getFreeStorage(), InfoCategory.STORAGE) },
-        { infoItem(R.string.storage_internal_total, getInternalTotalStorage(), InfoCategory.STORAGE) },
-        { infoItem(R.string.storage_internal_available, getInternalFreeStorage(), InfoCategory.STORAGE) },
+    private fun storageInfoItemSuppliers(session: CollectionSession): List<() -> DeviceInfoItem?> = listOf(
+        { infoItem(R.string.storage_total_ram, getTotalMemory(session.memoryInfo), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_available_ram, getAvailMemory(session.memoryInfo), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_low_memory, getLowMemoryState(session.memoryInfo), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_memory_threshold, getMemoryThreshold(session.memoryInfo), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_total, formatStorageSize(session.externalStorageTotalBytes), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_available, formatStorageSize(session.externalStorageFreeBytes), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_internal_total, formatStorageSize(session.dataStorageTotalBytes), InfoCategory.STORAGE) },
+        { infoItem(R.string.storage_internal_available, formatStorageSize(session.dataStorageFreeBytes), InfoCategory.STORAGE) },
         { infoItem(R.string.storage_app_heap, getAppHeapLimit(), InfoCategory.STORAGE) },
         { infoItem(R.string.storage_emulated, getStorageEmulated(), InfoCategory.STORAGE) },
         { infoItem(R.string.storage_removable, getStorageRemovable(), InfoCategory.STORAGE) }
     )
 
-    private fun batteryInfoItemSuppliers(ctx: CollectContext): List<() -> DeviceInfoItem?> = listOf(
-        { infoItem(R.string.battery_level_label, getBatteryLevel(), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_charging_state, getBatteryCharging(), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_temperature, getBatteryProperty(ctx.batteryIntent, BatteryManager.EXTRA_TEMPERATURE), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_health, getBatteryHealth(ctx.batteryIntent), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_voltage, getBatteryProperty(ctx.batteryIntent, BatteryManager.EXTRA_VOLTAGE), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_technology, getBatteryTechnology(ctx.batteryIntent), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_plug_type, getBatteryPlugType(ctx.batteryIntent), InfoCategory.BATTERY) },
+    private fun batteryInfoItemSuppliers(session: CollectionSession): List<() -> DeviceInfoItem?> = listOf(
+        { infoItem(R.string.battery_level_label, getBatteryLevel(session.batteryIntent), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_charging_state, getBatteryCharging(session.batteryIntent), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_temperature, getBatteryProperty(session.batteryIntent, BatteryManager.EXTRA_TEMPERATURE), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_health, getBatteryHealth(session.batteryIntent), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_voltage, getBatteryProperty(session.batteryIntent, BatteryManager.EXTRA_VOLTAGE), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_technology, getBatteryTechnology(session.batteryIntent), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_plug_type, getBatteryPlugType(session.batteryIntent), InfoCategory.BATTERY) },
         { infoItem(R.string.battery_current_now, getBatteryCurrentNow(), InfoCategory.BATTERY) },
         { infoItem(R.string.battery_charge_counter, getBatteryChargeCounter(), InfoCategory.BATTERY) },
         { infoItem(R.string.battery_capacity_design, getBatteryDesignCapacity(), InfoCategory.BATTERY) },
-        { infoItem(R.string.battery_cycle_count, getBatteryCycleCount(ctx.batteryIntent), InfoCategory.BATTERY) },
+        { infoItem(R.string.battery_cycle_count, getBatteryCycleCount(session.batteryIntent), InfoCategory.BATTERY) },
         { infoItem(R.string.battery_power_save, getPowerSaveMode(), InfoCategory.BATTERY) }
     )
 
-    private fun networkInfoItemSuppliers(ctx: CollectContext): List<() -> DeviceInfoItem?> = listOf(
+    private fun networkInfoItemSuppliers(session: CollectionSession): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.network_nfc, if (NfcAdapter.getDefaultAdapter(context) != null) context.getString(R.string.status_supported) else context.getString(R.string.status_not_supported), InfoCategory.NETWORK) },
-        { infoItem(R.string.network_camera_count, getCameraCount(), InfoCategory.NETWORK) },
+        { infoItem(R.string.network_camera_count, getCameraCount(session.cameraIds), InfoCategory.NETWORK) },
         { infoItem(R.string.network_bluetooth_state, getBluetoothState(), InfoCategory.NETWORK) },
-        { infoItem(R.string.network_type, getNetworkType(ctx.networkCapabilities), InfoCategory.NETWORK) },
+        { infoItem(R.string.network_type, getNetworkType(session.networkCapabilities), InfoCategory.NETWORK) },
         { infoItem(R.string.network_operator, getNetworkOperator(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_sim_state, getSimState(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_sim_operator, getSimOperator(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_sim_country, getSimCountry(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_phone_type, getPhoneType(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_wifi_enabled, getWifiEnabledState(), InfoCategory.NETWORK) },
-        { infoItem(R.string.network_metered, getNetworkMetered(ctx.connectivityManager), InfoCategory.NETWORK) },
-        { infoItem(R.string.network_vpn, getVpnState(ctx.networkCapabilities), InfoCategory.NETWORK) },
+        { infoItem(R.string.network_metered, getNetworkMetered(session.connectivityManager), InfoCategory.NETWORK) },
+        { infoItem(R.string.network_vpn, getVpnState(session.networkCapabilities), InfoCategory.NETWORK) },
         { infoItem(R.string.network_airplane_mode, getAirplaneModeState(), InfoCategory.NETWORK) },
         { infoItem(R.string.network_data_roaming, getDataRoamingState(), InfoCategory.NETWORK) },
-        { infoItem(R.string.network_link_speed, getNetworkLinkSpeed(ctx.networkCapabilities), InfoCategory.NETWORK) }
+        { infoItem(R.string.network_link_speed, getNetworkLinkSpeed(session.networkCapabilities), InfoCategory.NETWORK) }
     )
 
-    private fun appInfoItemSuppliers(ctx: CollectContext): List<() -> DeviceInfoItem?> = listOf(
+    private fun appInfoItemSuppliers(session: CollectionSession): List<() -> DeviceInfoItem?> = listOf(
         { infoItem(R.string.app_package, context.packageName, InfoCategory.APP) },
         { infoItem(R.string.app_version_name, getAppVersionName(), InfoCategory.APP) },
         { infoItem(R.string.app_version_code, getAppVersionCode().toString(), InfoCategory.APP) },
-        { infoItem(R.string.app_first_install, getAppFirstInstallTime(ctx.packageInfo), InfoCategory.APP) },
-        { infoItem(R.string.app_last_update, getAppLastUpdateTime(ctx.packageInfo), InfoCategory.APP) },
+        { infoItem(R.string.app_first_install, getAppFirstInstallTime(session.packageInfo), InfoCategory.APP) },
+        { infoItem(R.string.app_last_update, getAppLastUpdateTime(session.packageInfo), InfoCategory.APP) },
         { infoItem(R.string.app_target_sdk, getAppTargetSdk(), InfoCategory.APP) },
         { infoItem(R.string.app_min_sdk, getAppMinSdk(), InfoCategory.APP) },
         { infoItem(R.string.app_installer, getAppInstaller(), InfoCategory.APP) },
-        { infoItem(R.string.app_installed_count, getVisibleInstalledAppCount(), InfoCategory.APP) }
+        { infoItem(R.string.app_installed_count, formatInstalledAppCount(session.installedPackageCount), InfoCategory.APP) }
     )
 
     private val statusUnknown: String = context.getString(R.string.status_unknown)
@@ -411,12 +458,8 @@ class DeviceInfoCollector(private val context: Context) {
         return mi
     }
 
-    private fun getTotalStorage() = safeGet(context.getString(R.string.status_unknown)) {
-        "${Environment.getExternalStorageDirectory().totalSpace / 1024 / 1024 / 1024} GB"
-    }
-
-    private fun getFreeStorage() = safeGet(context.getString(R.string.status_unknown)) {
-        "${Environment.getExternalStorageDirectory().freeSpace / 1024 / 1024 / 1024} GB"
+    private fun formatStorageSize(bytes: Long?): String = safeGet(statusUnknown) {
+        bytes?.let { "${it / 1024 / 1024 / 1024} GB" } ?: statusUnknown
     }
 
     /** 返回存储使用百分比 [0, 100] */
@@ -442,31 +485,115 @@ class DeviceInfoCollector(private val context: Context) {
 
     fun getCpuFrequency(): String? = readFrequency(*cpuFrequencyPaths(0).toTypedArray())
 
-    suspend fun getCpuCoreMetrics(): List<CpuCoreMetric> {
+    suspend fun getCpuCoreMetrics(): List<CpuCoreMetric> = readCpuUsageReading().coreMetrics
+
+    /**
+     * 一次采样同时产出每核与总体占用率。
+     *
+     * `/proc/stat` 每帧只读一次：旧实现先取每核、再在缺少 usage 时调用
+     * [getCpuUsagePercent] 重新读取两帧，导致同一采样周期最多 4 次文件读取，
+     * 在不允许读取 /proc 的设备上还会触发两次 `top` 子进程。
+     */
+    suspend fun readCpuUsageReading(useRoot: Boolean = false): CpuUsageReading {
         return try {
-            val first = readCpuTimesByCore()
-            if (first.isEmpty()) return getCpuCoreTopologyMetrics()
-            delay(CPU_USAGE_SAMPLE_DELAY_MS)
-            val second = readCpuTimesByCore()
-            (first.keys + second.keys).toSortedSet().map { index ->
-                val firstTimes = first[index]
-                val secondTimes = second[index]
-                val usage = if (firstTimes == null || secondTimes == null) {
-                    null
-                } else {
-                    val totalDelta = secondTimes.total - firstTimes.total
-                    val idleDelta = secondTimes.idle - firstTimes.idle
-                    if (totalDelta <= 0L) null else {
-                        ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
-                    }
+            if (useRoot) {
+                val first = readCpuStatSampleWithRoot() ?: return CpuUsageReading(emptyList(), null)
+                delay(CPU_USAGE_SAMPLE_DELAY_MS)
+                val second = readCpuStatSampleWithRoot()
+                buildCpuReading(first, second, fallbackToTopology = false)
+            } else {
+                val first = readCpuStatSample()
+                val firstUptime = if (first == null) readCpuUptime() else null
+                if (first == null && firstUptime == null) {
+                    return CpuUsageReading(emptyList(), readCpuUsageFromTop())
                 }
-                CpuCoreMetric(index, getCpuCoreFrequency(index), usage)
+                delay(CPU_USAGE_SAMPLE_DELAY_MS)
+                if (first != null) {
+                    buildCpuReading(first, readCpuStatSample(), fallbackToTopology = true)
+                } else {
+                    val secondUptime = readCpuUptime()
+                    CpuUsageReading(
+                        emptyList(),
+                        if (firstUptime != null && secondUptime != null) {
+                            calculateCpuUsageFromUptime(
+                                first = firstUptime,
+                                second = secondUptime,
+                                cpuCount = cpuIndexes.size.coerceAtLeast(1)
+                            )
+                        } else {
+                            null
+                        }
+                    )
+                }
             }
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            getCpuCoreTopologyMetrics()
+            CpuUsageReading(emptyList(), null)
         }
+    }
+
+    private fun buildCpuReading(
+        first: CpuStatSample,
+        second: CpuStatSample?,
+        fallbackToTopology: Boolean,
+    ): CpuUsageReading {
+        if (second == null) {
+            return CpuUsageReading(if (fallbackToTopology) getCpuCoreTopologyMetrics() else emptyList(), null)
+        }
+        val indexes = (first.perCore.keys + second.perCore.keys).toSortedSet()
+        val metrics = indexes.map { index ->
+            CpuCoreMetric(
+                index = index,
+                frequency = getCpuCoreFrequency(index),
+                usagePercent = cpuUsagePercent(first.perCore[index], second.perCore[index])
+            )
+        }
+        return CpuUsageReading(
+            coreMetrics = metrics.ifEmpty {
+                if (fallbackToTopology) getCpuCoreTopologyMetrics() else emptyList()
+            },
+            overallUsage = cpuUsagePercent(first.total, second.total)
+        )
+    }
+
+    private fun cpuUsagePercent(first: CpuTimes?, second: CpuTimes?): Float? {
+        if (first == null || second == null) return null
+        val totalDelta = second.total - first.total
+        val idleDelta = second.idle - first.idle
+        return if (totalDelta <= 0L) {
+            null
+        } else {
+            ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
+        }
+    }
+
+    private data class CpuStatSample(
+        val perCore: Map<Int, CpuTimes>,
+        val total: CpuTimes?,
+    )
+
+    private fun readCpuStatSample(): CpuStatSample? = parseCpuStatLines(readLines("/proc/stat"))
+
+    private fun readCpuStatSampleWithRoot(): CpuStatSample? =
+        parseCpuStatLines(readLinesWithRoot("/proc/stat"))
+
+    private fun parseCpuStatLines(lines: List<String>): CpuStatSample? {
+        if (lines.isEmpty()) return null
+        val perCore = mutableMapOf<Int, CpuTimes>()
+        var total: CpuTimes? = null
+        for (line in lines) {
+            val parts = line.trim().split(WHITESPACE_SPLIT_REGEX)
+            val label = parts.firstOrNull() ?: continue
+            if (label == "cpu") {
+                total = parseCpuTimes(parts.drop(1))
+                continue
+            }
+            if (!label.startsWith("cpu")) continue
+            val index = label.removePrefix("cpu").toIntOrNull() ?: continue
+            parseCpuTimes(parts.drop(1))?.let { perCore[index] = it }
+        }
+        return if (perCore.isEmpty() && total == null) null else CpuStatSample(perCore, total)
     }
 
     /**
@@ -621,42 +748,8 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     /** 通过 Root 权限读取 /proc/stat 并计算每核心占用率 */
-    suspend fun getCpuCoreMetricsWithRoot(): List<CpuCoreMetric> {
-        return try {
-            val first = readCpuTimesByCoreWithRoot()
-            if (first.isEmpty()) return emptyList()
-            delay(CPU_USAGE_SAMPLE_DELAY_MS)
-            val second = readCpuTimesByCoreWithRoot()
-            (first.keys + second.keys).toSortedSet().map { index ->
-                val firstTimes = first[index]
-                val secondTimes = second[index]
-                val usage = if (firstTimes == null || secondTimes == null) {
-                    null
-                } else {
-                    val totalDelta = secondTimes.total - firstTimes.total
-                    val idleDelta = secondTimes.idle - firstTimes.idle
-                    if (totalDelta <= 0L) null else {
-                        ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
-                    }
-                }
-                CpuCoreMetric(index, getCpuCoreFrequency(index), usage)
-            }
-        } catch (error: CancellationException) {
-            throw error
-        } catch (_: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun readCpuTimesByCoreWithRoot(): Map<Int, CpuTimes> {
-        val result = mutableMapOf<Int, CpuTimes>()
-        readLinesWithRoot("/proc/stat").forEach { line ->
-            val parts = line.trim().split(WHITESPACE_SPLIT_REGEX)
-            val index = parts.firstOrNull()?.removePrefix("cpu")?.toIntOrNull() ?: return@forEach
-            parseCpuTimes(parts.drop(1))?.let { result[index] = it }
-        }
-        return result
-    }
+    suspend fun getCpuCoreMetricsWithRoot(): List<CpuCoreMetric> =
+        readCpuUsageReading(useRoot = true).coreMetrics
 
     /** 通过 root 读取一个文件的内容行；读不到时返回空列表，失败原因由 [runSu] 记录。 */
     private fun readLinesWithRoot(path: String): List<String> =
@@ -669,34 +762,7 @@ class DeviceInfoCollector(private val context: Context) {
         "/sys/devices/platform/17000000.gpu/devfreq/17000000.gpu/cur_freq"
     )
 
-    suspend fun getCpuUsagePercent(): Float? {
-        return try {
-            val first = readCpuTimes()
-            val firstUptime = if (first == null) readCpuUptime() else null
-            if (first == null && firstUptime == null) {
-                return readCpuUsageFromTop()
-            }
-            delay(CPU_USAGE_SAMPLE_DELAY_MS)
-            if (first != null) {
-                val second = readCpuTimes() ?: return null
-                val totalDelta = second.total - first.total
-                val idleDelta = second.idle - first.idle
-                if (totalDelta <= 0L) null else {
-                    ((totalDelta - idleDelta).toFloat() / totalDelta * 100f).coerceIn(0f, 100f)
-                }
-            } else {
-                calculateCpuUsageFromUptime(
-                    first = firstUptime ?: return null,
-                    second = readCpuUptime() ?: return null,
-                    cpuCount = cpuIndexes.size.coerceAtLeast(1)
-                )
-            }
-        } catch (error: CancellationException) {
-            throw error
-        } catch (_: Exception) {
-            null
-        }
-    }
+    suspend fun getCpuUsagePercent(): Float? = readCpuUsageReading().overallUsage
 
     fun getGpuUsagePercent(): Float? = readFirstLine(
         "/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage",
@@ -791,22 +857,6 @@ class DeviceInfoCollector(private val context: Context) {
         File(path).bufferedReader().useLines { it.toList() }
     }.getOrDefault(emptyList())
 
-    private fun readCpuTimesByCore(): Map<Int, CpuTimes> {
-        val result = mutableMapOf<Int, CpuTimes>()
-        readLines("/proc/stat").forEach { line ->
-            val parts = line.trim().split(WHITESPACE_SPLIT_REGEX)
-            val index = parts.firstOrNull()?.removePrefix("cpu")?.toIntOrNull() ?: return@forEach
-            parseCpuTimes(parts.drop(1))?.let { result[index] = it }
-        }
-        return result
-    }
-
-    private fun readCpuTimes(): CpuTimes? {
-        val parts = readFirstLine("/proc/stat")?.split(WHITESPACE_SPLIT_REGEX) ?: return null
-        if (parts.firstOrNull() != "cpu") return null
-        return parseCpuTimes(parts.drop(1))
-    }
-
     private fun readCpuUptime(): CpuUptimeTimes? = parseCpuUptime(readFirstLine("/proc/uptime"))
 
     /**
@@ -861,15 +911,37 @@ class DeviceInfoCollector(private val context: Context) {
         }.joinToString().ifBlank { statusUnknown }
     }
 
-    private fun getBatteryLevel() = safeGet(context.getString(R.string.status_unknown)) {
-        val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-        val level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-        if (level !in 0..100) context.getString(R.string.status_unknown) else "$level%"
+    private fun getBatteryLevel(batteryIntent: Intent?) = safeGet(context.getString(R.string.status_unknown)) {
+        val intent = batteryIntent
+        val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val percent = if (scale > 0 && level in 0..scale) {
+            level * 100 / scale
+        } else {
+            // 部分设备的粘性广播缺少 level/scale，退回 BatteryManager 属性。
+            (context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager)
+                ?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                ?.takeIf { it in 0..100 }
+        }
+        percent?.let { "$it%" } ?: context.getString(R.string.status_unknown)
     }
 
-    private fun getBatteryCharging() = safeGet(context.getString(R.string.status_unknown)) {
-        val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-        if (bm.isCharging) context.getString(R.string.status_charging) else context.getString(R.string.status_not_charging)
+    private fun getBatteryCharging(batteryIntent: Intent?) = safeGet(context.getString(R.string.status_unknown)) {
+        val status = batteryIntent?.getIntExtra(
+            BatteryManager.EXTRA_STATUS,
+            BatteryManager.BATTERY_STATUS_UNKNOWN,
+        ) ?: BatteryManager.BATTERY_STATUS_UNKNOWN
+        val charging = if (status == BatteryManager.BATTERY_STATUS_UNKNOWN) {
+            (context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager)?.isCharging
+        } else {
+            status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                status == BatteryManager.BATTERY_STATUS_FULL
+        }
+        when (charging) {
+            true -> context.getString(R.string.status_charging)
+            false -> context.getString(R.string.status_not_charging)
+            null -> context.getString(R.string.status_unknown)
+        }
     }
 
     private fun getBatteryProperty(batteryIntent: Intent?, extraName: String): String = safeGet(statusUnknown) {
@@ -903,9 +975,8 @@ class DeviceInfoCollector(private val context: Context) {
             ?: statusUnknown
     }
 
-    private fun getCameraCount() = safeGet(context.getString(R.string.status_unknown)) {
-        val cam = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        cam.cameraIdList.size.toString()
+    private fun getCameraCount(cameraIds: List<String>?) = safeGet(context.getString(R.string.status_unknown)) {
+        cameraIds?.size?.toString() ?: context.getString(R.string.status_unknown)
     }
 
     private fun getNetworkType(nc: NetworkCapabilities?): String = safeGet(statusUnknown) {
@@ -977,14 +1048,13 @@ class DeviceInfoCollector(private val context: Context) {
         if (value == "true") context.getString(R.string.status_supported) else context.getString(R.string.status_not_supported)
     }
 
-    private fun getSensorCount(): String = safeGet(statusUnknown) {
-        val sm = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        sm.getSensorList(Sensor.TYPE_ALL).size.toString()
+    private fun getSensorCount(sensorList: List<Sensor>?): String = safeGet(statusUnknown) {
+        sensorList?.size?.toString() ?: statusUnknown
     }
 
     private fun getBootTime(): String = safeGet(statusUnknown) {
         val bootMillis = System.currentTimeMillis() - SystemClock.elapsedRealtime()
-        SimpleDateFormat("yyyy-MM-dd HH:mm", locale).format(Date(bootMillis))
+        formatDateTime(bootMillis)
     }
 
     private fun getUsbDebuggingState(): String = safeGet(statusUnknown) {
@@ -998,10 +1068,25 @@ class DeviceInfoCollector(private val context: Context) {
         if (km.isKeyguardSecure) context.getString(R.string.status_enabled) else context.getString(R.string.status_disabled)
     }
 
+    private val dateTimeFormatter: java.time.format.DateTimeFormatter by lazy {
+        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", locale)
+    }
+
+    private fun formatDateTime(epochMillis: Long): String =
+        dateTimeFormatter.format(
+            java.time.Instant.ofEpochMilli(epochMillis)
+                .atZone(java.time.ZoneId.systemDefault())
+        )
+
+    private val systemPropertiesGetMethod: java.lang.reflect.Method? by lazy {
+        runCatching {
+            Class.forName("android.os.SystemProperties")
+                .getMethod("get", String::class.java)
+        }.getOrNull()
+    }
+
     private fun readSystemProperty(name: String): String? = runCatching {
-        val clazz = Class.forName("android.os.SystemProperties")
-        val method = clazz.getMethod("get", String::class.java)
-        (method.invoke(null, name) as? String)?.takeIf { it.isNotBlank() }
+        (systemPropertiesGetMethod?.invoke(null, name) as? String)?.takeIf { it.isNotBlank() }
     }.getOrNull()
 
     // ── LOCALE 补充项 ──
@@ -1107,14 +1192,6 @@ class DeviceInfoCollector(private val context: Context) {
 
     private fun getMemoryThreshold(mi: ActivityManager.MemoryInfo): String = safeGet(statusUnknown) {
         "${mi.threshold / 1024 / 1024} MB"
-    }
-
-    private fun getInternalTotalStorage(): String = safeGet(statusUnknown) {
-        "${Environment.getDataDirectory().totalSpace / 1024 / 1024 / 1024} GB"
-    }
-
-    private fun getInternalFreeStorage(): String = safeGet(statusUnknown) {
-        "${Environment.getDataDirectory().freeSpace / 1024 / 1024 / 1024} GB"
     }
 
     private fun getAppHeapLimit(): String = safeGet(statusUnknown) {
@@ -1252,12 +1329,12 @@ class DeviceInfoCollector(private val context: Context) {
 
     private fun getAppFirstInstallTime(p: PackageInfo?): String = safeGet(statusUnknown) {
         val pkg = p ?: return@safeGet statusUnknown
-        SimpleDateFormat("yyyy-MM-dd HH:mm", locale).format(Date(pkg.firstInstallTime))
+        formatDateTime(pkg.firstInstallTime)
     }
 
     private fun getAppLastUpdateTime(p: PackageInfo?): String = safeGet(statusUnknown) {
         val pkg = p ?: return@safeGet statusUnknown
-        SimpleDateFormat("yyyy-MM-dd HH:mm", locale).format(Date(pkg.lastUpdateTime))
+        formatDateTime(pkg.lastUpdateTime)
     }
 
     private fun getAppTargetSdk(): String = safeGet(statusUnknown) {
@@ -1274,32 +1351,13 @@ class DeviceInfoCollector(private val context: Context) {
     }
 
     /**
- * 读取当前应用"可见"的已安装包数量。
- *
- * 该方法并不等同于"设备总安装数"，原因：
- *  - Android 11 (API 30) 起引入 package visibility，未在 `<queries>` 中声明或通过
- *    [PackageManager.QUERY_ALL_PACKAGES] 获取权限的调用者，只能看到「对当前应用可见」的
- *    包。`getInstalledPackages(...)` 在 30+ 仍返回全集，但 11+ 的策略会决定调用方能感知
- *    哪些包「可见」，结果可能小于实际安装数。
- *  - 因此返回值仅适合用于"我应用能感知多少已安装包"这类业务判断；展示文案为「可见应用数」。
- *
- * 替代方案的取舍（均未在本项目采用，理由如下）：
- *  - 声明 `<queries>` 精确匹配：只能拿到声明范围内的包，仍不是总数。
- *  - 申请 `QUERY_ALL_PACKAGES`：能拿全部，但 Google Play 审核对非 launcher/杀毒/文件管理等
- *    场景严格，DevInfo 不属于允许该权限的类别。
- *  - 改用 [android.app.usage.UsageStatsManager] 统计有使用记录的包：能拿到更接近用户真实
- *    安装情况的子集，但需 `PACKAGE_USAGE_STATS` 特殊权限，且由用户在系统设置中手动授予，
- *    会破坏"零权限申请"的现状。
- */
-private fun getVisibleInstalledAppCount(): String = safeGet(statusUnknown) {
-    val count = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        context.packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0)).size
-    } else {
-        @Suppress("DEPRECATION")
-        context.packageManager.getInstalledPackages(0).size
-    }
-    count.toString()
-}
+     * 当前应用可见的已安装包数量。
+     *
+     * Android 11+ 的 package visibility 会让结果小于设备实际安装数，因此展示为
+     * 「可见应用数」；本应用不申请 QUERY_ALL_PACKAGES，也不要求额外特殊权限。
+     */
+    private fun formatInstalledAppCount(count: Int?): String =
+        count?.toString() ?: statusUnknown
 
     private fun infoItem(keyResId: Int, value: String, category: InfoCategory): DeviceInfoItem? {
         val normalizedValue = value.trim()
