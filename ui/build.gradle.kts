@@ -43,6 +43,10 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.android.liquid.glass)
 
+    // 仅使用其中的 color.utilities（HCT 色板算法）生成 Material 3 配色，
+    // 不引用该库的任何 View 组件；release 由 R8 裁掉未使用的类。
+    implementation(libs.android.material.palette)
+
     // Lifecycle
     implementation(libs.androidx.lifecycle.runtime.compose)
 
