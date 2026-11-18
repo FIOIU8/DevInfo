@@ -127,8 +127,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             val themeMode by themePrefs.themeMode.collectAsStateWithLifecycle()
             val themeColor by themePrefs.themeColor.collectAsStateWithLifecycle()
-            val appLanguage by languagePrefs.appLanguage.collectAsStateWithLifecycle(initialValue = AppLanguage.SYSTEM)
-            val customLocaleTag by languagePrefs.customLocaleTag.collectAsStateWithLifecycle(initialValue = "")
+            // 用同步快照做初始值：viewModelKey 依赖语言，若首帧先用默认的 SYSTEM、
+            // 之后才被 Flow 的真值改写，会在同一组合里换出第二个 ViewModel，
+            // 而新实例永远等不到首次加载回调，主页就停在加载态。
+            val appLanguage by languagePrefs.appLanguage.collectAsStateWithLifecycle(
+                initialValue = languagePrefs.currentAppLanguage,
+            )
+            val customLocaleTag by languagePrefs.customLocaleTag.collectAsStateWithLifecycle(
+                initialValue = languagePrefs.currentCustomLocaleTag,
+            )
             val viewModelKey = "main:$appLanguage:$customLocaleTag:${resources.configuration.locales.toLanguageTags()}"
             val mainViewModel: MainViewModel = viewModel(
                 key = viewModelKey,

@@ -33,6 +33,18 @@ class LanguagePreferences(context: Context) : BasePreferences<String>(context, P
 
     val customLocaleTag: Flow<String> = customLocaleTagPreference.flow
 
+    /**
+     * 同步读取当前已持久化的语言。
+     *
+     * Activity 首帧必须在组合期就拿到真实取值：若只给 Flow 一个默认的初始值，首帧会用
+     * 默认值、随后才被 Flow 的真值改写，把 UI 层的 key（这里用于选 ViewModel）带偏一次。
+     */
+    val currentAppLanguage: AppLanguage
+        get() = appLanguagePreference.snapshot
+
+    val currentCustomLocaleTag: String
+        get() = customLocaleTagPreference.snapshot
+
     fun setAppLanguage(language: AppLanguage) {
         appLanguagePreference.set(language)
     }

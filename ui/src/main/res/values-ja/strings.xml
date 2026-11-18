@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Test version warning -->
+    <string name="test_version_warning">テストビルド</string>
+    <string name="test_version_desc">開発中のテスト版です。本番環境での使用は推奨しません</string>
+    <string name="test_version_detail">デバッグビルドには未完成の機能や追加のログが含まれる場合があります。問題を報告する際は、バージョン番号とビルドタイプを添えてください。</string>
+    <string name="test_version_expand">警告を展開</string>
+    <string name="test_version_collapse">警告を折りたたむ</string>
+    <string name="warning_icon_desc">警告</string>
+
+    <!-- InfoCategory display names -->
+    <string name="category_device">デバイス</string>
+    <string name="category_identifiers">識別子</string>
+    <string name="category_system">システム</string>
+    <string name="category_locale">ロケール</string>
+    <string name="category_display">表示</string>
+    <string name="category_storage">ストレージ</string>
+    <string name="category_battery">バッテリー</string>
+    <string name="category_network">ネットワーク</string>
+    <string name="category_app">アプリ</string>
+
+    <!-- InfoCategory descriptions -->
+    <string name="category_desc_device">ハードウェアとビルド情報</string>
+    <string name="category_desc_identifiers">デバイスの一意な識別情報</string>
+    <string name="category_desc_system">OS と CPU の情報</string>
+    <string name="category_desc_locale">言語、国、タイムゾーン</string>
+    <string name="category_desc_display">画面関連のパラメータ</string>
+    <string name="category_desc_storage">メモリとストレージ容量</string>
+    <string name="category_desc_battery">バッテリーの状態</string>
+    <string name="category_desc_network">ネットワーク接続と通信事業者</string>
+    <string name="category_desc_app">このアプリ自身の情報</string>
+
+    <!-- Theme color names -->
+    <string name="mount_color_default">デフォルト</string>
+    <string name="mount_color_red">レッド</string>
+    <string name="mount_color_orange">オレンジ</string>
+    <string name="mount_color_yellow">イエロー</string>
+    <string name="mount_color_green">グリーン</string>
+    <string name="mount_color_teal">ティール</string>
+    <string name="mount_color_cyan">シアン</string>
+    <string name="mount_color_blue">ブルー</string>
+    <string name="mount_color_indigo">インディゴ</string>
+    <string name="mount_color_deep_purple">ディープパープル</string>
+    <string name="mount_color_purple">パープル</string>
+    <string name="mount_color_pink">ピンク</string>
+    <string name="mount_color_brown">ブラウン</string>
+    <string name="mount_color_blue_grey">ブルーグレー</string>
+    <string name="mount_color_sakura">さくらピンク</string>
+    <string name="mount_color_dark">ダーク</string>
+</resources>
