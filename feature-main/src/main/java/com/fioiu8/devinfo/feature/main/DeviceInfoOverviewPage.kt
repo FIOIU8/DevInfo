@@ -114,6 +114,11 @@ private data class OverviewMetric(
     val icon: ImageVector,
     val size: OverviewCardSize,
     val supportingTextResId: Int? = null,
+    /**
+     * 标题行右侧的状态短标签（例如电量卡的“充电中”）。
+     * 不使用 [supportingTextResId]：那会新增一行文本，把该卡撑得比同排卡片高。
+     */
+    val badgeResId: Int? = null,
     val supportingTextSuffix: String? = null,
     val coreCount: Int? = null,
     val progress: Float? = null,
@@ -547,7 +552,7 @@ private fun buildOverviewMetrics(
                 category = InfoCategory.BATTERY,
                 icon = categoryIcon(InfoCategory.BATTERY),
                 size = OverviewCardSize.SMALL,
-                supportingTextResId = if (snapshot.batteryCharging) R.string.status_charging else null,
+                badgeResId = if (snapshot.batteryCharging) R.string.status_charging else null,
                 progress = safeLevel / 100f
             )
         )
@@ -555,6 +560,29 @@ private fun buildOverviewMetrics(
 }
 
 private fun formatPercent(value: Float): String = "%.1f%%".format(Locale.US, value.coerceIn(0f, 100f))
+
+/**
+ * 标题行右侧的状态短标签。
+ *
+ * 放在标题行而不是卡片正文里，是为了让状态文案不占用独立一行：
+ * 同排卡片高度取各自内容高度，多一行文本会把其中一张卡撑高、与邻居错位。
+ */
+@Composable
+private fun MetricHeaderBadge(text: String) {
+    Surface(
+        shape = RoundedCornerShape(percent = 50),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+        contentColor = MaterialTheme.colorScheme.primary,
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
 
 @Composable
 private fun OverviewMetricCard(
@@ -619,6 +647,10 @@ private fun OverviewMetricCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                metric.badgeResId?.let { badgeResId ->
+                    Spacer(Modifier.width(6.dp))
+                    MetricHeaderBadge(text = stringResource(badgeResId))
+                }
                 if (metric.category == InfoCategory.SYSTEM && !hasCpuGauge) {
                     // 整卡已经可点击，这里只做视觉提示，避免卡内再嵌一个点击目标。
                     Icon(
