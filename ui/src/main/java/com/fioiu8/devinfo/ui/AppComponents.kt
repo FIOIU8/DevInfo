@@ -98,7 +98,6 @@ fun TestVersionWarningCard(
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
-    val cardShape = MaterialTheme.shapes.largeIncreased
     val badgeShape = MaterialShapes.Cookie4Sided.toShape()
     val title = stringResource(R.string.test_version_warning)
     val description = stringResource(R.string.test_version_desc)
@@ -130,11 +129,11 @@ fun TestVersionWarningCard(
     ) {
         SharedTransitionLayout {
             val sharedScope = this
-            // 共享元素放在 Surface 外部：Surface 的圆角蒙版只裁内容，
+            // 共享元素放在卡片外部：卡片的圆角蒙版只裁内容，
             // 不再把展开中的徽章/标题一刀切掉。
-            Surface(
-                shape = cardShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            DevInfoCard(
+                level = DevInfoCardLevel.CARD,
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 AnimatedContent(
                     targetState = expanded,
@@ -215,8 +214,7 @@ fun TestVersionWarningCard(
                                     modifier = Modifier
                                         .weight(1f)
                                         .then(titleModifier),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.titleSmallEmphasized,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 if (versionName.isNotBlank()) {

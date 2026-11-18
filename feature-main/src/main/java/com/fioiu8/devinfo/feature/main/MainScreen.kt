@@ -8,6 +8,8 @@ package com.fioiu8.devinfo.feature.main
 import com.fioiu8.devinfo.ui.DevInfoFeedbackScope
 import com.fioiu8.devinfo.feature.main.R
 import com.fioiu8.devinfo.ui.DevInfoNavigationItem
+import com.fioiu8.devinfo.ui.DevInfoAlertDialog
+import com.fioiu8.devinfo.ui.DevInfoDialogAction
 import com.fioiu8.devinfo.ui.DevInfoSnackbarHost
 import com.fioiu8.devinfo.ui.motion.LocalDevInfoMotionLevel
 import com.fioiu8.devinfo.ui.motion.LocalDevInfoMotionScheme
@@ -134,6 +136,8 @@ data class MainScreenSettings(
     val onMotionLevelChange: (MotionLevel) -> Unit,
     val pressAnimation: Boolean,
     val onPressAnimationChange: (Boolean) -> Unit,
+    val glassEffect: Boolean,
+    val onGlassEffectChange: (Boolean) -> Unit,
     val privacyMask: Boolean,
     val onPrivacyMaskChange: (Boolean) -> Unit,
     val screenshotProtection: Boolean,
@@ -300,12 +304,12 @@ fun MainScreen(
     val navSettingsLabel = stringResource(R.string.nav_settings)
     val navigationItems = remember(navInfoLabel, navSettingsLabel) {
         listOf(
-            MainNavigationItem(
+            DevInfoNavigationItem(
                 label = navInfoLabel,
                 selectedIcon = Icons.Filled.Description,
                 unselectedIcon = Icons.Outlined.Description
             ),
-            MainNavigationItem(
+            DevInfoNavigationItem(
                 label = navSettingsLabel,
                 selectedIcon = Icons.Filled.Settings,
                 unselectedIcon = Icons.Outlined.Settings
@@ -357,33 +361,31 @@ fun MainScreen(
         materialHostState = materialSnackbarHostState,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            MainRootScaffold(Modifier.fillMaxSize()) {
-                Row(Modifier.fillMaxSize()) {
-                    if (useNavigationRail) {
-                        MainNavigationRail(
-                            items = navigationItems,
-                            selectedIndex = selectedIndex,
-                            onItemSelected = navigator::selectTab,
-                            modifier = Modifier.fillMaxHeight(),
-                        )
-                    }
-
-                    MainNavigationHost(
-                        modifier = Modifier.weight(1f),
-                        consumedStartInsets = if (useNavigationRail) {
-                            navigationRailStartInsets
-                        } else {
-                            WindowInsets(0, 0, 0, 0)
-                        },
-                        navigator = navigator,
-                        viewModel = viewModel,
-                        settings = settings,
-                        rootFabBottomPadding = snackbarBottomPadding,
-                        onExportClick = { showExportDialog = true },
-                        onRootFabClick = { onRootFabClick() },
-                        enablePredictiveBack = settings.enablePredictiveBack,
+            Row(Modifier.fillMaxSize()) {
+                if (useNavigationRail) {
+                    MainNavigationRail(
+                        items = navigationItems,
+                        selectedIndex = selectedIndex,
+                        onItemSelected = navigator::selectTab,
+                        modifier = Modifier.fillMaxHeight(),
                     )
                 }
+
+                MainNavigationHost(
+                    modifier = Modifier.weight(1f),
+                    consumedStartInsets = if (useNavigationRail) {
+                        navigationRailStartInsets
+                    } else {
+                        WindowInsets(0, 0, 0, 0)
+                    },
+                    navigator = navigator,
+                    viewModel = viewModel,
+                    settings = settings,
+                    rootFabBottomPadding = snackbarBottomPadding,
+                    onExportClick = { showExportDialog = true },
+                    onRootFabClick = { onRootFabClick() },
+                    enablePredictiveBack = settings.enablePredictiveBack,
+                )
             }
 
             DevInfoSnackbarHost(
@@ -605,6 +607,8 @@ private fun MainNavigationHost(
                                 } else {
                                     0f
                                 }
+                                // 数值对齐 Android 14 平台返回手势的默认预览：轻微缩退 + 淡出 +
+                                // 侧移。M3E 未提供该手势的 token，因此这里按平台取值。
                                 val scale = 1f - 0.06f * progress
                                 scaleX = scale
                                 scaleY = scale
@@ -737,6 +741,8 @@ private fun MainRouteContent(
             onMotionLevelChange = settings.onMotionLevelChange,
             pressAnimation = settings.pressAnimation,
             onPressAnimationChange = settings.onPressAnimationChange,
+            glassEffect = settings.glassEffect,
+            onGlassEffectChange = settings.onGlassEffectChange,
             onBack = { navigator.pop() },
         )
 
@@ -811,31 +817,9 @@ private fun mainRouteForward(
     }
 }
 
-private typealias MainNavigationItem = DevInfoNavigationItem
-
-@Composable
-private fun MainRootScaffold(
-    modifier: Modifier,
-    content: @Composable BoxScope.() -> Unit
-) {
-    Box(modifier = modifier) {
-        content()
-    }
-}
-
 @Composable
 private fun MainNavigationRail(
-    items: List<MainNavigationItem>,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    MaterialMainNavigationRail(items, selectedIndex, onItemSelected, modifier)
-}
-
-@Composable
-private fun MaterialMainNavigationRail(
-    items: List<MainNavigationItem>,
+    items: List<DevInfoNavigationItem>,
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
@@ -856,10 +840,7 @@ private fun MaterialMainNavigationRail(
                     )
                 },
                 label = {
-                    Text(
-                        text = item.label,
-                        style = MaterialTheme.typography.labelSmall
-                    )
+                    Text(text = item.label)
                 },
                 alwaysShowLabel = true,
                 colors = NavigationRailItemDefaults.colors(
@@ -915,40 +896,24 @@ private fun RootRequiredDialog(
     onConfirm: () -> Unit,
 ) {
     if (!show) return
-    AlertDialog(
+    DevInfoAlertDialog(
+        title = stringResource(R.string.root_required_title),
         onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = Icons.Outlined.Build,
-                contentDescription = null,
-                modifier = Modifier.size(28.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-        },
-        title = {
-            Text(
-                text = stringResource(R.string.root_required_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Text(
-                text = stringResource(R.string.root_required_message),
-                style = MaterialTheme.typography.bodyMedium
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.root_fab_confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
-    )
+        icon = Icons.Outlined.Build,
+        confirm = DevInfoDialogAction(
+            label = stringResource(R.string.root_fab_confirm),
+            onClick = onConfirm,
+        ),
+        dismiss = DevInfoDialogAction(
+            label = stringResource(R.string.cancel),
+            onClick = onDismiss,
+        ),
+    ) {
+        Text(
+            text = stringResource(R.string.root_required_message),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
 }
 
 private fun openUrl(

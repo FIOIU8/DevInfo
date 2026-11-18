@@ -5,7 +5,10 @@
  */
 
 package com.fioiu8.devinfo.feature.main
+
 import com.fioiu8.devinfo.feature.main.R
+import com.fioiu8.devinfo.ui.DevInfoCard
+import com.fioiu8.devinfo.ui.DevInfoCardLevel
 import com.fioiu8.devinfo.ui.DevInfoExpressiveSwitch
 import com.fioiu8.devinfo.ui.DevInfoSegmentedControl
 import com.fioiu8.devinfo.ui.DevInfoSegmentedDropdownItem
@@ -13,15 +16,11 @@ import com.fioiu8.devinfo.ui.SegmentedGroup
 import com.fioiu8.devinfo.ui.SegmentedRow
 import com.fioiu8.devinfo.ui.SegmentedSliderRow
 import com.fioiu8.devinfo.ui.displayNameResId
-import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassCard
 import com.fioiu8.devinfo.ui.motion.rememberSystemAnimationsEnabled
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,25 +32,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text as MaterialText
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.fioiu8.devinfo.core.model.PaletteStyle
+import com.fioiu8.devinfo.core.model.ColorSpec
 import com.fioiu8.devinfo.core.model.MotionLevel
+import com.fioiu8.devinfo.core.model.PaletteStyle
 import com.fioiu8.devinfo.core.model.ThemeColor
 import com.fioiu8.devinfo.core.model.ThemeMode
 import com.fioiu8.devinfo.ui.theme.color
@@ -59,12 +53,17 @@ import com.fioiu8.devinfo.ui.theme.displayNameResId
 
 /** 圆形颜色按钮：选中状态同时体现在边框粗细与文字颜色上。 */
 @Composable
-private fun MaterialColorCircle(
-    color: Color,
+private fun ThemeColorCircle(
+    color: androidx.compose.ui.graphics.Color,
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    val border = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -72,11 +71,20 @@ private fun MaterialColorCircle(
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 4.dp),
     ) {
-        ColorSwatch(color = color, selected = selected)
+        androidx.compose.material3.Surface(
+            modifier = Modifier.size(40.dp),
+            shape = androidx.compose.foundation.shape.CircleShape,
+            color = color,
+            border = androidx.compose.foundation.BorderStroke(
+                width = if (selected) 3.dp else 1.dp,
+                color = border,
+            ),
+            content = {},
+        )
         Spacer(Modifier.height(4.dp))
-        MaterialText(
+        Text(
             text = label,
-            fontSize = 10.sp,
+            style = MaterialTheme.typography.labelSmall,
             color = if (selected) {
                 MaterialTheme.colorScheme.primary
             } else {
@@ -87,28 +95,12 @@ private fun MaterialColorCircle(
     }
 }
 
-@Composable
-private fun ColorSwatch(
-    color: Color,
-    selected: Boolean,
-) {
-    val strokeWidth = if (selected) 3.dp else 1.dp
-    val strokeColor = if (selected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-    }
-
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(color)
-            .border(strokeWidth, strokeColor, CircleShape),
-    )
-}
-
-/** Theme settings rendered with the active UI component system. */
+/**
+ * 主题设置页：外观、动效、导航与显示。
+ *
+ * 颜色风格与颜色标准只在动态模式下生效，因为它们描述的是「由种子色生成整套配色」
+ * 的策略；固定模式使用内置品牌配色。
+ */
 @Composable
 fun ThemeSettingsPage(
     themeMode: ThemeMode,
@@ -117,8 +109,8 @@ fun ThemeSettingsPage(
     onThemeColorChange: (ThemeColor) -> Unit,
     paletteStyle: PaletteStyle,
     onPaletteStyleChange: (PaletteStyle) -> Unit,
-    colorSpec: com.fioiu8.devinfo.core.model.ColorSpec,
-    onColorSpecChange: (com.fioiu8.devinfo.core.model.ColorSpec) -> Unit,
+    colorSpec: ColorSpec,
+    onColorSpecChange: (ColorSpec) -> Unit,
     pageScale: Float,
     onPageScaleChange: (Float) -> Unit,
     enablePredictiveBack: Boolean,
@@ -127,47 +119,8 @@ fun ThemeSettingsPage(
     onMotionLevelChange: (MotionLevel) -> Unit,
     pressAnimation: Boolean,
     onPressAnimationChange: (Boolean) -> Unit,
-    onBack: () -> Unit,
-) {
-    MaterialThemeSettingsPage(
-        themeMode = themeMode,
-        onThemeModeChange = onThemeModeChange,
-        themeColor = themeColor,
-        onThemeColorChange = onThemeColorChange,
-        paletteStyle = paletteStyle,
-        onPaletteStyleChange = onPaletteStyleChange,
-        colorSpec = colorSpec,
-        onColorSpecChange = onColorSpecChange,
-        pageScale = pageScale,
-        onPageScaleChange = onPageScaleChange,
-        enablePredictiveBack = enablePredictiveBack,
-        onEnablePredictiveBackChange = onEnablePredictiveBackChange,
-        motionLevel = motionLevel,
-        onMotionLevelChange = onMotionLevelChange,
-        pressAnimation = pressAnimation,
-        onPressAnimationChange = onPressAnimationChange,
-        onBack = onBack,
-    )
-}
-
-@Composable
-private fun MaterialThemeSettingsPage(
-    themeMode: ThemeMode,
-    onThemeModeChange: (ThemeMode) -> Unit,
-    themeColor: ThemeColor,
-    onThemeColorChange: (ThemeColor) -> Unit,
-    paletteStyle: PaletteStyle,
-    onPaletteStyleChange: (PaletteStyle) -> Unit,
-    colorSpec: com.fioiu8.devinfo.core.model.ColorSpec,
-    onColorSpecChange: (com.fioiu8.devinfo.core.model.ColorSpec) -> Unit,
-    pageScale: Float,
-    onPageScaleChange: (Float) -> Unit,
-    enablePredictiveBack: Boolean,
-    onEnablePredictiveBackChange: (Boolean) -> Unit,
-    motionLevel: MotionLevel,
-    onMotionLevelChange: (MotionLevel) -> Unit,
-    pressAnimation: Boolean,
-    onPressAnimationChange: (Boolean) -> Unit,
+    glassEffect: Boolean,
+    onGlassEffectChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     val selectedThemeIndex = themeMode.baseIndex
@@ -191,7 +144,7 @@ private fun MaterialThemeSettingsPage(
         ) {
             item {
                 Spacer(Modifier.height(12.dp))
-                MaterialThemePreviewCard(themeMode = themeMode, themeColor = themeColor)
+                ThemePreviewCard()
             }
 
             item {
@@ -221,13 +174,21 @@ private fun MaterialThemeSettingsPage(
                             )
                         },
                     )
+                    SegmentedRow(
+                        title = stringResource(R.string.theme_glass_effect),
+                        supporting = stringResource(R.string.theme_glass_effect_summary),
+                        trailing = {
+                            DevInfoExpressiveSwitch(
+                                checked = glassEffect,
+                                onCheckedChange = onGlassEffectChange,
+                            )
+                        },
+                    )
                     if (themeMode.isDynamic) {
                         DevInfoSegmentedDropdownItem(
                             icon = Icons.Rounded.Wallpaper,
                             title = stringResource(R.string.theme_palette_style),
-                            summary = PaletteStyle.entries[
-                                PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0)
-                            ].name,
+                            summary = paletteStyle.name,
                             items = PaletteStyle.entries.map { it.name },
                             selectedIndex = PaletteStyle.entries.indexOf(paletteStyle).coerceAtLeast(0),
                             onItemSelected = { index ->
@@ -237,23 +198,17 @@ private fun MaterialThemeSettingsPage(
                         DevInfoSegmentedDropdownItem(
                             icon = Icons.Rounded.Wallpaper,
                             title = stringResource(R.string.theme_color_spec),
-                            summary = com.fioiu8.devinfo.core.model.ColorSpec.entries[
-                                com.fioiu8.devinfo.core.model.ColorSpec.entries
-                                    .indexOf(colorSpec).coerceAtLeast(0)
-                            ].name,
-                            items = com.fioiu8.devinfo.core.model.ColorSpec.entries.map { it.name },
-                            selectedIndex = com.fioiu8.devinfo.core.model.ColorSpec.entries
-                                .indexOf(colorSpec).coerceAtLeast(0),
+                            summary = colorSpec.name,
+                            items = ColorSpec.entries.map { it.name },
+                            selectedIndex = ColorSpec.entries.indexOf(colorSpec).coerceAtLeast(0),
                             onItemSelected = { index ->
-                                com.fioiu8.devinfo.core.model.ColorSpec.entries
-                                    .getOrNull(index)?.let(onColorSpecChange)
+                                ColorSpec.entries.getOrNull(index)?.let(onColorSpecChange)
                             },
                         )
                         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
-                            MaterialText(
+                            Text(
                                 text = stringResource(R.string.theme_key_color),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleSmallEmphasized,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             Spacer(Modifier.height(12.dp))
@@ -264,7 +219,7 @@ private fun MaterialThemeSettingsPage(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
                                 ThemeColor.entries.forEach { color ->
-                                    MaterialColorCircle(
+                                    ThemeColorCircle(
                                         color = color.color,
                                         label = stringResource(color.displayNameResId()),
                                         selected = themeColor == color,
@@ -290,7 +245,7 @@ private fun MaterialThemeSettingsPage(
                                 MotionLevel.entries.getOrNull(index)?.let(onMotionLevelChange)
                             },
                         )
-                        MaterialText(
+                        Text(
                             text = stringResource(
                                 if (systemAnimationsEnabled) {
                                     R.string.theme_motion_level_summary
@@ -347,22 +302,18 @@ private fun MaterialThemeSettingsPage(
     }
 }
 
+/**
+ * 主题预览卡：用真实组件展示当前配色与形状，不再手绘色块。
+ *
+ * 开关的 `onCheckedChange` 为 null，因此只作展示，不会接受点击。
+ */
 @Composable
-private fun MaterialThemePreviewCard(
-    themeMode: ThemeMode,
-    themeColor: ThemeColor,
-) {
-    val accent = if (themeMode.isDynamic && themeColor != ThemeColor.DEFAULT) {
-        themeColor.color
-    } else {
-        MaterialTheme.colorScheme.primary
-    }
-    LiquidGlassCard(
+private fun ThemePreviewCard() {
+    DevInfoCard(
+        level = DevInfoCardLevel.EMPHASIS,
         modifier = Modifier
             .fillMaxWidth()
-            .height(184.dp),
-        shape = MaterialTheme.shapes.extraLarge,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            .height(160.dp),
     ) {
         Column(
             modifier = Modifier
@@ -380,40 +331,36 @@ private fun MaterialThemePreviewCard(
                     modifier = Modifier.size(42.dp),
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    MaterialText(
+                    Text(
                         text = stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleLargeEmphasized,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
-                    MaterialText(
+                    Text(
                         text = stringResource(R.string.theme_preview_summary),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = 54.dp, height = 10.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                Text(
+                    text = stringResource(R.string.theme_preview_toggle),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
-                Box(
-                    modifier = Modifier
-                        .size(width = 76.dp, height = 34.dp)
-                        .clip(RoundedCornerShape(17.dp))
-                        .background(accent),
+                DevInfoExpressiveSwitch(
+                    checked = true,
+                    onCheckedChange = null,
                 )
             }
         }
     }
 }
-
 
 private val ThemeMode.baseIndex: Int
     get() = when (this) {

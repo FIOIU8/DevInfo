@@ -10,9 +10,6 @@ import android.content.ClipData
 import android.hardware.camera2.CameraCharacteristics
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,7 +59,6 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.core.model.CameraHardwareInfo
@@ -79,9 +75,9 @@ import com.fioiu8.devinfo.core.model.hardwareDetailPage
 import com.fioiu8.devinfo.core.privacy.MASKED_VALUE
 import com.fioiu8.devinfo.core.privacy.SensitiveKeys
 import com.fioiu8.devinfo.ui.DevInfoPullToRefresh
+import com.fioiu8.devinfo.ui.DevInfoCard
+import com.fioiu8.devinfo.ui.DevInfoCardLevel
 import com.fioiu8.devinfo.ui.DevInfoSegmentHeader
-import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassCard
-import com.fioiu8.devinfo.ui.motion.devInfoPressable
 import com.fioiu8.devinfo.ui.rememberDevInfoMessageHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.StateFlow
@@ -456,8 +452,7 @@ private fun addInfoRows(
         Text(
             text = resources.getString(R.string.hardware_details_section),
             modifier = Modifier.padding(start = 4.dp, top = 4.dp),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
+            style = MaterialTheme.typography.titleMediumEmphasized
         )
     }
     scope.items(items, key = DeviceInfoItem::key) { item ->
@@ -485,38 +480,35 @@ private fun DetailHero(
     value: String,
     supporting: String
 ) {
-    LiquidGlassCard(
+    DevInfoCard(
+        level = DevInfoCardLevel.EMPHASIS,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.largeIncreased,
-        containerColor = MaterialTheme.colorScheme.secondaryContainer,
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
             Text(
                 text = value,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                style = MaterialTheme.typography.headlineSmallEmphasized,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = supporting,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -536,22 +528,15 @@ private fun InfoValueRow(
 ) {
     val sensitive = SensitiveKeys.isSensitive(key)
     val masked = sensitive && maskSensitive && !revealed
-    val interactionSource = remember { MutableInteractionSource() }
     val hiddenLabel = stringResource(R.string.privacy_value_hidden)
-    LiquidGlassCard(
+    DevInfoCard(
+        level = DevInfoCardLevel.DETAIL_ROW,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.small,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        onClick = { if (masked) onToggleReveal() else onCopy() },
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = LocalIndication.current,
-                    onClick = { if (masked) onToggleReveal() else onCopy() },
-                )
-                .devInfoPressable(interactionSource)
                 .padding(start = 14.dp, top = 11.dp, end = 6.dp, bottom = 11.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -587,26 +572,24 @@ private fun InfoValueRow(
 
 @Composable
 private fun RuntimeMetricSection(title: String, percent: Float?) {
-    LiquidGlassCard(
+    DevInfoCard(
+        level = DevInfoCardLevel.CARD,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(title, style = MaterialTheme.typography.titleSmallEmphasized)
                 Text(
                     text = percent?.let { "${it.toInt().coerceIn(0, 100)}%" }
                         ?: stringResource(R.string.status_unavailable),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleSmallEmphasized
                 )
             }
             percent?.let {
                 LinearProgressIndicator(
                     progress = { it.coerceIn(0f, 100f) / 100f },
                     modifier = Modifier.fillMaxWidth(),
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                 )
             }
         }
@@ -676,15 +659,14 @@ private fun HardwareDataCard(
     rows: List<Pair<String, String>>,
     supporting: String? = null
 ) {
-    LiquidGlassCard(
+    DevInfoCard(
+        level = DevInfoCardLevel.CARD,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(title, style = MaterialTheme.typography.titleSmallEmphasized)
             }
             supporting?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -703,16 +685,14 @@ private fun HardwareDataCard(
 private fun LiveMotionCard(snapshot: MotionSensorSnapshot) {
     val accelerometer = snapshot.accelerometer
     val gyroscope = snapshot.gyroscope
-    LiquidGlassCard(
+    DevInfoCard(
+        level = DevInfoCardLevel.CARD,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
                 text = stringResource(R.string.hardware_sensor_live),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.titleMediumEmphasized
             )
             MotionReadingRow(stringResource(R.string.hardware_sensor_accelerometer), accelerometer, "m/s²")
             MotionReadingRow(stringResource(R.string.hardware_sensor_gyroscope), gyroscope, "rad/s")
@@ -729,13 +709,13 @@ private fun LiveMotionCard(snapshot: MotionSensorSnapshot) {
 @Composable
 private fun MotionReadingRow(label: String, sample: MotionSensorSample?, unit: String) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+        Text(label, style = MaterialTheme.typography.labelLargeEmphasized)
         Text(
             text = sample?.let {
                 "X ${formatSensorValue(it.x)}  ·  Y ${formatSensorValue(it.y)}  ·  Z ${formatSensorValue(it.z)} $unit"
             } ?: stringResource(R.string.status_unavailable),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onTertiaryContainer
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

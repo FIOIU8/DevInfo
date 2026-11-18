@@ -12,8 +12,6 @@ import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -36,7 +34,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import com.fioiu8.devinfo.core.model.MotionLevel
@@ -50,24 +47,6 @@ val LocalDevInfoMotionLevel = staticCompositionLocalOf { MotionLevel.STANDARD }
  * material3 1.5.0 起 `MotionScheme` 已是公开 API，与 [MaterialTheme.motionScheme] 保持一致。
  */
 val LocalDevInfoMotionScheme = staticCompositionLocalOf { MotionScheme.standard() }
-
-/**
- * 手写的空间/效果曲线，仅用于列表入场与数值交叉淡入。
- *
- * 路由过渡已经改用 Material 的 [MotionScheme]；这里保留较小的弹簧规格，避免
- * 大段列表入场时出现过冲。
- */
-private fun <T> expressiveSpatialSpec(): FiniteAnimationSpec<T> =
-    spring(dampingRatio = 0.8f, stiffness = 380f)
-
-private fun <T> expressiveEffectsSpec(): FiniteAnimationSpec<T> =
-    tween(durationMillis = 320, easing = FastOutSlowInEasing)
-
-private fun <T> expressiveFastEffectsSpec(): FiniteAnimationSpec<T> =
-    tween(durationMillis = 160, easing = FastOutSlowInEasing)
-
-private fun <T> standardEffectsSpec(): FiniteAnimationSpec<T> =
-    tween(durationMillis = 200, easing = FastOutSlowInEasing)
 
 /**
  * 路由切换动画。
@@ -167,7 +146,6 @@ fun DevInfoAnimatedValue(
     modifier: Modifier = Modifier,
     style: TextStyle = LocalTextStyle.current,
     color: Color = Color.Unspecified,
-    fontWeight: FontWeight? = null,
     maxLines: Int = 1,
     overflow: TextOverflow = TextOverflow.Clip,
 ) {
@@ -178,22 +156,22 @@ fun DevInfoAnimatedValue(
             modifier = modifier,
             style = style,
             color = color,
-            fontWeight = fontWeight,
             maxLines = maxLines,
             overflow = overflow,
         )
         return
     }
 
+    val scheme = LocalDevInfoMotionScheme.current
     val enterSpec = when (level) {
-        MotionLevel.FULL -> expressiveEffectsSpec<Float>()
-        MotionLevel.STANDARD -> standardEffectsSpec<Float>()
+        MotionLevel.FULL -> scheme.defaultEffectsSpec<Float>()
+        MotionLevel.STANDARD -> scheme.fastEffectsSpec<Float>()
         MotionLevel.MINIMAL -> tween<Float>(90)
         MotionLevel.OFF -> tween<Float>(0)
     }
     val exitSpec = when (level) {
-        MotionLevel.FULL -> expressiveFastEffectsSpec<Float>()
-        MotionLevel.STANDARD -> standardEffectsSpec<Float>()
+        MotionLevel.FULL -> scheme.fastEffectsSpec<Float>()
+        MotionLevel.STANDARD -> scheme.fastEffectsSpec<Float>()
         MotionLevel.MINIMAL -> tween<Float>(90)
         MotionLevel.OFF -> tween<Float>(0)
     }
@@ -210,7 +188,6 @@ fun DevInfoAnimatedValue(
             text = text,
             style = style,
             color = color,
-            fontWeight = fontWeight,
             maxLines = maxLines,
             overflow = overflow,
         )

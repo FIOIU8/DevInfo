@@ -141,6 +141,7 @@ class MainActivity : ComponentActivity() {
             val enablePredictiveBack by themePrefs.enablePredictiveBack.collectAsStateWithLifecycle(initialValue = true)
             val motionLevel by themePrefs.motionLevel.collectAsStateWithLifecycle(initialValue = MotionLevel.STANDARD)
             val pressAnimation by themePrefs.pressAnimation.collectAsStateWithLifecycle(initialValue = true)
+            val glassEffect by themePrefs.glassEffect.collectAsStateWithLifecycle(initialValue = true)
             val privacyMask by themePrefs.privacyMask.collectAsStateWithLifecycle(initialValue = true)
             val screenshotProtection by themePrefs.screenshotProtection.collectAsStateWithLifecycle(initialValue = true)
             val systemDensity = LocalDensity.current
@@ -162,6 +163,7 @@ class MainActivity : ComponentActivity() {
                 enablePredictiveBack,
                 motionLevel,
                 pressAnimation,
+                glassEffect,
                 privacyMask,
                 screenshotProtection,
             ) {
@@ -184,6 +186,8 @@ class MainActivity : ComponentActivity() {
                     onMotionLevelChange = themePrefs::setMotionLevel,
                     pressAnimation = pressAnimation,
                     onPressAnimationChange = themePrefs::setPressAnimation,
+                    glassEffect = glassEffect,
+                    onGlassEffectChange = themePrefs::setGlassEffect,
                     privacyMask = privacyMask,
                     onPrivacyMaskChange = themePrefs::setPrivacyMask,
                     screenshotProtection = screenshotProtection,
@@ -231,8 +235,11 @@ class MainActivity : ComponentActivity() {
                 DevInfoTheme(
                     themeMode = themeMode,
                     themeColor = themeColor,
+                    paletteStyle = paletteStyle,
+                    colorSpec = colorSpec,
                     motionLevel = motionLevel,
                     pressAnimationEnabled = pressAnimation,
+                    glassEnabled = glassEffect,
                 ) {
                     MainScreen(
                         viewModel = mainViewModel,

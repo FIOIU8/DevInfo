@@ -202,6 +202,9 @@
     <string name="motion_system_disabled">システムのアニメーションが無効のため、アプリ設定は適用されません</string>
     <string name="theme_monet">Monet 動的カラー</string>
     <string name="theme_monet_summary">壁紙の色またはカスタムのテーマカラーを使用</string>
+    <string name="theme_glass_effect">リキッドグラス</string>
+    <string name="theme_glass_effect_summary">オンにするとカードがリキッドグラス表面になり、オフにすると Material 3 のトーン表面になります</string>
+    <string name="theme_preview_toggle">プレビュー</string>
     <string name="theme_page_scale">ページの拡大率</string>
     <string name="theme_page_scale_summary">アプリ UI の表示倍率を調整</string>
     <string name="theme_palette_style">カラースタイル</string>
