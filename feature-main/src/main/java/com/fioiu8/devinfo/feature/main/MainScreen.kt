@@ -166,8 +166,10 @@ fun MainScreen(
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val releaseInfo by viewModel.releaseInfo.collectAsStateWithLifecycle()
 
-    // 首帧渲染后再启动数据加载，避免阻塞首屏
-    LaunchedEffect(Unit) {
+    // 首帧渲染后再启动数据加载，避免阻塞首屏。
+    // key 用 viewModel 本身而不是 Unit：语言切换会按语言换一个 ViewModel，
+    // 只有跟随实例变化重放，新实例才会真正开始加载，否则主页会一直停在加载态。
+    LaunchedEffect(viewModel) {
         viewModel.onFirstComposition()
     }
 

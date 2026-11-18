@@ -363,7 +363,9 @@ class DeviceInfoCollector(
         { infoItem(R.string.locale_language, locale.language, InfoCategory.LOCALE) },
         { infoItem(R.string.locale_country, locale.country, InfoCategory.LOCALE) },
         { infoItem(R.string.locale_timezone, TimeZone.getDefault().id, InfoCategory.LOCALE) },
-        { infoItem(R.string.locale_display_name, locale.displayName, InfoCategory.LOCALE) },
+        // 用区域自身语言渲染名称：Locale.displayName 取的是 JVM 默认区域，
+        // 应用内切换语言后仍是系统语言，会出现「英文界面里显示“英语”」的错位。
+        { infoItem(R.string.locale_display_name, locale.getDisplayName(locale), InfoCategory.LOCALE) },
         { infoItem(R.string.locale_tag, locale.toLanguageTag(), InfoCategory.LOCALE) },
         { infoItem(R.string.locale_timezone_offset, getTimezoneOffset(), InfoCategory.LOCALE) },
         { infoItem(R.string.locale_currency, getLocaleCurrency(), InfoCategory.LOCALE) },
@@ -1129,7 +1131,12 @@ class DeviceInfoCollector(
     }
 
     private fun getLocaleCurrency(): String = safeGet(statusUnknown) {
-        val currency = Currency.getInstance(locale)
+        // 语言标签可能没有国家码（应用内语言只改语言，如 en/ja），
+        // Currency.getInstance(Locale) 对这类 Locale 直接抛 IllegalArgumentException。
+        // 此时退回系统的区域设置，货币才与设备的实际区域一致。
+        val currencyLocale = locale.takeIf { it.country.isNotEmpty() }
+            ?: Locale.getDefault(Locale.Category.FORMAT)
+        val currency = Currency.getInstance(currencyLocale)
         "${currency.currencyCode} (${currency.symbol})"
     }
 
