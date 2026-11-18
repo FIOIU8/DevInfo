@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Test version warning -->
+    <string name="test_version_warning">Test build</string>
+    <string name="test_version_desc">This is a development build and is not recommended for production use</string>
+    <string name="test_version_detail">Debug builds may contain unfinished features and extra logging. When reporting an issue, please include the version number and build type.</string>
+    <string name="test_version_expand">Expand warning</string>
+    <string name="test_version_collapse">Collapse warning</string>
+    <string name="warning_icon_desc">Warning</string>
+
+    <!-- InfoCategory display names -->
+    <string name="category_device">Device</string>
+    <string name="category_identifiers">Identifiers</string>
+    <string name="category_system">System</string>
+    <string name="category_locale">Locale</string>
+    <string name="category_display">Display</string>
+    <string name="category_storage">Storage</string>
+    <string name="category_battery">Battery</string>
+    <string name="category_network">Network</string>
+    <string name="category_app">App</string>
+
+    <!-- InfoCategory descriptions -->
+    <string name="category_desc_device">Hardware and build information</string>
+    <string name="category_desc_identifiers">Unique device identifiers</string>
+    <string name="category_desc_system">OS and CPU information</string>
+    <string name="category_desc_locale">Language, country, and time zone</string>
+    <string name="category_desc_display">Screen parameters</string>
+    <string name="category_desc_storage">Memory and storage space</string>
+    <string name="category_desc_battery">Battery status</string>
+    <string name="category_desc_network">Connectivity and carrier</string>
+    <string name="category_desc_app">Information about this app</string>
+
+    <!-- Theme color names -->
+    <string name="mount_color_default">Default</string>
+    <string name="mount_color_red">Red</string>
+    <string name="mount_color_orange">Orange</string>
+    <string name="mount_color_yellow">Yellow</string>
+    <string name="mount_color_green">Green</string>
+    <string name="mount_color_teal">Teal</string>
+    <string name="mount_color_cyan">Cyan</string>
+    <string name="mount_color_blue">Blue</string>
+    <string name="mount_color_indigo">Indigo</string>
+    <string name="mount_color_deep_purple">Deep purple</string>
+    <string name="mount_color_purple">Purple</string>
+    <string name="mount_color_pink">Pink</string>
+    <string name="mount_color_brown">Brown</string>
+    <string name="mount_color_blue_grey">Blue grey</string>
+    <string name="mount_color_sakura">Sakura pink</string>
+    <string name="mount_color_dark">Dark</string>
+</resources>
