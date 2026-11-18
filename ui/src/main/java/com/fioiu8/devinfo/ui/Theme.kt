@@ -20,18 +20,19 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import com.fioiu8.devinfo.core.model.ColorSpec
 import com.fioiu8.devinfo.core.model.MotionLevel
+import com.fioiu8.devinfo.core.model.PaletteStyle
 import com.fioiu8.devinfo.core.model.ThemeColor
 import com.fioiu8.devinfo.core.model.ThemeMode
 import com.fioiu8.devinfo.core.model.effectiveMotionLevel
@@ -39,17 +40,26 @@ import com.fioiu8.devinfo.ui.motion.LocalDevInfoMotionLevel
 import com.fioiu8.devinfo.ui.motion.LocalDevInfoMotionScheme
 import com.fioiu8.devinfo.ui.motion.LocalDevInfoPressAnimationEnabled
 import com.fioiu8.devinfo.ui.motion.rememberSystemAnimationsEnabled
-/** The app now has one Material 3 visual system. Kept as a compatibility local while
- * page implementations are being consolidated. */
+
+/** 当前是否处于深色配色。图表等非 Compose 组件的自绘色需要按明暗切换。 */
 private val LocalDevInfoDarkTheme = staticCompositionLocalOf { false }
+
+/**
+ * 是否启用液态玻璃表面。
+ *
+ * 关闭后 [com.fioiu8.devinfo.ui.DevInfoCard] 会退回纯 Material 3 色调表面
+ * （tonal surface + M3 shape），此时界面不含任何自绘玻璃层。
+ */
+val LocalDevInfoGlassEnabled = staticCompositionLocalOf { true }
 
 @Composable
 fun isInDarkTheme(): Boolean = LocalDevInfoDarkTheme.current
 
-// 静态 fallback — 用于非动态模式或 Android 12 以下
+// 静态 fallback — 用于非动态模式或用户选择固定主题色
 /**
- * Material 3 Expressive 形状尺度。分组容器（24dp）与组内行（18dp）仍由
- * [com.fioiu8.devinfo.ui.SegmentedGroup] 自行控制，以保证嵌套圆角同心。
+ * Material 3 Expressive 形状尺度。分组容器（24dp）与组内行（20dp）由
+ * [com.fioiu8.devinfo.ui.SegmentedGroup] 组合 `largeIncreased` / `large` token，
+ * 并通过 4dp 内边距保证嵌套圆角同心。
  */
 private val DevInfoShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
@@ -73,7 +83,8 @@ private fun motionSchemeFor(level: MotionLevel): MotionScheme = when (level) {
     MotionLevel.STANDARD, MotionLevel.MINIMAL, MotionLevel.OFF -> MotionScheme.standard()
 }
 
-private val DarkColorScheme = darkColorScheme(    primary = Teal80,
+private val DarkColorScheme = darkColorScheme(
+    primary = Teal80,
     onPrimary = Color(0xFF003731),
     primaryContainer = Color(0xFF005048),
     onPrimaryContainer = Color(0xFF74F8E5),
@@ -141,21 +152,32 @@ private val LightColorScheme = lightColorScheme(
 )
 
 /**
- * DevInfo 主题 — 支持完整的 Material 动态颜色（Android 12+）和手动浅色/深色。
+ * DevInfo 主题 — 完整的 Material 3 Expressive 配色、形状、类型与动效。
+ *
+ * 动态模式下配色由种子色经 HCT 色板算法生成，[paletteStyle] 选择生成策略，
+ * [colorSpec] 选择对比度档位；固定模式下使用内置的青绿品牌配色。
  *
  * [motionLevel] 控制 M3 Expressive 动效强度；系统「移除动画」会强制折算为
- * [MotionLevel.OFF]，并在回到前台时重新读取。
+ * [MotionLevel.OFF]，并在回到前台时重新读取。[glassEnabled] 控制液态玻璃表面，
+ * 关闭后全部卡片退回 M3 色调表面。
  *
  * @param themeMode 主题模式
- * @param pressAnimationEnabled 是否启用按压缩放反馈（P2 起由用户偏好控制）
+ * @param themeColor 动态模式下的种子色
+ * @param paletteStyle 动态模式下的色板生成策略
+ * @param colorSpec 动态模式下的对比度档位
+ * @param pressAnimationEnabled 是否启用按压缩放反馈
+ * @param glassEnabled 是否启用液态玻璃表面
  * @param content Composable 内容
  */
 @Composable
 fun DevInfoTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     themeColor: ThemeColor = ThemeColor.DEFAULT,
+    paletteStyle: PaletteStyle = PaletteStyle.DEFAULT,
+    colorSpec: ColorSpec = ColorSpec.DEFAULT,
     motionLevel: MotionLevel = MotionLevel.STANDARD,
     pressAnimationEnabled: Boolean = true,
+    glassEnabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
@@ -175,24 +197,31 @@ fun DevInfoTheme(
         }
     }
 
-    val colorScheme: ColorScheme = when {
-        // Android 12+ 动态颜色
-        themeMode.isDynamic && themeColor != ThemeColor.DEFAULT -> {
-            if (darkTheme) themedDarkColorScheme(themeColorToColor(themeColor)) else themedLightColorScheme(themeColorToColor(themeColor))
-        }
-
-        themeMode.isDynamic -> {
-            val dynamicScheme = if (darkTheme) {
-                dynamicDarkColorScheme(context)
-            } else {
-                dynamicLightColorScheme(context)
+    val colorScheme: ColorScheme = remember(context, themeMode, themeColor, paletteStyle, colorSpec, darkTheme) {
+        when {
+            // 动态模式：种子色来自用户选择，或来自系统动态色的主色
+            themeMode.isDynamic -> {
+                val seed = if (themeColor == ThemeColor.DEFAULT) {
+                    if (darkTheme) {
+                        dynamicDarkColorScheme(context).primary
+                    } else {
+                        dynamicLightColorScheme(context).primary
+                    }
+                } else {
+                    themeColorToColor(themeColor)
+                }
+                materialColorScheme(
+                    seed = seed,
+                    dark = darkTheme,
+                    paletteStyle = paletteStyle,
+                    colorSpec = colorSpec,
+                )
             }
-            dynamicScheme
-        }
 
-        // 静态 fallback
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+            // 固定模式：内置品牌配色
+            darkTheme -> DarkColorScheme
+            else -> LightColorScheme
+        }
     }
 
     val systemAnimationsEnabled = rememberSystemAnimationsEnabled()
@@ -201,6 +230,7 @@ fun DevInfoTheme(
 
     CompositionLocalProvider(
         LocalDevInfoDarkTheme provides darkTheme,
+        LocalDevInfoGlassEnabled provides glassEnabled,
         LocalDevInfoMotionLevel provides effectiveMotion,
         LocalDevInfoMotionScheme provides motionScheme,
         LocalDevInfoPressAnimationEnabled provides pressAnimationEnabled,
@@ -209,41 +239,11 @@ fun DevInfoTheme(
             colorScheme = colorScheme,
             motionScheme = motionScheme,
             shapes = DevInfoShapes,
-            typography = Typography,
+            typography = DevInfoTypography,
             content = content,
         )
     }
 }
-
-private fun themedLightColorScheme(seed: Color): ColorScheme {
-    val primaryContainer = lerp(seed, Color.White, 0.82f)
-    return lightColorScheme(
-        primary = seed,
-        onPrimary = onColorFor(seed),
-        primaryContainer = primaryContainer,
-        onPrimaryContainer = seed,
-        secondary = lerp(seed, BlueGrey40, 0.45f),
-        tertiary = lerp(seed, Sky40, 0.45f),
-        secondaryContainer = lerp(seed, Color.White, 0.86f),
-        tertiaryContainer = lerp(seed, Color.White, 0.86f)
-    )
-}
-
-private fun themedDarkColorScheme(seed: Color): ColorScheme {
-    val primary = lerp(seed, Color.White, 0.45f)
-    return darkColorScheme(
-        primary = primary,
-        onPrimary = onColorFor(primary),
-        primaryContainer = lerp(seed, Color.Black, 0.55f),
-        onPrimaryContainer = Color.White,
-        secondary = lerp(seed, BlueGrey80, 0.45f),
-        tertiary = lerp(seed, Sky80, 0.45f),
-        secondaryContainer = lerp(seed, Color.Black, 0.58f),
-        tertiaryContainer = lerp(seed, Color.Black, 0.58f)
-    )
-}
-
-private fun onColorFor(color: Color): Color = if (color.luminance() > 0.4f) Color.Black else Color.White
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this

@@ -6,24 +6,17 @@
 
 package com.fioiu8.devinfo.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -48,10 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
@@ -124,12 +114,7 @@ private fun SwipeDismissSnackbarHost(
 }
 
 @Composable
-private fun MaterialDevInfoSnackbar(data: SnackbarData) = Snackbar(
-    snackbarData = data,
-    shape = MaterialTheme.shapes.medium,
-    containerColor = MaterialTheme.colorScheme.inverseSurface,
-    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-)
+private fun MaterialDevInfoSnackbar(data: SnackbarData) = Snackbar(snackbarData = data)
 
 /** M3 Expressive 形状变形加载指示器。 */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -208,8 +193,9 @@ private fun SwitchThumb(checked: Boolean) {
  * Settings row that shows the current choice on the trailing edge and opens a menu with every
  * option. The menu is anchored to the card's bottom-end corner so it expands below the whole
  * row instead of covering the selected value.
+ *
+ * 行本身复用 [SegmentedRow]，不再单独实现一套 Card + ListItem，因此设置页只有一种行样式。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DevInfoSegmentedDropdownItem(
     icon: ImageVector,
@@ -219,18 +205,17 @@ fun DevInfoSegmentedDropdownItem(
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    valueColor: Color = MaterialTheme.colorScheme.primary,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val safeIndex = selectedIndex.coerceIn(0, items.lastIndex.coerceAtLeast(0))
 
     Box(modifier = modifier) {
-        DropdownSettingCard(
-            icon = icon,
+        SegmentedRow(
             title = title,
-            summary = summary,
-            value = items.getOrNull(safeIndex).orEmpty(),
-            valueColor = valueColor,
+            supporting = summary,
+            leadingIcon = icon,
+            trailingValue = items.getOrNull(safeIndex).orEmpty(),
+            showChevron = true,
             onClick = { expanded = true },
         )
         if (expanded) {
@@ -244,54 +229,6 @@ fun DevInfoSegmentedDropdownItem(
                 },
             )
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DropdownSettingCard(
-    icon: ImageVector,
-    title: String,
-    summary: String,
-    value: String,
-    valueColor: Color,
-    onClick: () -> Unit,
-) {
-    val containerColor = MaterialTheme.colorScheme.surfaceContainer
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-    ) {
-        ListItem(
-            headlineContent = { Text(title) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-            leadingContent = {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                )
-            },
-            supportingContent = {
-                if (summary.isNotBlank()) {
-                    Text(text = summary)
-                }
-            },
-            trailingContent = {
-                Text(
-                    text = value,
-                    color = valueColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.fillMaxWidth(0.3f),
-                )
-            },
-            colors = ListItemDefaults.colors(containerColor = containerColor),
-        )
     }
 }
 

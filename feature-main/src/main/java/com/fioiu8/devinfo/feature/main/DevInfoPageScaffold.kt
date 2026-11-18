@@ -23,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import com.fioiu8.devinfo.ui.TestVersionWarningCard
 import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassBackdropHost
 import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassIconButton
@@ -81,7 +80,7 @@ private fun DevInfoTopBar(
             Text(
                 text = title,
                 modifier = LocalDevInfoPageTitleModifier.current,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleLargeEmphasized,
             )
         }
         val navigationIcon: @Composable () -> Unit = {

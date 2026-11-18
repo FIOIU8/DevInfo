@@ -27,7 +27,7 @@ import com.fioiu8.devinfo.feature.main.DevInfoPageScaffold
 import com.fioiu8.devinfo.ui.SegmentedGroup
 
 @Composable
-fun RootHelpScreenMaterial(
+fun RootHelpScreenContent(
     state: RootHelpUiState,
     actions: RootHelpScreenActions,
 ) {

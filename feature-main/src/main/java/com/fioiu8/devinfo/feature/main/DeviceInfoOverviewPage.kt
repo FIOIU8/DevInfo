@@ -11,21 +11,20 @@ import com.fioiu8.devinfo.ui.DevInfoPullToRefresh
 import com.fioiu8.devinfo.ui.DevInfoSegmentHeader
 import com.fioiu8.devinfo.ui.SegmentedGroup
 import com.fioiu8.devinfo.ui.SegmentedRow
+import com.fioiu8.devinfo.ui.DevInfoAlertDialog
+import com.fioiu8.devinfo.ui.DevInfoCard
+import com.fioiu8.devinfo.ui.DevInfoCardLevel
+import com.fioiu8.devinfo.ui.DevInfoDialogAction
 import com.fioiu8.devinfo.ui.motion.DevInfoAnimatedValue
 import com.fioiu8.devinfo.ui.motion.DevInfoStaggeredEntrance
-import com.fioiu8.devinfo.ui.motion.devInfoPressable
 import com.fioiu8.devinfo.ui.descriptionResId
 import com.fioiu8.devinfo.ui.displayNameResId
-import com.fioiu8.devinfo.ui.kit.liquid.LiquidGlassCard
 import com.fioiu8.devinfo.feature.main.R
 
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,8 +48,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Brightness6
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Lock
@@ -58,13 +55,11 @@ import androidx.compose.material.icons.outlined.OpenInBrowser
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -75,13 +70,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -309,8 +302,7 @@ private fun DeviceOverviewHeader(items: List<ItemWithVisibility>) {
     ) {
         Text(
             text = model,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineMediumEmphasized,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -328,10 +320,9 @@ private fun DeviceOverviewHeader(items: List<ItemWithVisibility>) {
 @Composable
 private fun DeviceIdentitySummaryCard(items: List<ItemWithVisibility>) {
     val supportingText = stringResource(R.string.overview_device_summary_supporting, items.size)
-    LiquidGlassCard(
+    DevInfoCard(
+        level = DevInfoCardLevel.EMPHASIS,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        containerColor = MaterialTheme.colorScheme.primaryContainer,
     ) {
         Row(
             modifier = Modifier
@@ -353,8 +344,7 @@ private fun DeviceIdentitySummaryCard(items: List<ItemWithVisibility>) {
             ) {
                 Text(
                     text = stringResource(R.string.overview_device_summary),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLargeEmphasized,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Text(
@@ -602,27 +592,12 @@ private fun OverviewMetricCard(
     }
     val hasCpuGauge = metric.id == OverviewMetricId.REALTIME_CPU
     val hasFrequencySummary = metric.showFrequencySummary
-    val interactionSource = remember { MutableInteractionSource() }
-    LiquidGlassCard(
+    DevInfoCard(
+        level = DevInfoCardLevel.CARD,
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (hasCpuGauge || hasFrequencySummary) {
-                    Modifier.heightIn(min = 148.dp)
-                } else {
-                    Modifier.height(148.dp)
-                }
-            )
-            // clickable 的指示层需要与卡片同形状裁剪，避免方形涟漪溢出圆角。
-            .clip(MaterialTheme.shapes.large)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = LocalIndication.current,
-                onClick = onClick,
-            )
-            .devInfoPressable(interactionSource),
-        shape = MaterialTheme.shapes.large,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            .heightIn(min = 148.dp),
+        onClick = onClick,
     ) {
         androidx.compose.foundation.layout.Column(
             modifier = Modifier.padding(if (hasCpuGauge) 14.dp else 16.dp),
@@ -645,12 +620,12 @@ private fun OverviewMetricCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 if (metric.category == InfoCategory.SYSTEM && !hasCpuGauge) {
-                    IconButton(onClick = onClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                            contentDescription = stringResource(R.string.title_device_details)
-                        )
-                    }
+                    // 整卡已经可点击，这里只做视觉提示，避免卡内再嵌一个点击目标。
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
             if (wideLayout && hasCpuGauge) {
@@ -715,10 +690,9 @@ private fun OverviewMetricCard(
 private fun CpuTrendCard(metric: OverviewMetric) {
     var selectedCore by remember(metric.id) { mutableStateOf<Int?>(null) }
 
-    LiquidGlassCard(
+    DevInfoCard(
+        level = DevInfoCardLevel.CARD,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -728,8 +702,7 @@ private fun CpuTrendCard(metric: OverviewMetric) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.overview_realtime_cpu),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                     )
                     Text(
                         text = stringResource(R.string.overview_cpu_cores_detail),
@@ -838,11 +811,10 @@ private fun MetricValueBlock(
                 DevInfoAnimatedValue(
                     value = it,
                     style = if (metric.size == OverviewCardSize.LARGE) {
-                        MaterialTheme.typography.headlineSmall
+                        MaterialTheme.typography.headlineSmallEmphasized
                     } else {
-                        MaterialTheme.typography.titleLarge
+                        MaterialTheme.typography.titleLargeEmphasized
                     },
-                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -863,7 +835,7 @@ private fun MetricValueBlock(
                 progress = { it.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
             )
         }
     }
@@ -876,11 +848,11 @@ private fun DashboardGauge(
     value: String?,
     modifier: Modifier = Modifier,
 ) {
-    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
     val indicatorColor = when {
         progress == null -> MaterialTheme.colorScheme.outline
         progress >= 0.9f -> MaterialTheme.colorScheme.error
-        progress >= 0.75f -> Color(0xFFFFA000)
+        progress >= 0.75f -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.primary
     }
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
@@ -917,8 +889,7 @@ private fun DashboardGauge(
         }
         Text(
             text = value ?: stringResource(R.string.status_unavailable),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleMediumEmphasized,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -934,6 +905,7 @@ private fun CpuCoreSelectionSlot(
 ) {
     if (selectedCore == null && !reserveSpace) return
 
+    val corePalette = rememberCpuLinePalette()
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -944,7 +916,7 @@ private fun CpuCoreSelectionSlot(
             val coreColor = if (coreIndex < 0) {
                 MaterialTheme.colorScheme.primary
             } else {
-                cpuLineColor(coreIndex, isInDarkTheme())
+                cpuLineColor(coreIndex, corePalette)
             }
             val selectedMetric = metric.coreMetrics.firstOrNull { it.index == coreIndex }
             CpuCoreSelectionDetails(
@@ -961,19 +933,12 @@ private fun CpuCoreSelectionSlot(
 /** 静态信息小卡片：图标 + 标题 + 值，点击跳转到对应分类详情 */
 @Composable
 private fun StaticInfoCard(card: StaticInfoCardData, onClick: () -> Unit) {
-    val interactionSource = remember { MutableInteractionSource() }
-    Card(
+    DevInfoCard(
+        level = DevInfoCardLevel.CARD,
         modifier = Modifier
             .fillMaxWidth()
-            .height(124.dp)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = LocalIndication.current,
-                onClick = onClick,
-            )
-            .devInfoPressable(interactionSource),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+            .heightIn(min = 124.dp),
+        onClick = onClick,
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
@@ -998,8 +963,7 @@ private fun StaticInfoCard(card: StaticInfoCardData, onClick: () -> Unit) {
             }
             Text(
                 text = card.value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMediumEmphasized,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -1008,19 +972,30 @@ private fun StaticInfoCard(card: StaticInfoCardData, onClick: () -> Unit) {
     }
 }
 
-// 明/暗两套核心曲线色板：暗色用更亮的 Material 色阶保证对比度
-private val CPU_LINE_COLORS_LIGHT = listOf(
-    0xFF2196F3, 0xFF009688, 0xFFFFA000, 0xFFEF5350,
-    0xFFAB47BC, 0xFF7CB342, 0xFF00838F, 0xFFFF7043
-)
+/**
+ * CPU 核心曲线色板，全部取自当前配色方案。
+ *
+ * 之前这里写死 16 个十六进制色值（明暗两套），自定义主题色下曲线与界面撞色或失去对比度；
+ * 现在按角色取色，明暗与种子色切换都会自动跟随。
+ */
+@Composable
+private fun rememberCpuLinePalette(): List<Color> {
+    val scheme = MaterialTheme.colorScheme
+    return remember(scheme) {
+        listOf(
+            scheme.primary,
+            scheme.tertiary,
+            scheme.secondary,
+            scheme.error,
+            scheme.primaryFixed,
+            scheme.tertiaryFixed,
+            scheme.secondaryFixed,
+            scheme.outline,
+        )
+    }
+}
 
-private val CPU_LINE_COLORS_DARK = listOf(
-    0xFF64B5F6, 0xFF4DB6AC, 0xFFFFD54F, 0xFFE57373,
-    0xFFBA68C8, 0xFFAED581, 0xFF4DD0E1, 0xFFFF8A65
-)
-
-private fun cpuLineColor(index: Int, darkTheme: Boolean): Color =
-    Color((if (darkTheme) CPU_LINE_COLORS_DARK else CPU_LINE_COLORS_LIGHT)[index % 8])
+private fun cpuLineColor(index: Int, palette: List<Color>): Color = palette[index % palette.size]
 
 @Composable
 private fun CpuTrendChart(
@@ -1030,7 +1005,8 @@ private fun CpuTrendChart(
     chartHeight: Dp = 104.dp
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val darkTheme = isInDarkTheme()
+    val corePalette = rememberCpuLinePalette()
+    val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     val coreIndexes = remember(history) {
         history.flatMap { it.valuesByCore.keys }.distinct().sorted()
     }
@@ -1086,7 +1062,7 @@ private fun CpuTrendChart(
                     listOf(0f, 0.5f, 1f).forEach { fraction ->
                         val y = bottom - plotHeight * fraction
                         drawLine(
-                            color = Color.Gray.copy(alpha = 0.18f),
+                            color = gridColor,
                             start = androidx.compose.ui.geometry.Offset(left, y),
                             end = androidx.compose.ui.geometry.Offset(right, y),
                             strokeWidth = 1.dp.toPx()
@@ -1095,7 +1071,7 @@ private fun CpuTrendChart(
                     // 使用缓存路径绘制
                     cachedPaths.forEach { (coreIndex, path, areaPath) ->
                         if (path != null && areaPath != null) {
-                            val lineColor = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex, darkTheme)
+                            val lineColor = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex, corePalette)
                             val isMuted = selectedCore != null && selectedCore != coreIndex
                             drawPath(
                                 path = areaPath,
@@ -1125,7 +1101,7 @@ private fun CpuTrendChart(
                                 androidx.compose.ui.geometry.Offset(x, bottom - plotHeight * value / 100f)
                             }
                             if (points.isNotEmpty()) {
-                                val lineColor = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex, darkTheme)
+                                val lineColor = if (coreIndex < 0) primaryColor else cpuLineColor(coreIndex, corePalette)
                                 drawCircle(
                                     color = lineColor.copy(alpha = if (selectedCore != null && selectedCore != coreIndex) 0.3f else 1f),
                                     radius = 3.5.dp.toPx(),
@@ -1146,7 +1122,7 @@ private fun CpuTrendLegend(
     onCoreSelected: (Int) -> Unit
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val darkTheme = isInDarkTheme()
+    val corePalette = rememberCpuLinePalette()
     val currentByCore = remember(metric.coreMetrics) {
         metric.coreMetrics.associate { it.index to it.usagePercent }
     }
@@ -1159,27 +1135,41 @@ private fun CpuTrendLegend(
     ) {
         coreIndexes.forEach { core ->
             val isSelected = selectedCore == core
-            Row(
-                modifier = Modifier
-                    .clip(MaterialTheme.shapes.small)
-                    .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-                    .clickable { onCoreSelected(core) }
-                    .heightIn(min = 36.dp)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Box(Modifier.size(7.dp), contentAlignment = Alignment.Center) {
-                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                        drawCircle(if (core < 0) primaryColor else cpuLineColor(core, darkTheme))
-                    }
+            Surface(
+                onClick = { onCoreSelected(core) },
+                shape = MaterialTheme.shapes.small,
+                color = if (isSelected) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    Color.Transparent
+                },
+                contentColor = if (isSelected) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
                 }
-                Text(
-                    text = if (core < 0) "CPU" else "C$core${currentByCore[core]?.let { " ${it.roundToInt()}%" } ?: ""}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .heightIn(min = 36.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(Modifier.size(7.dp), contentAlignment = Alignment.Center) {
+                        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                            drawCircle(if (core < 0) primaryColor else cpuLineColor(core, corePalette))
+                        }
+                    }
+                    Text(
+                        text = if (core < 0) "CPU" else "C$core${currentByCore[core]?.let { " ${it.roundToInt()}%" } ?: ""}",
+                        style = if (isSelected) {
+                            MaterialTheme.typography.labelSmallEmphasized
+                        } else {
+                            MaterialTheme.typography.labelSmall
+                        }
+                    )
+                }
             }
         }
     }
@@ -1204,7 +1194,7 @@ private fun CpuCoreSelectionDetails(
                 .size(8.dp)
                 .background(color, RoundedCornerShape(50)),
         )
-        Text(title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        Text(title, style = MaterialTheme.typography.labelMediumEmphasized)
         Text(
             text = metric?.frequency ?: "--",
             modifier = Modifier.weight(1f),
@@ -1215,8 +1205,7 @@ private fun CpuCoreSelectionDetails(
         )
         Text(
             text = usagePercent?.let(::formatPercent) ?: "--",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.labelMediumEmphasized,
             color = MaterialTheme.colorScheme.onSurface
         )
     }
@@ -1227,16 +1216,15 @@ private fun HardwareSensorsCard(
     snapshot: LiveHardwareSnapshot,
     stackValues: Boolean
 ) {
-    LiquidGlassCard(
+    DevInfoCard(
+        level = DevInfoCardLevel.CARD,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.small,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.Refresh, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(10.dp))
-                Text(stringResource(R.string.overview_hardware_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.overview_hardware_title), style = MaterialTheme.typography.titleMediumEmphasized)
             }
             val sensorValues = listOf(
                 Triple(Icons.Outlined.Refresh, stringResource(R.string.overview_motion), when {
@@ -1276,7 +1264,7 @@ private fun SensorValue(icon: androidx.compose.ui.graphics.vector.ImageVector, l
         Icon(icon, null, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
         Column {
             Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(value, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            Text(value, style = MaterialTheme.typography.labelMediumEmphasized)
         }
     }
 }
@@ -1285,16 +1273,15 @@ private fun SensorValue(icon: androidx.compose.ui.graphics.vector.ImageVector, l
 private fun SecuritySummaryCard(snapshot: OverviewSnapshot) {
     val context = LocalContext.current
     var showUsbDialog by remember { mutableStateOf(false) }
-    LiquidGlassCard(
+    DevInfoCard(
+        level = DevInfoCardLevel.CARD,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.small,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.CheckCircle, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(10.dp))
-                Text(stringResource(R.string.overview_security_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.overview_security_title), style = MaterialTheme.typography.titleMediumEmphasized)
             }
             SecurityRow(Icons.Outlined.CheckCircle, stringResource(R.string.security_patch_updated, snapshot.securityPatch ?: stringResource(R.string.status_unknown)), MaterialTheme.colorScheme.primary)
             SecurityRow(Icons.Outlined.Lock, when (snapshot.lockScreenEnabled) {
@@ -1302,11 +1289,15 @@ private fun SecuritySummaryCard(snapshot: OverviewSnapshot) {
                 false -> stringResource(R.string.security_lock_disabled)
                 null -> stringResource(R.string.security_lock_unknown)
             }, MaterialTheme.colorScheme.primary)
-            Card(
+            Surface(
                 onClick = { if (snapshot.usbDebuggingEnabled == true) showUsbDialog = true },
                 enabled = snapshot.usbDebuggingEnabled == true,
-                colors = CardDefaults.cardColors(containerColor = if (snapshot.usbDebuggingEnabled == true) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerLow),
-                shape = MaterialTheme.shapes.extraSmall
+                color = if (snapshot.usbDebuggingEnabled == true) {
+                    MaterialTheme.colorScheme.errorContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerLow
+                },
+                shape = MaterialTheme.shapes.extraSmall,
             ) {
                 SecurityRow(Icons.Outlined.ErrorOutline, when (snapshot.usbDebuggingEnabled) {
                     true -> stringResource(R.string.security_usb_enabled)
@@ -1317,23 +1308,27 @@ private fun SecuritySummaryCard(snapshot: OverviewSnapshot) {
         }
     }
     if (showUsbDialog) {
-        AlertDialog(
+        DevInfoAlertDialog(
+            title = stringResource(R.string.security_usb_dialog_title),
             onDismissRequest = { showUsbDialog = false },
-            icon = { Icon(Icons.Outlined.ErrorOutline, null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text(stringResource(R.string.security_usb_dialog_title)) },
-            text = { Text(stringResource(R.string.security_usb_dialog_text)) },
-            dismissButton = { TextButton(onClick = { showUsbDialog = false }) { Text(stringResource(R.string.cancel)) } },
-            confirmButton = {
-                TextButton(onClick = {
+            icon = Icons.Outlined.ErrorOutline,
+            iconTint = MaterialTheme.colorScheme.error,
+            confirm = DevInfoDialogAction(
+                label = stringResource(R.string.security_open_developer_options),
+                onClick = {
                     showUsbDialog = false
-                    runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) }
-                }) {
-                    Icon(Icons.Outlined.OpenInBrowser, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.security_open_developer_options))
-                }
-            }
-        )
+                    runCatching {
+                        context.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
+                    }
+                },
+            ),
+            dismiss = DevInfoDialogAction(
+                label = stringResource(R.string.cancel),
+                onClick = { showUsbDialog = false },
+            ),
+        ) {
+            Text(stringResource(R.string.security_usb_dialog_text))
+        }
     }
 }
 

@@ -15,6 +15,7 @@ dataStore = "1.3.0"
 coreSplashscreen = "1.2.0"
 kotlinxCoroutines = "1.11.0"
 androidCnOaid = "4.2.17"
+materialPalette = "1.14.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -38,6 +39,7 @@ androidx-datastore-preferences = { group = "androidx.datastore", name = "datasto
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 android-liquid-glass = { module = "io.github.kyant0:backdrop", version.ref = "backdrop" }
 android-cn-oaid = { module = "com.github.gzu-liyujiang:Android_CN_OAID", version.ref = "androidCnOaid" }
+android-material-palette = { module = "com.google.android.material:material", version.ref = "materialPalette" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 
 [plugins]

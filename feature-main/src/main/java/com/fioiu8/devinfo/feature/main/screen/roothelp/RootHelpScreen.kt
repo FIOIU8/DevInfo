@@ -43,7 +43,7 @@ fun RootHelpScreen(
     )
     val actions = RootHelpScreenActions(onBack = onBack)
 
-    RootHelpScreenMaterial(state, actions)
+    RootHelpScreenContent(state, actions)
 }
 
 /**

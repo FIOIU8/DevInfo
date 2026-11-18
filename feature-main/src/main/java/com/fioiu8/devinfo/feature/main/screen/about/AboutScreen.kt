@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +25,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.fioiu8.devinfo.ui.DevInfoAlertDialog
+import com.fioiu8.devinfo.ui.DevInfoDialogAction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -71,7 +71,7 @@ fun AboutScreen(
         },
     )
 
-    AboutScreenMaterial(state, actions)
+    AboutScreenContent(state, actions)
 
     if (showLicense) {
         LicenseDialog(
@@ -100,26 +100,24 @@ private fun LicenseDialog(
         }
     }
 
-    AlertDialog(
+    DevInfoAlertDialog(
+        title = title,
         onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.close))
-            }
-        },
-        title = { Text(title) },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 420.dp)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                Text(
-                    text = licenseText,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        },
-    )
+        confirm = DevInfoDialogAction(
+            label = stringResource(R.string.close),
+            onClick = onDismiss,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 420.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Text(
+                text = licenseText,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
 }

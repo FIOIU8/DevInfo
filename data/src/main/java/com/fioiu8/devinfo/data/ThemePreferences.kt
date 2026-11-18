@@ -69,6 +69,9 @@ class ThemePreferences private constructor(context: Context) :
     private val pressAnimationPreference =
         booleanPreference(key = KEY_PRESS_ANIMATION, defaultValue = true)
 
+    private val glassEffectPreference =
+        booleanPreference(key = KEY_GLASS_EFFECT, defaultValue = true)
+
     private val privacyMaskPreference =
         booleanPreference(key = KEY_PRIVACY_MASK, defaultValue = true)
 
@@ -86,6 +89,9 @@ class ThemePreferences private constructor(context: Context) :
     val enablePredictiveBack: StateFlow<Boolean> = enablePredictiveBackPreference.flow
     val motionLevel: StateFlow<com.fioiu8.devinfo.core.model.MotionLevel> = motionLevelPreference.flow
     val pressAnimation: StateFlow<Boolean> = pressAnimationPreference.flow
+
+    /** 液态玻璃表面开关；关闭后卡片退回纯 Material 3 色调表面。 */
+    val glassEffect: StateFlow<Boolean> = glassEffectPreference.flow
     val privacyMask: StateFlow<Boolean> = privacyMaskPreference.flow
     val screenshotProtection: StateFlow<Boolean> = screenshotProtectionPreference.flow
 
@@ -124,6 +130,10 @@ class ThemePreferences private constructor(context: Context) :
 
     fun setPressAnimation(enabled: Boolean) {
         pressAnimationPreference.set(enabled)
+    }
+
+    fun setGlassEffect(enabled: Boolean) {
+        glassEffectPreference.set(enabled)
     }
 
     fun setPrivacyMask(enabled: Boolean) {
@@ -170,6 +180,7 @@ class ThemePreferences private constructor(context: Context) :
         const val KEY_ENABLE_PREDICTIVE_BACK = "enable_predictive_back"
         const val KEY_MOTION_LEVEL = "motion_level"
         const val KEY_PRESS_ANIMATION = "press_animation"
+        const val KEY_GLASS_EFFECT = "glass_effect"
         const val KEY_PRIVACY_MASK = "privacy_mask"
         const val KEY_SCREENSHOT_PROTECTION = "screenshot_protection"
     }

@@ -20,7 +20,7 @@ DevInfo is an Android device information viewer built with Kotlin and Jetpack Co
 
 ### Device information and live overview
 
-- Details use seven horizontal pages for device, display, SoC and storage, battery and network, cameras, sensors, and more. Existing fields are preserved and regrouped; select a top tab or swipe horizontally to switch pages.
+- Details are one continuously scrolling list split into seven sticky-stacked sections: device, display, SoC and storage, battery and network, cameras, sensors, and more. Existing fields are preserved and regrouped; entering from an overview category scrolls straight to that section.
 - Fields include Android version, SDK, ABI, kernel, security patch, display, memory/storage, battery, network, sensors, and app information.
 - The camera page shows basic characteristics available to the system without requesting camera permission. The sensor page lists available sensors and reads live accelerometer and gyroscope axes only while that page is visible in the foreground.
 - The overview shows the device model and system summary, available field count, circular CPU/memory/storage/battery metrics, a separate CPU graph, and category summaries. It supports pull-to-refresh; GPU, motion, brightness, storage read speed, and Wi-Fi signal appear when supported.
@@ -34,9 +34,10 @@ DevInfo is an Android device information viewer built with Kotlin and Jetpack Co
 
 ### UI and localization
 
-- A unified Material 3 technical dashboard. Details use top category tabs and horizontal paging, with back and settings actions in the top bar; the main screen has no bottom navigation and uses a navigation rail on wide screens. Overview and detail cards, along with top bar actions, use liquid glass surfaces.
-- All pages use Material 3 Expressive: shared-element page-title transitions, large in-content headings, press-scale feedback, shape-morphing loading indicators, and a unified shape scale. Press animation can be disabled in theme settings.
-- AndroidLiquidGlass provides the liquid-glass effects.
+- A unified Material 3 technical dashboard. Details keep back and settings actions in the top bar; the main screen has no bottom navigation and uses a navigation rail on wide screens. Cards and top bar actions use liquid glass surfaces by default.
+- All pages use Material 3 Expressive: shared-element page-title transitions, large in-content headings, emphasized type variants, press-scale feedback, shape-morphing loading indicators, and a unified shape scale. Press animation can be disabled in theme settings.
+- AndroidLiquidGlass provides the liquid-glass effects, and it can be switched off in theme settings. When off, cards fall back to plain Material 3 tonal surfaces (same container colors and shapes) and no hand-drawn glass layer remains.
+- In dynamic-color mode, palette style (Tonal Spot, Vibrant, Expressive, Fidelity, Content, Neutral, Monochrome, Rainbow, Fruit Salad) and contrast level now actually drive palette generation.
 - System, light, dark, and dynamic-color modes with theme colors, palette styles, and page scale settings; settings use segmented lists.
 - Simplified Chinese, English, Japanese, and custom BCP-47 locale tags.
 - Predictive back gestures with progress preview on Android 14+, splash screens, and app-wide pull-to-refresh.

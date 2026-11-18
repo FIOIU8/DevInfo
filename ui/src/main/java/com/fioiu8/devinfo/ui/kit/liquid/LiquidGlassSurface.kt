@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import com.fioiu8.devinfo.ui.motion.devInfoSqueeze
+import com.fioiu8.devinfo.ui.theme.LocalDevInfoGlassEnabled
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -41,12 +42,24 @@ import com.kyant.backdrop.highlight.Highlight
 
 private val LocalLiquidGlassBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null }
 
-/** Provides a page background layer that glass surfaces can sample without sampling themselves. */
+/**
+ * Provides a page background layer that glass surfaces can sample without sampling themselves.
+ *
+ * 液态玻璃关闭时不注册背景层也不画渐变：页面回到纯 M3 surface，玻璃组件通过
+ * [LocalLiquidGlassBackdrop] 为空自动退回平面色调表面。
+ */
 @Composable
 fun LiquidGlassBackdropHost(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    if (!LocalDevInfoGlassEnabled.current) {
+        Box(modifier = modifier.background(MaterialTheme.colorScheme.background)) {
+            content()
+        }
+        return
+    }
+
     val backdrop = rememberLayerBackdrop()
     val backgroundColor = MaterialTheme.colorScheme.background
     val isLightTheme = backgroundColor.luminance() >= 0.5f
@@ -100,6 +113,10 @@ fun LiquidGlassIconButton(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    if (!LocalDevInfoGlassEnabled.current) {
+        IconButton(onClick = onClick, modifier = modifier) { content() }
+        return
+    }
     val interactionSource = remember { MutableInteractionSource() }
     // IconButton 内部有 .size(40dp).clip(shape)，挤压必须放在它外层，
     // 否则放大后的圆形会被 IconButton 自己的蒙版裁掉。

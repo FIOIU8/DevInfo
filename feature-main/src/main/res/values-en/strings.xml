@@ -202,6 +202,9 @@
     <string name="motion_system_disabled">System animations are off; the in-app setting is overridden</string>
     <string name="theme_monet">Monet dynamic color</string>
     <string name="theme_monet_summary">Use wallpaper colors or a custom theme color</string>
+    <string name="theme_glass_effect">Liquid glass</string>
+    <string name="theme_glass_effect_summary">Cards use liquid glass surfaces; turn off for plain Material 3 tonal surfaces</string>
+    <string name="theme_preview_toggle">Preview</string>
     <string name="theme_page_scale">Page scale</string>
     <string name="theme_page_scale_summary">Adjust the display scale of the app UI</string>
     <string name="theme_palette_style">Color style</string>

@@ -202,6 +202,9 @@
     <string name="motion_system_disabled">系统已关闭动画，应用内设置暂不生效</string>
     <string name="theme_monet">Monet 动态颜色</string>
     <string name="theme_monet_summary">使用系统壁纸颜色或自定义主题色</string>
+    <string name="theme_glass_effect">液态玻璃</string>
+    <string name="theme_glass_effect_summary">开启后卡片使用液态玻璃表面，关闭后使用 Material 3 色调表面</string>
+    <string name="theme_preview_toggle">预览</string>
     <string name="theme_page_scale">页面缩放</string>
     <string name="theme_page_scale_summary">调整应用界面的显示比例</string>
     <string name="theme_palette_style">颜色风格</string>

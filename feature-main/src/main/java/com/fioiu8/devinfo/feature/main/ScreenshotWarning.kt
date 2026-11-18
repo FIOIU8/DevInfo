@@ -8,16 +8,15 @@ package com.fioiu8.devinfo.feature.main
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.fioiu8.devinfo.core.model.DeviceInfoItem
 import com.fioiu8.devinfo.core.model.ItemWithVisibility
 import com.fioiu8.devinfo.core.privacy.SensitiveKeys
+import com.fioiu8.devinfo.ui.DevInfoAlertDialog
+import com.fioiu8.devinfo.ui.DevInfoDialogAction
 
 /**
  * 截图发生时当前路由上可能存在风险的字段。
@@ -47,41 +46,27 @@ internal fun ScreenshotWarningDialog(
     onDismiss: () -> Unit,
 ) {
     if (!show) return
-    AlertDialog(
+    val message = if (sensitiveLabels.isEmpty()) {
+        stringResource(R.string.privacy_screenshot_message_none)
+    } else {
+        stringResource(R.string.privacy_screenshot_message) +
+            "\n\n" +
+            sensitiveLabels.joinToString("\n") { "• $it" }
+    }
+    DevInfoAlertDialog(
+        title = stringResource(R.string.privacy_screenshot_title),
         onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = Icons.Outlined.Warning,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-            )
-        },
-        title = {
-            Text(
-                text = stringResource(R.string.privacy_screenshot_title),
-                style = MaterialTheme.typography.headlineSmall,
-            )
-        },
-        text = {
-            Text(
-                text = if (sensitiveLabels.isEmpty()) {
-                    stringResource(R.string.privacy_screenshot_message_none)
-                } else {
-                    stringResource(R.string.privacy_screenshot_message) +
-                        "\n\n" +
-                        sensitiveLabels.joinToString("\n") { "• $it" }
-                },
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onEnableProtection) {
-                Text(stringResource(R.string.privacy_screenshot_enable))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.privacy_screenshot_dismiss))
-            }
-        },
-    )
+        icon = Icons.Outlined.Warning,
+        iconTint = MaterialTheme.colorScheme.error,
+        confirm = DevInfoDialogAction(
+            label = stringResource(R.string.privacy_screenshot_enable),
+            onClick = onEnableProtection,
+        ),
+        dismiss = DevInfoDialogAction(
+            label = stringResource(R.string.privacy_screenshot_dismiss),
+            onClick = onDismiss,
+        ),
+    ) {
+        Text(text = message)
+    }
 }
