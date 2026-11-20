@@ -167,10 +167,14 @@ class DeviceInfoCollector(
             (context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager)
                 ?.getSensorList(Sensor.TYPE_ALL)
         }.getOrNull()
+        @Suppress("DEPRECATION") // API 31–32 没有 PackageInfoFlags；两种查询均受应用可见性限制。
         val installedPackageCount = runCatching {
-            // minSdk 33：直接使用带 PackageInfoFlags 的版本。
-            context.packageManager
-                .getInstalledPackages(PackageManager.PackageInfoFlags.of(0)).size
+            val packageManager = context.packageManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0)).size
+            } else {
+                packageManager.getInstalledPackages(0).size
+            }
         }.getOrNull()
         val externalDir = Environment.getExternalStorageDirectory()
         val dataDir = Environment.getDataDirectory()

@@ -11,7 +11,7 @@
 | <img src="readme_overview.png" width="220" alt="Device overview"> | <img src="readme_overview_metrics.png" width="220" alt="Live metrics and categories"> | <img src="readme_hardware_details.png" width="220" alt="Hardware details"> |
 
 [![License](https://img.shields.io/github/license/FIOIU8/DevInfo?color=blue)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-13%2B-brightgreen.svg)](https://developer.android.com)
+[![Android](https://img.shields.io/badge/Android-12%2B-brightgreen.svg)](https://developer.android.com)
 [![GitHub Release](https://img.shields.io/github/v/release/FIOIU8/DevInfo?style=flat&logo=github)](https://github.com/FIOIU8/DevInfo/releases)
 
 DevInfo is an Android device information viewer built with Kotlin and Jetpack Compose. It collects device data locally, provides a live hardware overview and categorized details, supports theme and language settings, and can export the information as a Magisk/KernelSU ZIP module.
@@ -36,7 +36,7 @@ DevInfo is an Android device information viewer built with Kotlin and Jetpack Co
 
 - A unified Material 3 technical dashboard. Details keep back and settings actions in the top bar; the main screen has no bottom navigation and uses a navigation rail on wide screens. Cards and top bar actions use liquid glass surfaces by default.
 - All pages use Material 3 Expressive: shared-element page-title transitions, large in-content headings, emphasized type variants, press-scale feedback, shape-morphing loading indicators, and a unified shape scale. Press animation can be disabled in theme settings.
-- AndroidLiquidGlass provides the liquid-glass effects, and it can be switched off in theme settings. When off, cards fall back to plain Material 3 tonal surfaces (same container colors and shapes) and no hand-drawn glass layer remains.
+- AndroidLiquidGlass provides the liquid-glass effects and can be switched off in theme settings. Android 12 and 12L retain backdrop blur; lens refraction requires Android 13+. When off, cards fall back to plain Material 3 tonal surfaces (same container colors and shapes) and no hand-drawn glass layer remains.
 - In dynamic-color mode, palette style (Tonal Spot, Vibrant, Expressive, Fidelity, Content, Neutral, Monochrome, Rainbow, Fruit Salad) and contrast level now actually drive palette generation.
 - System, light, dark, and dynamic-color modes with theme colors, palette styles, and page scale settings; settings use segmented lists.
 - Simplified Chinese, English, Japanese, and custom BCP-47 locale tags.
@@ -65,7 +65,7 @@ The manifest declares `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `
 
 - Android Studio and Android SDK 37.
 - JDK 21; `app`/`feature-main` target JVM 21, while `core`/`data`/`ui` remain on JVM 11.
-- Minimum supported Android version: Android 13 (API 33).
+- Minimum supported Android version: Android 12 (API 31).
 
 ### Local build
 
@@ -89,7 +89,7 @@ The debug APK is written to `app/build/outputs/apk/debug/`.
 | Jetpack Compose | BOM 2026.08.00 |
 | Android Gradle Plugin | 9.1.0 |
 | compileSdk / targetSdk | 37 |
-| minSdk | 33 (Android 13) |
+| minSdk | 31 (Android 12) |
 | Java target / toolchain | `app`/`feature-main`: JVM 21; `core`/`data`/`ui`: JVM 11; JDK 21 |
 
 ```text

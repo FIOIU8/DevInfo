@@ -20,6 +20,7 @@ import com.fioiu8.devinfo.ui.rememberDevInfoMessageHandler
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -541,7 +542,7 @@ private fun MainNavigationHost(
         predictiveRoute = null
         backProgress = 0f
     }
-    if (enablePredictiveBack && canGoBack) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && enablePredictiveBack && canGoBack) {
         PredictiveBackHandler(enabled = true) { events ->
             try {
                 events.collect { event ->

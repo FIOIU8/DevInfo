@@ -160,10 +160,13 @@ class ModuleExportHelper(private val context: Context) {
 
     /** 读取应用自身的版本名与 versionCode，供 module.prop 使用。 */
     private fun readAppVersion(): AppVersion? = runCatching {
-        val packageInfo = context.packageManager.getPackageInfo(
-            context.packageName,
-            PackageManager.PackageInfoFlags.of(0),
-        )
+        val packageManager = context.packageManager
+        @Suppress("DEPRECATION") // API 31–32 只能使用整数 flags。
+        val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
+        } else {
+            packageManager.getPackageInfo(context.packageName, 0)
+        }
         val versionName = packageInfo.versionName?.takeIf { it.isNotBlank() }
             ?: return@runCatching null
         AppVersion(name = versionName, code = packageInfo.longVersionCode)

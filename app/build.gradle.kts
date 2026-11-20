@@ -63,7 +63,7 @@ android {
 
     defaultConfig {
         applicationId = "com.fioiu8.devinfo"
-        minSdk = 33
+        minSdk = 31
         targetSdk = 37
 
         // CI 可显式传入版本号；本地构建从版本名稳定推导，避免同一源码每次产生不同 APK。

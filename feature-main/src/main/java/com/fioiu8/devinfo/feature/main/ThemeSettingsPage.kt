@@ -18,6 +18,7 @@ import com.fioiu8.devinfo.ui.SegmentedSliderRow
 import com.fioiu8.devinfo.ui.displayNameResId
 import com.fioiu8.devinfo.ui.motion.rememberSystemAnimationsEnabled
 
+import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -270,18 +271,20 @@ fun ThemeSettingsPage(
                 }
             }
 
-            item {
-                SegmentedGroup(title = stringResource(R.string.settings_group_navigation)) {
-                    SegmentedRow(
-                        title = stringResource(R.string.theme_predictive_back),
-                        supporting = stringResource(R.string.theme_predictive_back_summary),
-                        trailing = {
-                            DevInfoExpressiveSwitch(
-                                checked = enablePredictiveBack,
-                                onCheckedChange = onEnablePredictiveBackChange,
-                            )
-                        },
-                    )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                item {
+                    SegmentedGroup(title = stringResource(R.string.settings_group_navigation)) {
+                        SegmentedRow(
+                            title = stringResource(R.string.theme_predictive_back),
+                            supporting = stringResource(R.string.theme_predictive_back_summary),
+                            trailing = {
+                                DevInfoExpressiveSwitch(
+                                    checked = enablePredictiveBack,
+                                    onCheckedChange = onEnablePredictiveBackChange,
+                                )
+                            },
+                        )
+                    }
                 }
             }
 
