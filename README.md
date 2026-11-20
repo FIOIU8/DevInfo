@@ -36,7 +36,7 @@ DevInfo 是一个使用 Kotlin 和 Jetpack Compose 编写的 Android 设备信�
 
 - 统一 Material 3 技术仪表盘界面，详情页顶部提供返回和设置入口。主界面不显示底部导航，宽屏使用导航轨；卡片与顶部栏操作默认使用液态玻璃表面。
 - 全部页面使用 Material 3 Expressive：页面标题共享元素过渡、内容区大标题、强调型字阶、按压缩放反馈、形状变形加载指示器，以及统一的形状尺度。按压动效可在主题设置中关闭。
-- 液态玻璃效果由 AndroidLiquidGlass 提供，并可在主题设置中关闭；关闭后卡片回退为纯 Material 3 色调表面（容器色与形状不变），界面不残留任何自绘玻璃层。
+- 液态玻璃效果由 AndroidLiquidGlass 提供，并可在主题设置中关闭。Android 12 / 12L 保留背景模糊，透镜折射效果需要 Android 13+。关闭后卡片回退为纯 Material 3 色调表面（容器色与形状不变），界面不残留任何自绘玻璃层。
 - 动态颜色模式下，颜色风格（Tonal Spot、Vibrant、Expressive、Fidelity、Content、Neutral、Monochrome、Rainbow、Fruit Salad）与对比度档位会真正参与色板生成。
 - 系统、浅色、深色和动态颜色模式，以及主题色、颜色风格和页面缩放设置；设置项统一使用分段式列表。
 - 简体中文、英文、日文和自定义 BCP-47 locale 标签。
@@ -65,7 +65,7 @@ Manifest 当前声明 `INTERNET`、`ACCESS_NETWORK_STATE`、`ACCESS_WIFI_STATE`�
 
 - Android Studio 和 Android SDK 37。
 - JDK 21；`app`/`feature-main` 使用 JVM 21，`core`/`data`/`ui` 保持 JVM 11。
-- 最低支持 Android 13（API 33）。
+- 最低支持 Android 12（API 31）。
 
 ### 本地构建
 
@@ -89,7 +89,7 @@ Debug APK 输出在 `app/build/outputs/apk/debug/`。
 | Jetpack Compose | BOM 2026.08.00 |
 | Android Gradle Plugin | 9.1.0 |
 | compileSdk / targetSdk | 37 |
-| minSdk | 33（Android 13） |
+| minSdk | 31（Android 12） |
 | Java 编译目标 / 工具链 | `app`/`feature-main`: JVM 21；`core`/`data`/`ui`: JVM 11；JDK 21 |
 
 ```text

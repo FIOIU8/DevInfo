@@ -36,7 +36,7 @@ DevInfo は Kotlin と Jetpack Compose で作られた Android デバイス情�
 
 - Material 3 に統一した技術ダッシュボード。詳細画面の上部には戻る操作と設定を配置します。メイン画面に下部ナビゲーションは表示せず、幅広い画面ではナビゲーションレールを使用します。カードと上部バーの操作は既定で Liquid Glass 表面を使用します。
 - すべてのページで Material 3 Expressive を使用します。ページタイトルの共有要素トランジション、コンテンツ内の大きな見出し、強調タイプスケール、押下時の縮小フィードバック、形状が変化するローディングインジケーター、統一されたシェイプスケールを備えます。押下アニメーションはテーマ設定で無効にできます。
-- 液体ガラス効果には AndroidLiquidGlass を使用しており、テーマ設定でオフにできます。オフにするとカードは純粋な Material 3 のトーナル表面（コンテナ色と形状は同じ）に戻り、自前描画のガラス層は残りません。
+- 液体ガラス効果には AndroidLiquidGlass を使用しており、テーマ設定でオフにできます。Android 12 / 12L でも背景のぼかしは有効ですが、レンズの屈折効果には Android 13 以降が必要です。オフにするとカードは純粋な Material 3 のトーナル表面（コンテナ色と形状は同じ）に戻り、自前描画のガラス層は残りません。
 - 動的カラーモードでは、カラースタイル（Tonal Spot、Vibrant、Expressive、Fidelity、Content、Neutral、Monochrome、Rainbow、Fruit Salad）とコントラスト段階が実際にパレット生成に反映されます。
 - システム、ライト、ダーク、動的カラー、テーマ色、カラースタイル、ページ倍率の設定。設定項目はセグメントリストに統一されています。
 - 簡体字中国語、英語、日本語、カスタム BCP-47 locale タグ。
@@ -65,7 +65,7 @@ Manifest が宣言するのは `INTERNET`、`ACCESS_NETWORK_STATE`、`ACCESS_WIF
 
 - Android Studio と Android SDK 37。
 - JDK 21、`app`/`feature-main` のコンパイルターゲットは JVM 21、`core`/`data`/`ui` は JVM 11 のままです。
-- 最低対応 Android は Android 13（API 33）です。
+- 最低対応 Android は Android 12（API 31）です。
 
 ### ローカルビルド
 
@@ -89,7 +89,7 @@ Debug APK は `app/build/outputs/apk/debug/` に出力されます。
 | Jetpack Compose | BOM 2026.08.00 |
 | Android Gradle Plugin | 9.1.0 |
 | compileSdk / targetSdk | 37 |
-| minSdk | 33（Android 13） |
+| minSdk | 31（Android 12） |
 | Java ターゲット / ツールチェーン | `app`/`feature-main`: JVM 21、`core`/`data`/`ui`: JVM 11、JDK 21 |
 
 ```text

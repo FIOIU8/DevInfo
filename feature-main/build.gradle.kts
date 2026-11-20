@@ -9,7 +9,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        minSdk = 33
+        minSdk = 31
         // VERSION_NAME 只在 defaultConfig 声明（两个 buildType 都不覆盖它）。
         // 必须与 app/build.gradle.kts 读取同一个环境变量，否则更新检查会依据
         // 过期的硬编码版本号提前返回。

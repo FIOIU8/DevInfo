@@ -12,8 +12,10 @@ import com.fioiu8.devinfo.data.ModuleExportHelper
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.Properties
 import java.util.zip.ZipInputStream
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -31,8 +33,10 @@ import org.junit.runner.RunWith
 class ModuleExportInstrumentedTest {
 
     @Test
-    fun exportedModuleCarriesNoCustomInstallerAndKeepsRequiredFiles() {
+    fun exportedModuleKeepsRequiredFilesAndAppVersionWithoutCustomInstaller() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        @Suppress("DEPRECATION") // 独立验证导出版本，两种系统分支均可用整数 flags 读取。
+        val installedApp = context.packageManager.getPackageInfo(context.packageName, 0)
         val helper = ModuleExportHelper(context)
         val output = ByteArrayOutputStream()
         var failure: String? = null
@@ -48,11 +52,17 @@ class ModuleExportInstrumentedTest {
         assertNull("导出失败: $failure", failure)
 
         val bytes = output.toByteArray()
+        val moduleMetadata = Properties()
         val entries = ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
-            generateSequence { zip.nextEntry }.map { it.name }.toList()
+            generateSequence { zip.nextEntry }.map { entry ->
+                if (entry.name == "module.prop") moduleMetadata.load(zip.reader())
+                entry.name
+            }.toList()
         }
 
         assertTrue("缺少 module.prop: $entries", entries.contains("module.prop"))
+        assertEquals(installedApp.versionName, moduleMetadata.getProperty("version"))
+        assertEquals(installedApp.longVersionCode.toString(), moduleMetadata.getProperty("versionCode"))
         assertTrue("缺少 system.prop: $entries", entries.contains("system.prop"))
         assertFalse("不应再产出 META-INF 安装脚本: $entries", entries.any { it.startsWith("META-INF") })
         assertFalse("不应再产出 install.sh: $entries", entries.contains("install.sh"))
