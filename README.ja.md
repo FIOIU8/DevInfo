@@ -11,7 +11,7 @@
 | <img src="readme_overview.png" width="220" alt="デバイス概要"> | <img src="readme_overview_metrics.png" width="220" alt="リアルタイム指標とカテゴリ"> | <img src="readme_hardware_details.png" width="220" alt="ハードウェア詳細"> |
 
 [![License](https://img.shields.io/github/license/FIOIU8/DevInfo?color=blue)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-13%2B-brightgreen.svg)](https://developer.android.com)
+[![Android](https://img.shields.io/badge/Android-12%2B-brightgreen.svg)](https://developer.android.com)
 [![GitHub Release](https://img.shields.io/github/v/release/FIOIU8/DevInfo?style=flat&logo=github)](https://github.com/FIOIU8/DevInfo/releases)
 
 DevInfo は Kotlin と Jetpack Compose で作られた Android デバイス情報ビューアです。端末情報をローカルで収集し、リアルタイムのハードウェア概要、カテゴリ別の詳細、テーマと言語設定を提供します。情報を Magisk/KernelSU の ZIP モジュールとして書き出すこともできます。

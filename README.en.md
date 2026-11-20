@@ -11,7 +11,7 @@
 | <img src="readme_overview.png" width="220" alt="Device overview"> | <img src="readme_overview_metrics.png" width="220" alt="Live metrics and categories"> | <img src="readme_hardware_details.png" width="220" alt="Hardware details"> |
 
 [![License](https://img.shields.io/github/license/FIOIU8/DevInfo?color=blue)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-13%2B-brightgreen.svg)](https://developer.android.com)
+[![Android](https://img.shields.io/badge/Android-12%2B-brightgreen.svg)](https://developer.android.com)
 [![GitHub Release](https://img.shields.io/github/v/release/FIOIU8/DevInfo?style=flat&logo=github)](https://github.com/FIOIU8/DevInfo/releases)
 
 DevInfo is an Android device information viewer built with Kotlin and Jetpack Compose. It collects device data locally, provides a live hardware overview and categorized details, supports theme and language settings, and can export the information as a Magisk/KernelSU ZIP module.
